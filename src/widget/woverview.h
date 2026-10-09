@@ -99,6 +99,7 @@ class WOverview : public WWidget, public TrackDropTarget {
     void drawAnalyzerProgress(QPainter* pPainter);
     void drawRangeMarks(QPainter* pPainter, const float& offset, const float& gain);
     void drawMarks(QPainter* pPainter, const float offset, const float gain);
+    void drawBarMarkers(QPainter* pPainter, const float offset, const float gain);
     void drawPickupPosition(QPainter* pPainter);
     void drawTimeRuler(QPainter* pPainter);
     void drawMarkLabels(QPainter* pPainter, const float offset, const float gain);
@@ -214,6 +215,11 @@ class WOverview : public WWidget, public TrackDropTarget {
     QColor m_axesColor;
     QColor m_playPosColor;
     QColor m_endOfTrackColor;
+    QColor m_barMarkerColor;
+    QColor m_phraseMarkerColor;
+    bool m_showBarMarkers = false;
+    bool m_showPhraseMarkers = false;
+    int m_phraseBars = 8;
     QColor m_passthroughOverlayColor;
     QColor m_playedOverlayColor;
     QColor m_lowColor;

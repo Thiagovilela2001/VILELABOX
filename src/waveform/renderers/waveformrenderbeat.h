@@ -16,6 +16,14 @@ class WaveformRenderBeat : public WaveformRendererAbstract {
 
   private:
     QColor m_beatColor;
+    QColor m_barColor;
+    bool m_showVocalMarkers = false;
+    bool m_showBarMarkers = false;
+    QVector<QLineF> m_barBeats;
+    QColor m_phraseColor;
+    bool m_showPhraseMarkers = false;
+    int m_phraseBars = 8;
+    QVector<QLineF> m_phraseBeats;
     QVector<QLineF> m_beats;
 
     DISALLOW_COPY_AND_ASSIGN(WaveformRenderBeat);

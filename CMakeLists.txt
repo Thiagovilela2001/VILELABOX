@@ -725,6 +725,8 @@ set(CLANG_TIDY "" CACHE STRING "CMAKE_CXX_CLANG_TIDY equivalent that only applie
 # Mixxx itself
 add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/analyzer/analyzerbeats.cpp
+  src/analyzer/analyzervocals.cpp
+  src/analyzer/vocalanalysisstore.cpp
   src/analyzer/analyzerebur128.cpp
   src/analyzer/analyzergain.cpp
   src/analyzer/analyzerkey.cpp
@@ -1320,6 +1322,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/widget/whotcuebutton.cpp
   src/widget/wimagestore.cpp
   src/widget/wkey.cpp
+  src/widget/wvocalstatus.cpp
   src/widget/wknob.cpp
   src/widget/wknobcomposed.cpp
   src/widget/wlabel.cpp
@@ -2125,6 +2128,7 @@ if(BUILD_TESTING)
     src-mixxx-test
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
+    src/test/analyzergrid_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
     src/test/beatgridtest.cpp

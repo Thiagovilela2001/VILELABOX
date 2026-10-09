@@ -49,6 +49,7 @@
 #include "widget/weffectselector.h"
 #include "widget/whotcuebutton.h"
 #include "widget/wkey.h"
+#include "widget/wvocalstatus.h"
 #include "widget/wknob.h"
 #include "widget/wknobcomposed.h"
 #include "widget/wlabel.h"
@@ -617,6 +618,10 @@ QList<QWidget*> LegacySkinParser::parseNode(const QDomElement& node) {
         result = wrapWidget(parseLibrarySidebar(node));
     } else if (nodeName == "Library") {
         result = wrapWidget(parseLibrary(node));
+    } else if (nodeName == "VocalStatus") {
+        auto* status = new WVocalStatus(lookupNodeGroup(node), m_pPlayerManager, m_pParent);
+        setupLabelWidget(node, status);
+        result = wrapWidget(status);
     } else if (nodeName == "Key") {
         result = wrapWidget(parseEngineKey(node));
     } else if (nodeName == "Battery") {

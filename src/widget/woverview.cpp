@@ -9,6 +9,7 @@
 #include <QVBoxLayout>
 
 #include "analyzer/analyzerprogress.h"
+#include "analyzer/vocalanalysisstore.h"
 #include "control/controlproxy.h"
 #include "engine/engine.h"
 #include "mixer/playermanager.h"
@@ -163,7 +164,27 @@ void WOverview::setup(const QDomNode& node, const SkinContext& context) {
         m_endOfTrackColor = WSkinColor::getCorrectColor(m_endOfTrackColor);
     }
 
+    m_showBarMarkers = context.selectBool(node, "ShowBarMarkers", false);
+    m_barMarkerColor = context.selectColor(node, "BarMarkerColor");
+    if (!m_barMarkerColor.isValid()) {
+        m_barMarkerColor = QColor("#ff8c1a");
+    }
+    m_barMarkerColor = WSkinColor::getCorrectColor(m_barMarkerColor);
+    m_showPhraseMarkers = context.selectBool(node, "ShowPhraseMarkers", false);
+    const int phraseBars = context.selectInt(node, "PhraseBars", &okay);
+    m_phraseBars = okay && phraseBars > 0 ? phraseBars : 8;
+    m_phraseMarkerColor = context.selectColor(node, "PhraseMarkerColor");
+    if (!m_phraseMarkerColor.isValid()) {
+        m_phraseMarkerColor = QColor("#ff3b30");
+    }
+    m_phraseMarkerColor = WSkinColor::getCorrectColor(m_phraseMarkerColor);
+
     // setup hotcues and cue and loop(s)
+    connect(&VocalAnalysisStore::instance(), &VocalAnalysisStore::updated, this,
+            [this](const QString& path) {
+                if (m_pCurrentTrack && m_pCurrentTrack->getLocation() == path) update();
+            }, Qt::QueuedConnection);
+    setProperty("showVocalMarkers", context.selectBool(node, "ShowVocalMarkers", false));
     m_marks.setup(m_group, node, context, m_signalColors);
 
     ColorPaletteSettings colorPaletteSettings(m_pConfig);
@@ -356,6 +377,7 @@ void WOverview::slotLoadingTrack(TrackPointer pNewTrack, TrackPointer pOldTrack)
                 &Track::cuesUpdated,
                 this,
                 &WOverview::receiveCuesUpdated);
+        disconnect(m_pCurrentTrack.get(), &Track::beatsUpdated, this, nullptr);
     }
 
     m_waveformSourceImage = QImage();
@@ -379,6 +401,8 @@ void WOverview::slotLoadingTrack(TrackPointer pNewTrack, TrackPointer pOldTrack)
                 &WOverview::slotWaveformSummaryUpdated);
         slotWaveformSummaryUpdated();
         connect(pNewTrack.get(), &Track::cuesUpdated, this, &WOverview::receiveCuesUpdated);
+        // Bar and phrase markers follow grid edits such as SET 1.
+        connect(pNewTrack.get(), &Track::beatsUpdated, this, [this]() { update(); });
     } else {
         m_pCurrentTrack.reset();
         m_pWaveform.clear();
@@ -679,6 +703,19 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
             const auto gain = static_cast<CSAMPLE_GAIN>(length() - 2) /
                     static_cast<CSAMPLE_GAIN>(trackSamples);
 
+            const auto vocals = VocalAnalysisStore::instance().get(m_pCurrentTrack->getLocation());
+            if (property("showVocalMarkers").toBool() && vocals &&
+                    vocals->status == VocalAnalysis::Status::Ready && vocals->duration > 0) {
+                for (const auto& segment : vocals->segments) {
+                    const double start = 1 + (length() - 2) * segment.first / vocals->duration;
+                    const double end = 1 + (length() - 2) * segment.second / vocals->duration;
+                    painter.fillRect(m_orientation == Qt::Horizontal
+                                    ? QRectF(start, height() - 5, end - start, 5)
+                                    : QRectF(width() - 5, start, 5, end - start),
+                            QColor("#ff63c6"));
+                }
+            }
+            drawBarMarkers(&painter, offset, gain);
             drawRangeMarks(&painter, offset, gain);
             drawMarks(&painter, offset, gain);
             drawPickupPosition(&painter);
@@ -694,6 +731,38 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
     } else {
         m_pPassthroughLabel->hide();
     }
+}
+
+void WOverview::drawBarMarkers(QPainter* pPainter, const float offset, const float gain) {
+    if (!m_showBarMarkers && !m_showPhraseMarkers) {
+        return;
+    }
+    const mixxx::BeatsPointer pBeats = m_pCurrentTrack->getBeats();
+    if (!pBeats || !pBeats->hasDownbeat()) {
+        return;
+    }
+    const auto trackEnd = mixxx::audio::FramePos::fromEngineSamplePos(getTrackSamples());
+    QVector<QLineF> barLines;
+    QVector<QLineF> phraseLines;
+    for (auto it = pBeats->iteratorFrom(mixxx::audio::kStartFramePos);
+            it != pBeats->cend() && *it <= trackEnd;
+            ++it) {
+        const bool phrase = m_showPhraseMarkers && pBeats->isDownbeat(it, m_phraseBars);
+        if (!phrase && !(m_showBarMarkers && pBeats->isDownbeat(it))) {
+            continue;
+        }
+        const double pos = offset + it->toEngineSamplePos() * gain;
+        const QLineF line = m_orientation == Qt::Horizontal
+                ? QLineF(pos, 0.0, pos, height())
+                : QLineF(0.0, pos, width(), pos);
+        (phrase ? phraseLines : barLines).append(line);
+    }
+    PainterScope painterScope(pPainter);
+    pPainter->setOpacity(0.8);
+    pPainter->setPen(QPen(m_barMarkerColor, m_scaleFactor));
+    pPainter->drawLines(barLines);
+    pPainter->setPen(QPen(m_phraseMarkerColor, 2 * m_scaleFactor));
+    pPainter->drawLines(phraseLines);
 }
 
 void WOverview::drawEndOfTrackBackground(QPainter* pPainter) {

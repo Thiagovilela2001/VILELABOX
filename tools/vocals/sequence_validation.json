@@ -1,0 +1,48 @@
+[
+  {
+    "vocal_source": "/home/thiago/Documentos/drumkit/Grime/Prime Loops - Bassline And 4x4 Uk Garage Vol 1/Vocals/Vox_016_PL.wav",
+    "instrumental_source": "/home/thiago/Documentos/drumkit/Grime/UNDRGRND Sounds Grime 2.0 WAV MiDi/UNDRGRNDSounds-Grime2.0-Wav/US_GM2_Bass Loops/US_GM2_135_Bassloop_xod_Gm.wav",
+    "duration": 22.0,
+    "seconds_to_analyze": 0.1312705009995625,
+    "vocal_coverage": 0.7440000000000001,
+    "instrumental_false_positive_coverage": 0.05466666666666671,
+    "segments": [
+      [
+        7.936,
+        10.496
+      ],
+      [
+        12.032,
+        14.592
+      ]
+    ]
+  },
+  {
+    "vocal_source": "/home/thiago/Documentos/drumkit/Dropgun Samples Cyclops Dubstep/Dropgun Samples Cyclops Dubstep/Loops/Melodic_Loops/Vocal_Chops/DS_CYCLOPS_140_vocal_chop_sheesh_C#min.wav",
+    "instrumental_source": "/home/thiago/Documentos/drumkit/Dropgun Samples Cyclops Dubstep/Dropgun Samples Cyclops Dubstep/Loops/Drum_Loops/Hat_Loops/DS_CYCLOPS_140_drum_hat_explode_alt.wav",
+    "duration": 22.0,
+    "seconds_to_analyze": 0.12851589299953048,
+    "vocal_coverage": 0.8826666666666666,
+    "instrumental_false_positive_coverage": 0.028000000000000025,
+    "segments": [
+      [
+        8.704,
+        14.336
+      ]
+    ]
+  },
+  {
+    "vocal_source": "/home/thiago/Documentos/drumkit/Dropgun Samples Cyclops Dubstep/Dropgun Samples Cyclops Dubstep/One_Shots/Vocal_One_Shots/Phrase_One_Shots/DS_CYCLOPS_vocal_phrase_male_bleed_exhausted_wet.wav",
+    "instrumental_source": "/home/thiago/Documentos/drumkit/Grime/Ghost Syndicate Dark Bass Vol 1/DarkBassVol1_GHOSTSYNDICATE/GS_DBV1_bass loops/GS_DBV1_140_bs_23_F.wav",
+    "duration": 22.0,
+    "seconds_to_analyze": 0.12797009899986733,
+    "vocal_coverage": 0.16000000000000014,
+    "instrumental_false_positive_coverage": 0.005333333333333338,
+    "segments": [
+      [
+        7.936,
+        8.96
+      ]
+    ]
+  }
+]

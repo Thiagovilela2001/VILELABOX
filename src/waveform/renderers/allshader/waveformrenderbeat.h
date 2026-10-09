@@ -27,6 +27,14 @@ class allshader::WaveformRenderBeat final : public allshader::WaveformRenderer {
   private:
     mixxx::UnicolorShader m_shader;
     QColor m_color;
+    QColor m_barColor;
+    bool m_showVocalMarkers = false;
+    bool m_showBarMarkers = false;
+    VertexData m_barVertices;
+    QColor m_phraseColor;
+    bool m_showPhraseMarkers = false;
+    int m_phraseBars = 8;
+    VertexData m_phraseVertices;
     VertexData m_vertices;
 
     bool m_isSlipRenderer;

@@ -1,0 +1,37 @@
+{
+  "held_out_packs": [
+    "Dropgun Samples Cyclops Dubstep",
+    "Grime"
+  ],
+  "train_windows": 6188,
+  "validation_windows": 1690,
+  "auc": 0.9118855622721281,
+  "report": {
+    "0": {
+      "precision": 0.8119935170178282,
+      "recall": 0.7779503105590062,
+      "f1-score": 0.7946074544012688,
+      "support": 644.0
+    },
+    "1": {
+      "precision": 0.8667287977632805,
+      "recall": 0.8891013384321224,
+      "f1-score": 0.877772534214252,
+      "support": 1046.0
+    },
+    "accuracy": 0.8467455621301775,
+    "macro avg": {
+      "precision": 0.8393611573905544,
+      "recall": 0.8335258244955643,
+      "f1-score": 0.8361899943077604,
+      "support": 1690.0
+    },
+    "weighted avg": {
+      "precision": 0.8458710931478537,
+      "recall": 0.8467455621301775,
+      "f1-score": 0.8460812256938016,
+      "support": 1690.0
+    }
+  },
+  "threshold": 0.9
+}
