@@ -1,118 +1,168 @@
-# Mixxx
+<p align="center">
+  <img src="res/images/icons/scalable/apps/blackmesa.svg" width="96" alt="">
+</p>
 
-[![GitHub latest tag](https://img.shields.io/github/tag/mixxxdj/mixxx.svg)](https://mixxx.org/download)
-[![Packaging status](https://repology.org/badge/tiny-repos/mixxx.svg)](https://repology.org/metapackage/mixxx/versions)
-[![Build status](https://github.com/mixxxdj/mixxx/actions/workflows/build.yml/badge.svg)](https://github.com/mixxxdj/mixxx/actions/workflows/build.yml)
-[![Coverage status](https://coveralls.io/repos/github/mixxxdj/mixxx/badge.svg)](https://coveralls.io/github/mixxxdj/mixxx)
-[![Zulip chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://mixxx.zulipchat.com)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://mixxx.org/donate)
+# VILELABOX
 
-[Mixxx] is Free DJ software that gives you everything you need to perform live
-DJ mixes. Mixxx works on GNU/Linux, Windows, and macOS.
+Mod pessoal do [Mixxx](https://mixxx.org) 2.5.6 com foco em compassos,
+frases e edição de grid, com uma interface e um conjunto de recursos inspirados
+no rekordbox. O nome interno do build é **blackmesa**.
 
-## Quick Start
+> Projeto experimental e não oficial. Não tem relação com a equipe do Mixxx nem
+> com a AlphaTheta (rekordbox, Pioneer DJ). rekordbox é marca da AlphaTheta
+> Corporation.
 
-To get started with Mixxx:
+---
 
-1. For live use, [download the latest stable version][download-stable].
-2. For experimentation and testing, [download a development release][download-testing].
-3. To live on the bleeding edge, clone the repo: `git clone https://github.com/mixxxdj/mixxx.git`
+## O que muda em relação ao Mixxx 2.5.6
 
-## Bug tracker
+Cada recurso tem um documento próprio, com controles, uso, limites e testes.
 
-The Mixxx team uses [Github Issues][issues] to manage Mixxx development.
+| Recurso | O que faz | Documento |
+| --- | --- | --- |
+| **Compassos** | Contagem `compasso:tempo` em 4/4, linhas de compasso e de frase (8 compassos) na waveform e no overview, compasso 1 automático, SET 1 manual, sync por compasso ao dar PLAY, saltos e loops de N compassos | [COMPASSOS.md](COMPASSOS.md) |
+| **Grid** | Painel de edição por deck (GRID, deslocar, SET 1, LOCK, BPM ±0,01, TAP, ½×, 2×, UNDO) e o detector "VILELABOX — Grid preciso e primeiro tempo", com modos de BPM fixo e variável | [GRID.md](GRID.md) |
+| **Tonalidade** | Menu no cabeçalho do deck: trava de tom, ±1 semitom, voltar ao tom original e escolher a tônica diretamente | [TONALIDADE.md](TONALIDADE.md) |
+| **Vocal** | Detector próprio de presença de voz, mostrado como faixa rosa na waveform e indicador VOCAL / SEM VOZ | [VOCALS.md](VOCALS.md) |
+| **Frases** | Segmentação em Intro, Up, Chorus, Down, Verse e Outro, alinhada aos compassos; PhraseSync opcional | [FRASES.md](FRASES.md) |
+| **Cues automáticos** | Intro/Outro e hot cues de Up, Chorus e Down gerados a partir das frases, só em slots vazios, com desfazer | [CUES.md](CUES.md) |
+| **Mix Point Link** | Arma o deck parado para começar sozinho quando o outro deck chega ao ponto de saída | [MIXPOINT.md](MIXPOINT.md) |
+| **Faixas relacionadas** | Seção na biblioteca que sugere faixas por tom compatível (Camelot), BPM (±6%, com metade e dobro) e uma nota de energia própria | [RELACIONADAS.md](RELACIONADAS.md) |
+| **Pads na tela** | Slicer, KeyShift, Keyboard e Release Echo, em painel opcional na skin | [PADS.md](PADS.md) |
+| **Skins** | `RbxOriginal` (layout de dois decks no estilo do modo Performance) e `RbxFlowBars` (gráficos gerados por scripts próprios) com todos os controles do mod | [res/skins/](res/skins/) |
+| **Ponte XML** | Exporta e importa faixas, hot cues, loops, grid e playlists em `rekordbox.xml` | [tools/rekordbox/sync.py](tools/rekordbox/sync.py) |
 
-Have a bug or feature request? [File a bug on Github][fileabug].
+### Compatibilidade com o Mixxx original
 
-Want to get involved in Mixxx development? Assign yourself a bug from the [easy
-bug list][easybugs] and get started!
-Read [CONTRIBUTING](CONTRIBUTING.md) for more information.
+- **O banco de dados não muda de esquema.** O `mixxxdb.sqlite` continua abrindo
+  num Mixxx sem o mod.
+- **A referência de compasso fica no protobuf do grid**, num campo novo. Um
+  Mixxx sem o mod ignora esse campo; reanalisar ou regravar o grid nele pode
+  apagá-lo.
+- **Frases, vocal e energia ficam em caches separados**, dentro do perfil
+  (`analysis/phrases/`, `analysis/vocals/`, `analysis/blackmesa.sqlite`).
+- **Os controles novos só existem neste executável.** Abrir as skins no Mixxx
+  oficial carrega o layout, mas os botões do mod ficam sem efeito.
+- **Todos os recursos novos são opt-in** ou vêm com padrão conservador
+  (análises de frases e energia, cues automáticos e PhraseSync começam desligados).
+- O build desliga a interface QML experimental e a exportação Engine Prime
+  (dispensa a dependência libdjinterop).
 
-## Building Mixxx
+---
 
-First, open a terminal (on Windows, use "**x64 Native Tools Command Prompt for
-[VS 2022][visualstudio2022]**"), download the mixxx
-source code and navigate to it:
+## Como o VILELABOX usa o rekordbox
 
-    $ git clone https://github.com/mixxxdj/mixxx.git
-    $ cd mixxx
+O rekordbox entra no projeto de três formas. **Nenhum arquivo do rekordbox é
+distribuído aqui e nenhum código ou modelo dele é executado.**
 
-Download the required dependencies and set up the build environment by running the
-corresponding command for your operating system:
+### 1. Como catálogo de recursos
 
-| Platform | Command | Requirements |
-| -- | ------- | ------------ |
-| Windows | `tools\windows_buildenv.bat` | ~2.5 GB download, ~9 GB disk space |
-| macOS | `source tools/macos_buildenv.sh setup` | ~1.5 GB download, ~3 GB disk space |
-| Debian/Ubuntu | `tools/debian_buildenv.sh setup` | ~200 MB download, ~1 GB disk space |
-| Fedora | `tools/rpm_buildenv.sh setup` | ~200 MB download, ~1 GB disk space |
-| Flatpak | `tools/flatpak_buildenv.sh setup` | ~2.6 GB download, ~5 GB disk space |
-| Other Linux distros | See the [wiki article](https://github.com/mixxxdj/mixxx/wiki/Compiling%20on%20Linux) | |
+Um instalador do rekordbox foi examinado localmente, sem executar o programa,
+para saber **quais** funções existem e como estão organizadas. As fontes foram:
 
-To build Mixxx, run
+- os **mapeamentos MIDI** (`MidiMappings/*.midi.csv`, 69 controladoras), que
+  listam pelo nome todas as funções que uma controladora pode acionar;
+- a **lista de modos de pad** (`pad/*.pad.csv`);
+- os **nomes dos ícones** da interface, que revelam painéis e botões.
 
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    $ cmake --build .
+A partir disso, cada recurso foi implementado do zero sobre o motor do Mixxx:
 
-There should now be a `mixxx` executable in the current directory that you can
-run. Alternatively, can generate a package using `cpack`.
+| Função no rekordbox | Implementação no VILELABOX |
+| --- | --- |
+| `GridAdjust`, `GridSlide`, `GridAdjustHalf/Double`, ícones `Grid_Button_*` | Painel de grid (GRID.md) |
+| `MasterTempo`, `SemitoneUp/Down`, `KeyReset`, `KeySync` | Menu de tonalidade (TONALIDADE.md) |
+| `PhraseSync` | Análise de frases e PhraseSync (FRASES.md) |
+| `MixPointLink`, `MixPointLinkSilent`, `MixPointSelectNext/Prev` | Mix Point Link (MIXPOINT.md) |
+| `RelatedTracks`, ícones de sugestão de faixas | Faixas relacionadas (RELACIONADAS.md) |
+| Modos de pad `Slicers`, `KeyShift`, `Keyboard`, `*ReleaseFX*` | Pads na tela (PADS.md) |
+| Detecção de vocal da waveform | Detector de vocal (VOCALS.md) |
 
-For building and installing Mixxx as a Flatpak, check the documentation in [packaging/flatpak/README.md](packaging/flatpak/README.md).
+Os algoritmos são próprios ou vêm de projetos abertos (Queen Mary, para o grid).
+Os resultados **não são equivalentes** aos do rekordbox e não há essa alegação.
 
-Detailed build instructions for each target OS can be found [on the wiki](https://github.com/mixxxdj/mixxx/wiki#compile-mixxx-from-source-code)
+### 2. Como formato de troca
 
-## Documentation
+- `tools/rekordbox/sync.py` lê e escreve o **XML de coleção do rekordbox**
+  (`COLLECTION`, `DJ_PLAYLISTS`). Isso permite levar faixas, hot cues, loops,
+  grid e playlists entre os dois programas.
+- A importação recusa rodar com o Mixxx aberto, faz backup consistente do
+  banco antes de gravar e desfaz tudo se falhar.
+- A leitura de pendrives exportados pelo rekordbox (`lib/rekordbox-metadata/`)
+  é recurso do Mixxx original, mantido sem alterações.
 
-For help using Mixxx, there are a variety of options:
+### 3. Como referência visual
 
-- [Mixxx manual][manual]
-- [Mixxx wiki][wiki]
-- [Hardware Compatibility]
-- [Creating Skins]
+A skin `RbxOriginal` reproduz a **disposição** do modo Performance
+(2 decks horizontais, jog, mixer central e biblioteca embaixo). Os ícones dela
+(`res/skins/RbxOriginal/rb/`) são desenhos próprios, simples, feitos para
+este repositório.
 
-## Translation
+### O que o projeto não faz
 
-Help to spread Mixxx with translations into more languages, as well as to update and ensure the accuracy of existing translations.
+- **Não usa os modelos do rekordbox.** O instalador traz redes neurais (grid e
+  downbeat em TensorFlow, cues e embeddings em ONNX, separação de stems com
+  Demucs/Spleeter, `vd_param.pb` para vocal). Nenhum é incluído, carregado ou
+  convertido. Um script que fazia isso foi aposentado
+  (`tools/rekordbox/analyze_ml_retired.py`).
+- **Não copia arte, samples, mapeamentos nem binários do instalador.**
+  `tools/check-third-party-assets.sh` compara os arquivos de cada commit com os
+  do instalador e falha se encontrar uma cópia. Ele roda antes de cada publicação.
+- **Não faz engenharia reversa de algoritmos.**
 
-- [Help translate content]
-- [Mixxx i18n wiki]
-- [Mixxx localization forum]
-- [Mixxx glossary]
+---
 
-## Community
+## Compilar e abrir
 
-Mixxx is a vibrant community of hackers, DJs and artists. To keep track of
-development and community news:
+É preciso ter as dependências de compilação do Mixxx 2.5
+([guia oficial](https://github.com/mixxxdj/mixxx/wiki/Compiling-on-Linux)).
+Os scripts supõem o código em `~/.mixxx/mixxx-source`.
 
-- Chat with us on [Zulip][zulip].
-- Follow us on [Mastodon], [Twitter] and [Facebook].
-- Subscribe to the [Mixxx Blog][blog].
-- Post on the [Mixxx forums][discourse].
+```bash
+bash build-bars.sh      # compila em build/ e roda os testes de compassos e grid
+bash run-mixxx.sh       # abre com o perfil principal (~/.mixxx)
+bash run-bars.sh        # abre com um perfil de teste separado (~/.mixxx/bars-profile)
+```
 
-## License
+- **Faça backup de `~/.mixxx` antes do primeiro uso com o perfil principal.**
+  O `run-mixxx.sh` usa os mesmos biblioteca e configuração do Mixxx instalado.
+- O `run-bars.sh` copia a biblioteca e as configurações para um perfil separado
+  na primeira execução e não toca no principal.
+- Nada é instalado no sistema.
+- Escolha a skin em **Preferências → Interface**: `RbxOriginal` ou `RbxFlowBars`.
 
-Mixxx is released under the GPLv2. See the LICENSE file for a full copy of the
-license.
+Testes dos módulos novos:
 
-[mixxx]: https://mixxx.org
-[download-stable]: https://mixxx.org/download/#stable
-[download-testing]: https://mixxx.org/download/#testing
-[issues]: https://github.com/mixxxdj/mixxx/issues
-[fileabug]: https://github.com/mixxxdj/mixxx/issues/new/choose
-[mastodon]: https://floss.social/@mixxx
-[twitter]: https://twitter.com/mixxxdj
-[facebook]: https://www.facebook.com/pages/Mixxx-DJ-Software/21723485212
-[blog]: https://mixxx.org/news/
-[manual]: https://manual.mixxx.org/
-[wiki]: https://github.com/mixxxdj/mixxx/wiki
-[visualstudio2022]: https://docs.microsoft.com/visualstudio/install/install-visual-studio?view=vs-2022
-[easybugs]: https://github.com/mixxxdj/mixxx/issues?q=is%3Aopen+is%3Aissue+label%3Aeasy
-[creating skins]: https://mixxx.org/wiki/doku.php/Creating-Skins
-[help translate content]: https://explore.transifex.com/mixxx-dj-software/
-[Mixxx i18n wiki]: https://github.com/mixxxdj/mixxx/wiki/Internationalization
-[Mixxx localization forum]: https://mixxx.discourse.group/c/translation/13
-[hardware compatibility]: https://manual.mixxx.org/2.3/en/hardware/manuals.html
-[zulip]: https://mixxx.zulipchat.com/
-[discourse]: https://mixxx.discourse.group/
+```bash
+QT_QPA_PLATFORM=offscreen build/mixxx-test --resource-path "$PWD/res" \
+  --gtest_filter='Phrase*:*Phrase*:BarSync*:BarJumpLoop*:*GridPanel*:AutoDownbeat*:RelatedTracks*:VocalAnalysis*:AnalyzerVocals*'
+```
+
+O detector de vocal usa um Python com NumPy e SciPy (padrão
+`~/.venv/bin/python`, ou a variável `VILELABOX_VOCAL_PYTHON`).
+
+---
+
+## Estado atual
+
+Experimental, em uso pessoal. Antes de tocar ao vivo, considere:
+
+- **Defeitos conhecidos**, com correção planejada em [PLANO-2.md](PLANO-2.md):
+  - hot cues automáticos podem duplicar ao editar o grid;
+  - alguns recursos fazem trabalho bloqueante no processamento de áudio, com
+    risco de estalos ao carregar faixas;
+  - o Mix Point Link pode entrar alguns milissegundos atrasado.
+- **Validação auditiva e visual em uso real ainda está pendente** para a maioria
+  dos módulos. Os testes automatizados usam áudio sintético.
+- **Stems ainda não existem.** Dependem de migrar para o Mixxx 2.6.
+- **Nenhuma controladora foi mapeada.** Os recursos novos são acionados pela skin.
+
+Histórico do desenvolvimento: [PLANO.md](PLANO.md) (plano original) e
+[IMPLEMENTACAO.md](IMPLEMENTACAO.md) (registro da execução).
+
+---
+
+## Licença e créditos
+
+GPL-2.0-or-later, a mesma do Mixxx ([LICENSE](LICENSE)). Este projeto é
+construído sobre o trabalho da equipe e da comunidade do Mixxx. O README
+original do projeto está em [README.mixxx.md](README.mixxx.md).
