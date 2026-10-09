@@ -1,0 +1,268 @@
+<!DOCTYPE template>
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxRate<Variable name="ChanNum" />
+    </ObjectName>
+    <Layout>vertical</Layout>
+    <Size>66f,0min</Size>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>66f,20f</Size>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">pitch_down</SetVariable>
+            <SetVariable name="ObjectName">KeyDown</SetVariable>
+            <SetVariable name="Size">32f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">♭</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">
+              <Variable name="Group" />,pitch_down</SetVariable>
+          </Template>
+          <WidgetGroup>
+            <Size>2f,0me</Size>
+          </WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">pitch_up</SetVariable>
+            <SetVariable name="ObjectName">KeyUp</SetVariable>
+            <SetVariable name="Size">32f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">♯</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">
+              <Variable name="Group" />,pitch_up</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <Template src="skin:controls/btn_2state.xml">
+        <SetVariable name="TooltipId">sync_reset_key</SetVariable>
+        <SetVariable name="ObjectName">HeaderKeySync</SetVariable>
+        <SetVariable name="Size">66f,20f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">KEY SYNC</SetVariable>
+        <SetVariable name="state_1_text">KEY SYNC</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey">
+          <Variable name="Group" />,sync_key</SetVariable>
+        <SetVariable name="ConfigKeyDisp">
+          <Variable name="Group" />,sync_key</SetVariable>
+      </Template>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>0me,20f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>PitchRangePreset</ObjectName>
+            <Size>31f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>6%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>6%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>
+                <Variable name="Group" />,rateRange</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+              <Transform>
+                <IsEqual>0.012531328320802003</IsEqual>
+              </Transform>
+            </Connection>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton>
+          </PushButton>
+          <WidgetGroup>
+            <Size>4f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>PitchRangePreset</ObjectName>
+            <Size>31f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>10%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>10%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>
+                <Variable name="Group" />,rateRange</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+              <Transform>
+                <IsEqual>0.022556390977443611</IsEqual>
+              </Transform>
+            </Connection>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,2f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>0me,20f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>PitchRangePreset</ObjectName>
+            <Size>31f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>16%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>16%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>
+                <Variable name="Group" />,rateRange</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+              <Transform>
+                <IsEqual>0.037593984962406013</IsEqual>
+              </Transform>
+            </Connection>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton>
+          </PushButton>
+          <WidgetGroup>
+            <Size>4f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>PitchRangePreset</ObjectName>
+            <Size>31f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>50%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>50%</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>
+                <Variable name="Group" />,rateRange</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+              <Transform>
+                <IsEqual>0.12280701754385964</IsEqual>
+              </Transform>
+            </Connection>
+            <LeftClickIsPushButton>true</LeftClickIsPushButton>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>66f,20f</Size>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate_temp_down_rate_temp_down_small</SetVariable>
+            <SetVariable name="ObjectName">PitchDown</SetVariable>
+            <SetVariable name="Size">21f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">-</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">
+              <Variable name="Group" />,rate_perm_down</SetVariable>
+            <SetVariable name="ConfigKeyRight">
+              <Variable name="Group" />,rate_temp_down</SetVariable>
+          </Template>
+          <WidgetGroup>
+            <Size>1f,0me</Size>
+          </WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate</SetVariable>
+            <SetVariable name="ObjectName">PitchReset</SetVariable>
+            <SetVariable name="Size">22f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">0</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">
+              <Variable name="Group" />,rate_set_default</SetVariable>
+          </Template>
+          <WidgetGroup>
+            <Size>1f,0me</Size>
+          </WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate_temp_up_rate_temp_up_small</SetVariable>
+            <SetVariable name="ObjectName">PitchUp</SetVariable>
+            <SetVariable name="Size">21f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">+</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">
+              <Variable name="Group" />,rate_perm_up</SetVariable>
+            <SetVariable name="ConfigKeyRight">
+              <Variable name="Group" />,rate_temp_up</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <Template src="skin:controls/btn_1state_right.xml">
+        <SetVariable name="TooltipId">tempo_tap</SetVariable>
+        <SetVariable name="ObjectName">BpmTap</SetVariable>
+        <SetVariable name="Size">66f,20f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">TAP</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey">
+          <Variable name="Group" />,tempo_tap</SetVariable>
+        <SetVariable name="ConfigKeyRight">
+          <Variable name="Group" />,bpm_tap</SetVariable>
+      </Template>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_pitch</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

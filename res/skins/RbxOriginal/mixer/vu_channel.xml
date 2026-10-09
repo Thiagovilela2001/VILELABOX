@@ -1,0 +1,55 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/vu_channel.xml
+  Mono channel meter: clip housing on top, vertical level meter under it.
+
+  SIZE MODEL (this is the part that used to be wrong): in Mixxx an element with
+  no `scalemode` attribute is Fixed, which calls setFixedSize(pixmap size). A
+  <Size> on the widget is then silently ignored. LateNight therefore generates
+  its meter PNGs at the final on-screen size and declares nothing here.
+  RbxFlow does the same: the level images are 10x114 and the clip SVGs 10x6.
+
+  The level images MUST be PNG. Unless started with the legacy VU flag, Mixxx draws
+  VuMeter with OpenGL and uploads PathBack/PathVu via Paintable::toImage(),
+  which returns an empty image for SVG sources - the meter is then invisible.
+  tools/make_look.py writes the SVG and rasterizes it to PNG.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxVuBox</ObjectName>
+    <Layout>vertical</Layout>
+    <!-- min,min and NO <Size>: the two children are Fixed to their pixmaps
+         (10x6 clip + 10x114 meter) and the box simply wraps them, including
+         whatever layout spacing Qt adds. Pinning the box to 240 clipped the
+         meter away, because the parts plus layout spacing exceed the sum. -->
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+      <StatusLight>
+        <TooltipId>channel_peak_indicator</TooltipId>
+        <ObjectName>ChannelClip</ObjectName>
+        <Size>10f,6f</Size>
+        <PathBack>skin:bases/vu_deck_clipping_bg.svg</PathBack>
+        <PathStatusLight>skin:bases/vu_deck_clipping_active.svg</PathStatusLight>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,peak_indicator</ConfigKey>
+        </Connection>
+      </StatusLight>
+      <VuMeter>
+        <TooltipId>channel_VuMeter</TooltipId>
+        <ObjectName>ChannelVu</ObjectName>
+        <Size>10f,114f</Size>
+        <PathBack>skin:bases/vu_deck_level_bg.png</PathBack>
+        <PathVu>skin:bases/vu_deck_level_active.png</PathVu>
+        <Horizontal>false</Horizontal>
+        <PeakHoldSize>4</PeakHoldSize>
+        <PeakHoldTime>500</PeakHoldTime>
+        <PeakFallTime>10</PeakFallTime>
+        <PeakFallStep>2</PeakFallStep>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,vu_meter</ConfigKey>
+        </Connection>
+      </VuMeter>
+    </Children>
+  </WidgetGroup>
+</Template>

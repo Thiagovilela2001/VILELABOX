@@ -1,0 +1,149 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: waveform.xml
+  The scrolling per-deck waveform ("main" waveform), horizontal: beat grid, hot
+  cues, loop range, playhead, wheel zoom (built into WWaveform).
+
+  *** THIS WIDGET IS ALSO THE TRACK DROP TARGET. ***
+  WWaveformViewer's constructor calls setAcceptDrops(true) and implements
+  dragEnterEvent/dropEvent (src/widget/wwaveformviewer.cpp), so dragging a track
+  from the library onto this widget loads it into the deck.
+
+  An earlier revision hid this widget while the deck was empty - `visible` bound
+  to [ChannelN],track_loaded - to show an empty-state beat grid. That silently
+  broke "drag a track onto an empty deck", which is the normal way to load deck
+  2. Nothing here may ever depend on track_loaded again: hiding a drop target
+  exactly when a deck is empty is the worst possible time to hide it. The empty
+  affordance lives in the deck header instead (see track_info.xml).
+  Variables: ChanNum
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>WaveformBand<Variable name="ChanNum"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <MinimumSize>0,40</MinimumSize>
+    <Children>
+      <Visual>
+        <ObjectName>Waveform<Variable name="ChanNum"/></ObjectName>
+        <TooltipId>waveform_display</TooltipId>
+        <Channel><Variable name="ChanNum"/></Channel>
+        <!-- `me` in BOTH axes: the visual has no intrinsic size, so without an
+             explicit expanding policy it collapses and the row draws nothing. -->
+        <Size>0me,0me</Size>
+        <BgColor><Variable name="BgColorWaveform"/></BgColor>
+        <SignalColor><Variable name="SignalColor"/></SignalColor>
+        <SignalHighColor><Variable name="SignalHighColor"/></SignalHighColor>
+        <SignalMidColor><Variable name="SignalMidColor"/></SignalMidColor>
+        <SignalLowColor><Variable name="SignalLowColor"/></SignalLowColor>
+        <SignalRGBHighColor><Variable name="SignalRGBHighColor"/></SignalRGBHighColor>
+        <SignalRGBMidColor><Variable name="SignalRGBMidColor"/></SignalRGBMidColor>
+        <SignalRGBLowColor><Variable name="SignalRGBLowColor"/></SignalRGBLowColor>
+        <BeatColor><Variable name="BeatColor"/></BeatColor>
+        <ShowBarMarkers>true</ShowBarMarkers>
+        <BarMarkerColor>#ff8c1a</BarMarkerColor>
+        <AxesColor><Variable name="AxesColor"/></AxesColor>
+        <BeatHighlightColor></BeatHighlightColor>
+        <PlayPosColor><Variable name="PlayPosColor"/></PlayPosColor>
+        <EndOfTrackColor><Variable name="EndOfTrackColor"/></EndOfTrackColor>
+        <SlipBorderOutlineColor><Variable name="SlipBorderOutlineColor"/></SlipBorderOutlineColor>
+        <SlipBorderTopOutlineSize>10</SlipBorderTopOutlineSize>
+        <SlipBorderBottomOutlineSize>10</SlipBorderBottomOutlineSize>
+        <PassthroughLabelColor><Variable name="PassthroughLabelColor"/></PassthroughLabelColor>
+        <DimBrightThreshold><Variable name="DimBrightThresholdWaveform"/></DimBrightThreshold>
+
+        <DefaultMark>
+          <Align>bottom|right</Align>
+          <Color>#ffa600</Color>
+          <TextColor>#0d0f11</TextColor>
+          <Text> %1 </Text>
+        </DefaultMark>
+
+        <Mark>
+          <Control>cue_point</Control>
+          <Text>CUE</Text>
+          <Align>top|right</Align>
+          <Color><Variable name="CueColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+
+        <MarkRange>
+          <StartControl>loop_start_position</StartControl>
+          <EndControl>loop_end_position</EndControl>
+          <EnabledControl>loop_enabled</EnabledControl>
+          <Color><Variable name="LoopColor"/></Color>
+          <Opacity>0.5</Opacity>
+          <DisabledColor>#5b646d</DisabledColor>
+          <DisabledOpacity>0.4</DisabledOpacity>
+        </MarkRange>
+        <Mark>
+          <Control>loop_start_position</Control>
+          <Text>|</Text>
+          <Align>top|left</Align>
+          <Color><Variable name="LoopColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+        <Mark>
+          <Control>loop_end_position</Control>
+          <Text>|</Text>
+          <Align>top|right</Align>
+          <Color><Variable name="LoopColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+
+        <MarkRange>
+          <StartControl>intro_start_position</StartControl>
+          <EndControl>intro_end_position</EndControl>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <Opacity>0.18</Opacity>
+          <DurationTextColor>#c8cfd6</DurationTextColor>
+          <DurationTextLocation>after</DurationTextLocation>
+        </MarkRange>
+        <Mark>
+          <Control>intro_start_position</Control>
+          <Text>&#9698;</Text>
+          <Icon></Icon>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Align>top|right</Align>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+        <Mark>
+          <Control>intro_end_position</Control>
+          <Text>&#9698;</Text>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Align>top|left</Align>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+
+        <MarkRange>
+          <StartControl>outro_start_position</StartControl>
+          <EndControl>outro_end_position</EndControl>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <Opacity>0.18</Opacity>
+          <DurationTextColor>#c8cfd6</DurationTextColor>
+          <DurationTextLocation>before</DurationTextLocation>
+        </MarkRange>
+        <Mark>
+          <Control>outro_start_position</Control>
+          <Text>&#9699;</Text>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Align>top|right</Align>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+        <Mark>
+          <Control>outro_end_position</Control>
+          <Text>&#9699;</Text>
+          <VisibilityControl>[RbxFlow],show_intro_outro</VisibilityControl>
+          <Align>top|left</Align>
+          <Color><Variable name="IntroOutroColor"/></Color>
+          <TextColor>#0d0f11</TextColor>
+        </Mark>
+      </Visual>
+    </Children>
+  </WidgetGroup>
+</Template>

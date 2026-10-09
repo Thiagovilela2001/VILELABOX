@@ -1,0 +1,202 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/master.xml
+  The master strip in the Rekordbox flow:  CH 1 -> MASTER -> CH 2
+
+    MASTER
+    GAIN  BAL  BOOTH        (BOOTH only when booth output is enabled)
+    HP cue level | HP mix | split
+    stereo master meter      <- fills the strip, so the centre column has no
+                                dead band under it any more
+  The crossfader deliberately lives in mixer.xml as a full-width row: inside a
+  strip it could never be wider than the strip.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxMaster</ObjectName>
+    <Layout>vertical</Layout>
+    <!-- 152f = fixed width; 0me = grows, which is what lets the master meter
+         run down to the same baseline as the two channel meters. -->
+    <Size>152f,0me</Size>
+    <MinimumSize>152,</MinimumSize>
+    <Children>
+
+      <Label>
+        <ObjectName>MasterLabel</ObjectName>
+        <Size>152f,16f</Size>
+        <Alignment>center</Alignment>
+        <Text>MASTER</Text>
+      </Label>
+
+      <!-- gain / balance / booth -->
+      <WidgetGroup>
+        <ObjectName>RbxMasterKnobs</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>152f,0max</Size>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <Size>44f,50f</Size>
+            <Children>
+              <Template src="skin:controls/knob.xml">
+                <SetVariable name="Group">[Master]</SetVariable>
+                <SetVariable name="Control">gain</SetVariable>
+                <SetVariable name="TooltipId">main_gain</SetVariable>
+                <SetVariable name="Size">40f,40f</SetVariable>
+                <SetVariable name="KnobBg">regular</SetVariable>
+                <SetVariable name="KnobColor">amber</SetVariable>
+                <SetVariable name="ArcColor"><Variable name="ArcColorGainLow"/></SetVariable>
+                <SetVariable name="ArcRadius"><Variable name="ArcRadiusBig"/></SetVariable>
+                <SetVariable name="ArcThickness"><Variable name="ArcThicknessBig"/></SetVariable>
+                <SetVariable name="ArcUnipolar">true</SetVariable>
+              </Template>
+              <Label>
+                <ObjectName>KnobLabel</ObjectName>
+                <Size>44f,10f</Size>
+                <Alignment>center</Alignment>
+                <Text>GAIN</Text>
+              </Label>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <Size>44f,50f</Size>
+            <Children>
+              <Template src="skin:controls/knob.xml">
+                <SetVariable name="Group">[Master]</SetVariable>
+                <SetVariable name="Control">balance</SetVariable>
+                <SetVariable name="TooltipId">balance</SetVariable>
+                <SetVariable name="Size">40f,40f</SetVariable>
+                <SetVariable name="KnobBg">regular</SetVariable>
+                <SetVariable name="KnobColor">red</SetVariable>
+                <SetVariable name="ArcColor"><Variable name="ArcColorMstBal"/></SetVariable>
+                <SetVariable name="ArcRadius"><Variable name="ArcRadiusBig"/></SetVariable>
+                <SetVariable name="ArcThickness"><Variable name="ArcThicknessBig"/></SetVariable>
+              </Template>
+              <Label>
+                <ObjectName>KnobLabel</ObjectName>
+                <Size>44f,10f</Size>
+                <Alignment>center</Alignment>
+                <Text>BAL</Text>
+              </Label>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <Size>44f,50f</Size>
+            <Children>
+              <Template src="skin:controls/knob.xml">
+                <SetVariable name="Group">[Master]</SetVariable>
+                <SetVariable name="Control">booth_gain</SetVariable>
+                <SetVariable name="TooltipId">booth_gain</SetVariable>
+                <SetVariable name="Size">40f,40f</SetVariable>
+                <SetVariable name="KnobBg">regular</SetVariable>
+                <SetVariable name="KnobColor">amber</SetVariable>
+                <SetVariable name="ArcColor"><Variable name="ArcColorGainLow"/></SetVariable>
+                <SetVariable name="ArcRadius"><Variable name="ArcRadiusBig"/></SetVariable>
+                <SetVariable name="ArcThickness"><Variable name="ArcThicknessBig"/></SetVariable>
+                <SetVariable name="ArcUnipolar">true</SetVariable>
+              </Template>
+              <Label>
+                <ObjectName>KnobLabel</ObjectName>
+                <Size>44f,10f</Size>
+                <Alignment>center</Alignment>
+                <Text>BOOTH</Text>
+              </Label>
+            </Children>
+            <Connection>
+              <ConfigKey>[Master],booth_enabled</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <!-- headphone cue level / mix / split -->
+      <WidgetGroup>
+        <ObjectName>RbxHeadphone</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>152f,40f</Size>
+        <Children>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[Master]</SetVariable>
+            <SetVariable name="Control">headphone_gain</SetVariable>
+            <SetVariable name="TooltipId">headphone_gain</SetVariable>
+            <SetVariable name="Size">38f,38f</SetVariable>
+            <SetVariable name="KnobBg">regular</SetVariable>
+            <SetVariable name="KnobColor">grey</SetVariable>
+            <SetVariable name="ArcColor"><Variable name="ArcColorEq"/></SetVariable>
+            <SetVariable name="ArcRadius"><Variable name="ArcRadiusCompact"/></SetVariable>
+            <SetVariable name="ArcThickness"><Variable name="ArcThickness"/></SetVariable>
+          </Template>
+
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[Master]</SetVariable>
+            <SetVariable name="Control">headMix</SetVariable>
+            <SetVariable name="TooltipId">headMix</SetVariable>
+            <SetVariable name="Size">38f,38f</SetVariable>
+            <SetVariable name="KnobBg">regular</SetVariable>
+            <SetVariable name="KnobColor">blue</SetVariable>
+            <SetVariable name="ArcColor"><Variable name="ArcColorEq"/></SetVariable>
+            <SetVariable name="ArcRadius"><Variable name="ArcRadiusCompact"/></SetVariable>
+            <SetVariable name="ArcThickness"><Variable name="ArcThickness"/></SetVariable>
+          </Template>
+
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+
+          <PushButton>
+            <TooltipId>headSplit</TooltipId>
+            <ObjectName>HeadSplit</ObjectName>
+            <Size>38f,38f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>false</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>HP</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>HP</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Master],headSplit</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+
+      <!-- stereo master meter. The strip is `0me`, so it stretches to match the
+           channel strips; the leading elastic spacer parks the meters on the
+           same baseline as the channel meters instead of leaving a gap. -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>152,120</MinimumSize>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>152f,0max</Size>
+            <Children>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+              <Template src="skin:mixer/vu_master.xml"/>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

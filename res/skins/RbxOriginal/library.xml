@@ -1,0 +1,89 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: library.xml
+  The bottom library, Rekordbox-style: crates/playlist tree on the left,
+  sortable track table on the right, search always reachable.
+  Mixxx 2.5 gives us the real <LibrarySidebar> (crates, playlists, search
+  sources) and <Library> (sortable track table with rating, BPM, key, genre,
+  comment, date, location). Column set/order/visibility is chosen in
+  Preferences > Library, not by the skin - see README limitations.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxLibraryContainer</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <MinimumSize>0,150</MinimumSize>
+    <Children>
+     <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+     <WidgetGroup>
+      <Layout>horizontal</Layout>
+      <SizePolicy>me,me</SizePolicy>
+      <Children>
+      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+
+      <Splitter>
+        <ObjectName>RbxLibrarySplitter</ObjectName>
+        <SizePolicy>me,me</SizePolicy>
+        <SplitSizes>240,900</SplitSizes>
+        <SplitSizesConfigKey>[RbxOriginal],library_splitsize</SplitSizesConfigKey>
+        <Collapsible>1,0</Collapsible>
+        <Children>
+
+          <!-- left: search + crates/playlists -->
+          <WidgetGroup>
+            <ObjectName>RbxLibrarySidebar</ObjectName>
+            <Layout>vertical</Layout>
+            <!-- SplitSizes are a RATIO: 240,900 renders as ~21% of the window
+                 (~400 px at 1920). The ceiling is what actually holds the crate
+                 tree at the intended width. -->
+            <SizePolicy>min,me</SizePolicy>
+            <MinimumSize>150,</MinimumSize>
+            <MaximumSize>280,</MaximumSize>
+            <Children>
+
+              <!-- search, always visible: this is the Rekordbox search -->
+              <WidgetGroup>
+                <ObjectName>RbxSearchBox</ObjectName>
+                <Layout>horizontal</Layout>
+                <SizePolicy>min,max</SizePolicy>
+                <MinimumSize>150,28</MinimumSize>
+                <Children>
+                  <SearchBox></SearchBox>
+                </Children>
+              </WidgetGroup>
+
+              <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+              <WidgetGroup>
+                <ObjectName>RbxCratesTree</ObjectName>
+                <Layout>vertical</Layout>
+                <SizePolicy>me,me</SizePolicy>
+                <Children>
+                  <LibrarySidebar></LibrarySidebar>
+                </Children>
+              </WidgetGroup>
+
+            </Children>
+          </WidgetGroup>
+
+          <!-- right: track table -->
+          <Library>
+            <ShowButtonText>false</ShowButtonText>
+            <TrackTableBackgroundColorOpacity>0.0</TrackTableBackgroundColorOpacity>
+          </Library>
+
+        </Children>
+      </Splitter>
+
+      <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+      </Children>
+     </WidgetGroup>
+     <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_library</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

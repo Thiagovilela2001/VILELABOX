@@ -1,0 +1,78 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: decks/transport.xml
+  rekordbox's CUE / PLAY column, left of the jog display, drawn with the
+  installer's own button art (rb/cueBtn_*.svg, rb/playBtn*.svg).
+  Right-click: CUE = go to cue and stop, PLAY = set cue.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxTransport</ObjectName>
+    <Layout>vertical</Layout>
+    <Size>52f,150f</Size>
+    <Children>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <PushButton>
+        <TooltipId>cue_default_cue_gotoandstop</TooltipId>
+        <ObjectName>CueDeck</ObjectName>
+        <Size>52f,52f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/cueBtn_off_.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/cueBtn_on_.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/cueBtn_on_.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/cueBtn_on_.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_default</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_gotoandstop</ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_indicator</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+      <WidgetGroup><Size>0me,12f</Size></WidgetGroup>
+      <PushButton>
+        <TooltipId>play_cue_set</TooltipId>
+        <ObjectName>PlayDeck</ObjectName>
+        <Size>52f,52f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/playBtn_off.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/playBtn.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/playBtn.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/pauseBtn.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,play</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,cue_set</ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,play_indicator</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

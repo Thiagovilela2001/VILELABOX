@@ -1,0 +1,299 @@
+<?xml version="1.0" ?>
+<!DOCTYPE template>
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxBeatgridTools<Variable name="ChanNum"/></ObjectName>
+    <Layout>vertical</Layout>
+    <Size>182f,60f</Size>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>182f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>BeatCurpos</ObjectName>
+            <Tooltip>Alinhar a batida mais próxima à posição atual. Botão direito: alinhar com o outro deck.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>GRID</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_curpos</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_match_alignment</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsEarlier</ObjectName>
+            <Tooltip>Deslocar todo o grid para a esquerda, sem alterar o BPM.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>◀</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_earlier</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsLater</ObjectName>
+            <Tooltip>Deslocar todo o grid para a direita, sem alterar o BPM.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>▶</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_later</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridSetFirstBeat</ObjectName>
+            <Tooltip>Marcar a batida mais próxima como compasso 1, tempo 1. Botão direito: remover a referência.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>SET 1</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_set_first_downbeat</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_clear_first_downbeat</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridLock</ObjectName>
+            <Tooltip>Travar ou destravar a edição do grid.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>LOCK</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>LOCK</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bpmlock</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>182f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>BeatsSlower</ObjectName>
+            <Tooltip>Diminuir o BPM do grid em 0,01. Aumenta o espaçamento entre batidas.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>BPM−</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_adjust_slower</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridBpmTap</ObjectName>
+            <Tooltip>Marcar o BPM original da faixa tocando no ritmo.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>TAP</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bpm_tap</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsFaster</ObjectName>
+            <Tooltip>Aumentar o BPM do grid em 0,01. Diminui o espaçamento entre batidas.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>BPM+</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_adjust_faster</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridHalf</ObjectName>
+            <Tooltip>Dividir o BPM do grid por dois.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>½×</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_set_halve</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridDouble</ObjectName>
+            <Tooltip>Dobrar o BPM do grid.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>2×</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_set_double</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>182f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>GridUndo</ObjectName>
+            <Tooltip>Desfazer o último ajuste do grid.</Tooltip>
+            <Size>34f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>UNDO</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_undo_adjustment</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <Number>
+            <ObjectName>GridBpm</ObjectName>
+            <Size>71f,18f</Size>
+            <Tooltip>BPM original do grid, independente do tempo de reprodução.</Tooltip>
+            <Alignment>center</Alignment>
+            <NumberOfDigits>2</NumberOfDigits>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],file_bpm</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </Number>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <Label>
+            <ObjectName>SectionLabel</ObjectName>
+            <Size>71f,18f</Size>
+            <Alignment>center</Alignment>
+            <Text>BEAT GRID</Text>
+          </Label>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_beatgrid_controls</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

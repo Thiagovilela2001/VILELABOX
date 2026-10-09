@@ -1,0 +1,131 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/beatjump.xml   (look pass 3)
+      BEAT JUMP
+      [<<][   4   ][>>]             jump back / forward by the size shown;
+                                    right-click halves / doubles the size
+      [1][2][4][8][16]              left = jump forward N, right = back N
+  Elastic in width, fixed 70 px tall.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxBeatjump</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <MinimumSize>150,70</MinimumSize>
+    <MaximumSize>,70</MaximumSize>
+    <Children>
+      <Label>
+        <ObjectName>SectionLabel</ObjectName>
+        <Size>0me,12f</Size>
+        <Alignment>left</Alignment>
+        <Text>BEAT JUMP</Text>
+      </Label>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_backward</SetVariable>
+            <SetVariable name="ObjectName">JumpBack</SetVariable>
+            <SetVariable name="Size">32f,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">&#9664;&#9664;</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_backward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_size_halve</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <BeatSpinBox>
+            <TooltipId>beatjump_size</TooltipId>
+            <ObjectName>BeatjumpSizeSpinbox</ObjectName>
+            <Size>44me,26f</Size>
+            <Value><Variable name="Group"/>,beatjump_size</Value>
+          </BeatSpinBox>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">JumpFwd</SetVariable>
+            <SetVariable name="Size">32f,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">&#9654;&#9654;</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_size_double</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">Jump1</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">1</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_1_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_1_backward</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">Jump2</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">2</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_2_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_2_backward</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">Jump4</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">4</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_4_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_4_backward</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">Jump8</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">8</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_8_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_8_backward</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">beatjump_forward</SetVariable>
+            <SetVariable name="ObjectName">Jump16</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">16</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatjump_16_forward</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatjump_16_backward</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_beatjump_controls</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

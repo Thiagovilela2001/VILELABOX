@@ -300,7 +300,7 @@ void MixxxMainWindow::initialize() {
             m_pCoreServices->getEffectsManager(),
             m_pCoreServices->getSettingsManager(),
             m_pCoreServices->getLibrary());
-    m_pPrefDlg->setWindowIcon(QIcon(MIXXX_ICON_PATH));
+    m_pPrefDlg->setWindowIcon(QIcon(QStringLiteral(":/images/icons/scalable/apps/blackmesa.svg")));
     m_pPrefDlg->setHidden(true);
     connect(m_pPrefDlg,
             &DlgPreferences::tooltipModeChanged,
@@ -553,7 +553,7 @@ void MixxxMainWindow::initializeWindow() {
                     ->getValueString(ConfigKey("[MainWindow]", "state"))
                     .toUtf8()));
 
-    setWindowIcon(QIcon(MIXXX_ICON_PATH));
+    setWindowIcon(QIcon(QStringLiteral(":/images/icons/scalable/apps/blackmesa.svg")));
     slotUpdateWindowTitle(TrackPointer());
 }
 

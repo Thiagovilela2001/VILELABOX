@@ -1,0 +1,37 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: btn_1state_right
+  A momentary button: left and/or right click trigger controls.
+Variables:
+  ObjectName, TooltipId, Size, BtnSize,
+  state_0_text, Align,
+  ConfigKey, ConfigKeyRight, CoverConfigKey (optional -> hides button)
+-->
+<Template>
+  <PushButton>
+    <TooltipId><Variable name="TooltipId"/></TooltipId>
+    <ObjectName><Variable name="ObjectName"/></ObjectName>
+    <Size><Variable name="Size"/></Size>
+    <NumberStates>1</NumberStates>
+    <RightClickIsPushButton>true</RightClickIsPushButton>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="state_0_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Pressed>
+    </State>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKeyRight"/></ConfigKey>
+      <ButtonState>RightButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="CoverConfigKey"/></ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </PushButton>
+</Template>

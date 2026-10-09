@@ -1,0 +1,125 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: decks/jog.xml
+  The rekordbox Performance-mode jog display: a black disc with a thin blue
+  inner ring, a grey outer ring that fills as the track plays, a red mark
+  riding it, and BPM / tempo % / range printed in the middle.
+
+        ╭───────────╮
+       │   128.00    │     visual_bpm
+       │ 0.00%  ±8%  │     rate, rate range
+        ╰───────────╯
+
+  The ring is a KnobComposed bound to playposition, read only
+  (ConnectValueFromWidget false), so dragging it never moves the track.
+
+  TEMPO lives on the disc too, like rekordbox without a tempo slider: a
+  transparent KnobComposed bound to rate covers the whole disc. Drag up/down
+  or scroll to change tempo, double-click or right-click resets to 0%.
+  Its only paint is a blue arc on the r=58 ring of jog_bg.svg, growing
+  from 12 o'clock clockwise (faster) or counter-clockwise (slower).
+
+  The stacked layout paints its FIRST child on top and gives it the mouse,
+  so the tempo knob comes first, then the text, then the position ring.
+  Variables: ChanNum, Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxJog</ObjectName>
+    <Layout>stacked</Layout>
+    <Size>150f,150f</Size>
+    <Children>
+
+      <KnobComposed>
+        <ObjectName>JogTempo</ObjectName>
+        <TooltipId>pitch</TooltipId>
+        <Size>150f,150f</Size>
+        <MinAngle>-180</MinAngle>
+        <MaxAngle>180</MaxAngle>
+        <ArcRadius>58</ArcRadius>
+        <ArcThickness>3</ArcThickness>
+        <ArcColor>#2f8cff</ArcColor>
+        <ArcUnipolar>false</ArcUnipolar>
+        <ArcRoundCaps>true</ArcRoundCaps>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,rate</ConfigKey>
+        </Connection>
+      </KnobComposed>
+
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <Size>150f,150f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Number>
+            <ObjectName>JogBpm</ObjectName>
+            <TooltipId>visual_bpm</TooltipId>
+            <Size>150f,34f</Size>
+            <Alignment>center</Alignment>
+            <NumberOfDigits>2</NumberOfDigits>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,visual_bpm</ConfigKey>
+            </Connection>
+          </Number>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>150f,16f</Size>
+            <Children>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+              <NumberRate>
+                <ObjectName>JogRate</ObjectName>
+                <TooltipId>rate_display</TooltipId>
+                <Size>46f,16f</Size>
+                <Alignment>right</Alignment>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <NumberOfDigits>1</NumberOfDigits>
+              </NumberRate>
+              <Label>
+                <ObjectName>JogRateUnit</ObjectName>
+                <Size>14f,16f</Size>
+                <Alignment>left</Alignment>
+                <Text>%</Text>
+              </Label>
+              <Label>
+                <ObjectName>JogRangePrefix</ObjectName>
+                <Size>10f,16f</Size>
+                <Alignment>right</Alignment>
+                <Text>&#177;</Text>
+              </Label>
+              <RateRange>
+                <TooltipId>rate_range_display</TooltipId>
+                <ObjectName>JogRange</ObjectName>
+                <Size>30f,16f</Size>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <Display>range</Display>
+              </RateRange>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <KnobComposed>
+        <ObjectName>JogRing</ObjectName>
+        <TooltipId>waveform_overview</TooltipId>
+        <Size>150f,150f</Size>
+        <BackPath>skin:rb/jog_bg.svg</BackPath>
+        <Knob>skin:rb/jog_marker.svg</Knob>
+        <MinAngle>0</MinAngle>
+        <MaxAngle>360</MaxAngle>
+        <ArcRadius>68</ArcRadius>
+        <ArcThickness>8</ArcThickness>
+        <ArcColor>#9b9b9b</ArcColor>
+        <ArcBgThickness>8</ArcBgThickness>
+        <ArcBgColor>#3a3a3a</ArcBgColor>
+        <ArcUnipolar>true</ArcUnipolar>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,playposition</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </KnobComposed>
+
+    </Children>
+  </WidgetGroup>
+</Template>

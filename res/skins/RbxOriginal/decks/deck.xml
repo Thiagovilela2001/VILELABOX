@@ -1,0 +1,165 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: decks/deck.xml
+  One deck, laid out like rekordbox 6/7 Performance mode (2Deck Horizontal):
+
+    [art] TITLE / artist                 KEY  time  [MASTER][BEAT SYNC]   | b # |
+    overview ..............................................  | grid tools | KSYNC
+    [ 1 ]  (CUE)   ╭──────╮  SLIP   LOOP  [<][ 4 ][>][LOOP]               | RANGE
+    [< >]          │128.00│  Q            [IN][OUT][RELOOP][ANCH]         | -0+ |
+    [ 4 ]  (PLAY)  ╰──────╯  MT     BARS  [<<][ 4 ][>>]                   | TAP |
+                             REV          [ BAR LOOP ]
+    HOT CUE
+    [1][2][3][4]
+    [5][6][7][8]
+
+  The tempo block (key, KEY SYNC, RANGE, nudge, TAP) sits top right and is
+  optional (TEMPO check box in the top bar). There is no tempo fader: tempo
+  is dragged on the jog disc, as in rekordbox.
+  Variables: ChanNum
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <WidgetGroup>
+    <ObjectName>RbxDeck<Variable name="ChanNum"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <MinimumSize>520,360</MinimumSize>
+    <Children>
+
+      <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+
+          <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+
+          <!-- header + overview, with the compact tempo block beside them
+               (both ~112 px tall); deck controls and pads get full width -->
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <WidgetGroup>
+                <Layout>vertical</Layout>
+                <SizePolicy>me,max</SizePolicy>
+                <Children>
+                  <Template src="skin:decks/track_info.xml">
+                    <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                    <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+                  </Template>
+
+                  <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+                  <WidgetGroup>
+                    <ObjectName>RbxOverviewBox<Variable name="ChanNum"/></ObjectName>
+                    <Layout>horizontal</Layout>
+                    <Size>0me,60f</Size>
+                    <Children>
+                      <Template src="skin:decks/overview.xml">
+                        <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                      </Template>
+                      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+                      <Template src="skin:decks/beatgrid_controls.xml">
+                        <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                      </Template>
+                    </Children>
+                  </WidgetGroup>
+
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup><Size>10f,0me</Size></WidgetGroup>
+              <WidgetGroup>
+                <Layout>vertical</Layout>
+                <SizePolicy>min,me</SizePolicy>
+                <Children>
+                  <Template src="skin:decks/rate.xml">
+                    <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                    <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+                  </Template>
+                    </Children>
+                <Connection>
+                  <ConfigKey persist="true">[RbxOriginal],show_pitch</ConfigKey>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+
+          <!-- deck box | CUE/PLAY | jog display | SLIP Q MT | loop + bars -->
+          <WidgetGroup>
+            <ObjectName>RbxDeckControls</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,f</SizePolicy>
+            <MinimumSize>,150</MinimumSize>
+            <MaximumSize>,150</MaximumSize>
+            <Children>
+              <Template src="skin:decks/deckbox.xml">
+                <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+              </Template>
+              <WidgetGroup><Size>12f,0me</Size></WidgetGroup>
+              <Template src="skin:decks/transport.xml">
+                <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+              </Template>
+              <WidgetGroup><Size>12f,0me</Size></WidgetGroup>
+              <Template src="skin:decks/jog.xml">
+                <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+                <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+              </Template>
+              <WidgetGroup><Size>12f,0me</Size></WidgetGroup>
+              <Template src="skin:decks/flags.xml">
+                <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+              </Template>
+              <WidgetGroup><Size>16f,0me</Size></WidgetGroup>
+              <WidgetGroup>
+                <Layout>vertical</Layout>
+                <SizePolicy>me,me</SizePolicy>
+                <Children>
+                  <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+                  <Template src="skin:decks/loop.xml">
+                    <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+                  </Template>
+                  <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+                  <Template src="skin:decks/barjump.xml">
+                    <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+                  </Template>
+                  <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+
+          <WidgetGroup><Size>0me,10f</Size></WidgetGroup>
+
+          <!-- performance pads -->
+          <WidgetGroup>
+            <ObjectName>RbxPadSection</ObjectName>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skin:decks/pads.xml">
+                <SetVariable name="Group"><Variable name="Group"/></SetVariable>
+                <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+              </Template>
+            </Children>
+            <Connection>
+              <ConfigKey persist="true">[RbxOriginal],show_hotcues</ConfigKey>
+              <BindProperty>visible</BindProperty>
+            </Connection>
+          </WidgetGroup>
+
+          <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

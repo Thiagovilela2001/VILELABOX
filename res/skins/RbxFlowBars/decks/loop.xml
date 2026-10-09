@@ -1,0 +1,130 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/loop.xml   (look pass 3)
+      LOOP
+      [<][   4   ][>] [ LOOP ]      < / > halve / double the size, the spin box
+      [IN][OUT][RELOOP][ANCH]       is a recessed display (no Qt arrows)
+  Right-click: LOOP = roll, IN/OUT = go to, RELOOP = reloop and stop.
+  Elastic in width, fixed 70 px tall.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxLoop</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <MinimumSize>150,70</MinimumSize>
+    <MaximumSize>,70</MaximumSize>
+    <Children>
+      <Label>
+        <ObjectName>SectionLabel</ObjectName>
+        <Size>0me,12f</Size>
+        <Alignment>left</Alignment>
+        <Text>LOOP</Text>
+      </Label>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">loop_halve</SetVariable>
+            <SetVariable name="ObjectName">LoopHalve</SetVariable>
+            <SetVariable name="Size">24f,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">&#9664;</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_halve</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <BeatSpinBox>
+            <TooltipId>beatloop_size</TooltipId>
+            <ObjectName>BeatloopSizeSpinbox</ObjectName>
+            <Size>44me,26f</Size>
+            <Value><Variable name="Group"/>,beatloop_size</Value>
+          </BeatSpinBox>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">loop_double</SetVariable>
+            <SetVariable name="ObjectName">LoopDouble</SetVariable>
+            <SetVariable name="Size">24f,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">&#9654;</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_double</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_2state.xml">
+            <SetVariable name="TooltipId">beatloop_activate</SetVariable>
+            <SetVariable name="ObjectName">LoopActivate</SetVariable>
+            <SetVariable name="Size">44me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">LOOP</SetVariable>
+            <SetVariable name="state_1_text">LOOP</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,beatloop_activate</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,beatlooproll_activate</SetVariable>
+            <SetVariable name="ConfigKeyDisp"><Variable name="Group"/>,loop_enabled</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">loop_in</SetVariable>
+            <SetVariable name="ObjectName">LoopIn</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">IN</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_in</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,loop_in_goto</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">loop_out</SetVariable>
+            <SetVariable name="ObjectName">LoopOut</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">OUT</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_out</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,loop_out_goto</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">reloop_toggle</SetVariable>
+            <SetVariable name="ObjectName">Reloop</SetVariable>
+            <SetVariable name="Size">44me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">RELOOP</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,reloop_toggle</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,reloop_andstop</SetVariable>
+          </Template>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">loop_anchor</SetVariable>
+            <SetVariable name="ObjectName">LoopAnchor</SetVariable>
+            <SetVariable name="Size">26me,26f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">ANCH</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,loop_anchor</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_loop_controls</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

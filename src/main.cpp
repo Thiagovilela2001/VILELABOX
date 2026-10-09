@@ -196,7 +196,9 @@ int main(int argc, char * argv[]) {
 
 #ifdef __LINUX__
     // Needed by Wayland compositors to set proper app_id and window icon
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.mixxx.Mixxx"));
+    // blackmesa mod: matches ~/.local/share/applications/blackmesa.desktop,
+    // so the taskbar shows the blackmesa name and icon.
+    QGuiApplication::setDesktopFileName(QStringLiteral("blackmesa"));
 #endif
 
     // Setting the organization name results in a QDesktopStorage::DataLocation

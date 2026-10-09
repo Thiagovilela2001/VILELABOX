@@ -1,0 +1,598 @@
+/* ===========================================================================
+   RbxOriginal — style.qss
+   rekordbox 6/7 Performance mode look.
+
+   Palette taken from the rekordbox installer's own SVG art (skins/*.svg):
+     ground / global bar  #000000
+     panel                #1e1e1e      panel line   #000000
+     control              #282828      control line #323232
+     text                 #aaaaaa      text-hi      #f0f0f0   dim #646464
+     blue (on, arcs)      #1473eb      cue  #ffb937  play #2dd728
+     loop / master        #f8a030      red  #e91429
+   Corners are square or 2 px; there are no gradients and no glows.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------- foundation */
+#Mixxx {
+  background-color: #000000;
+}
+
+WWidget {
+  background-color: transparent;
+  color: #aaaaaa;
+  font-family: "Noto Sans", "Open Sans", "DejaVu Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* ================================================================== PANELS == */
+#RbxDeck1,
+#RbxDeck2,
+#RbxMixer,
+#RbxLibraryContainer {
+  background-color: #1e1e1e;
+  border: none;
+  border-radius: 0px;
+}
+
+#RbxTopBar,
+#RbxWaveformBand {
+  background-color: #000000;
+  border: none;
+}
+
+#RbxOverviewStack1,
+#RbxOverviewStack2,
+#RbxWaveRow1,
+#RbxWaveRow2 {
+  background-color: #000000;
+  border: none;
+}
+
+WLabel#SectionLabel {
+  color: #646464;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0px;
+}
+
+/* ===================================================== GLOBAL SECTION (top) */
+WLabel#RbxModeName,
+WLabel#RbxLayoutName {
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+#RbxTopDivider {
+  background-color: #3c3c3c;
+}
+
+WPushButton#RbxCheck,
+WPushButton#RbxCheck:hover,
+WPushButton#RbxCheck:pressed,
+WPushButton#RbxCheck[value="1"] {
+  background-color: transparent;
+  border: none;
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 400;
+  text-align: left;
+}
+
+WPushButton#RbxCheck[value="0"] {
+  color: #8c8c8c;
+}
+
+WTime,
+WLabel#RbxClockText {
+  color: #f0f0f0;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+WLabel#RbxCpuLabel {
+  color: #646464;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* icon buttons: the art is the button */
+WPushButton#RecButton,
+WPushButton#RecButton:hover,
+WPushButton#RecButton:pressed,
+WPushButton#RecButton[value="1"],
+WPushButton#SkinSettingsToggle,
+WPushButton#SkinSettingsToggle:hover,
+WPushButton#SkinSettingsToggle:pressed,
+WPushButton#SkinSettingsToggle[value="1"],
+WPushButton#CueDeck,
+WPushButton#CueDeck:hover,
+WPushButton#CueDeck:pressed,
+WPushButton#CueDeck[value="1"],
+WPushButton#PlayDeck,
+WPushButton#PlayDeck:hover,
+WPushButton#PlayDeck:pressed,
+WPushButton#PlayDeck[value="1"] {
+  background-color: transparent;
+  border: none;
+}
+
+/* ================================================================= BUTTONS ==
+   rekordbox chip: #282828, 2 px corners, grey caps; on = blue. */
+WPushButton {
+  background-color: #282828;
+  border: 1px solid #323232;
+  border-radius: 2px;
+  color: #aaaaaa;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0px;
+}
+
+WPushButton:hover {
+  border-color: #4b4b4b;
+  color: #f0f0f0;
+}
+
+WPushButton:pressed,
+WPushButton[value="1"] {
+  background-color: #1473eb;
+  border-color: #1473eb;
+  color: #ffffff;
+}
+
+/* MASTER: orange outline when this deck leads the tempo */
+WPushButton#SyncLeader[value="1"],
+WPushButton#SyncLeader[value="2"] {
+  background-color: #282828;
+  border: 1px solid #f8a030;
+  color: #f8a030;
+}
+
+/* SLIP / Q / MT read as lit letters, as on the rekordbox deck */
+WPushButton#SlipMode,
+WPushButton#Quantize,
+WPushButton#KeyLock,
+WPushButton#Reverse {
+  background-color: #1e1e1e;
+  border: none;
+  color: #4b4b4b;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+WPushButton#SlipMode:hover,
+WPushButton#Quantize:hover,
+WPushButton#KeyLock:hover,
+WPushButton#Reverse:hover {
+  color: #8c8c8c;
+}
+
+WPushButton#SlipMode[value="1"],
+WPushButton#KeyLock[value="1"],
+WPushButton#Reverse:pressed {
+  background-color: #1e1e1e;
+  color: #1473eb;
+}
+
+WPushButton#Quantize[value="1"] {
+  background-color: #1e1e1e;
+  color: #e91429;
+}
+
+WPushButton#LoopActivate[value="1"],
+WPushButton#BarLoop[value="1"] {
+  background-color: #f8a030;
+  border-color: #f8a030;
+  color: #1e1e1e;
+}
+
+/* -------------------------------------------------------------- hot cues
+   Mixxx paints a set pad with the cue's own colour; here only the shape and
+   the empty pad. */
+WHotcueButton {
+  border: none;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+}
+
+WHotcueButton[displayValue="0"] {
+  background-color: #282828;
+  border: 1px solid #323232;
+  color: #4b4b4b;
+}
+
+WHotcueButton[displayValue="0"]:hover {
+  border-color: #4b4b4b;
+  color: #aaaaaa;
+}
+
+WLabel#PadModeActive {
+  background-color: #282828;
+  border-bottom: 2px solid #1473eb;
+  color: #f0f0f0;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+WPushButton#RbxSettingCheck {
+  background-color: transparent;
+  border: none;
+  color: #8c8c8c;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+WPushButton#RbxSettingCheck[value="1"] {
+  background-color: transparent;
+  color: #f0f0f0;
+  font-weight: 700;
+}
+
+/* ================================================================= HEADER == */
+WLabel#WaveRowTag {
+  background-color: #1473eb;
+  border-radius: 2px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+WTrackProperty#TitleText {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0f0f0;
+}
+
+WTrackProperty#ArtistText {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+WKey#HeaderKey {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2dd728;
+}
+
+WNumberPos#HeaderTime {
+  font-size: 17px;
+  font-weight: 400;
+  color: #f0f0f0;
+}
+
+WLabel#EmptyHint {
+  color: #646464;
+  font-size: 13px;
+}
+
+/* ============================================================== DECK BOX == */
+WLabel#DeckNumberBig {
+  background-color: #282828;
+  color: #f0f0f0;
+  font-size: 30px;
+  font-weight: 400;
+}
+
+WPushButton#DeckBoxArrow {
+  background-color: #282828;
+  border: none;
+  color: #aaaaaa;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+WPushButton#DeckBoxArrow:pressed {
+  background-color: #1473eb;
+  color: #ffffff;
+}
+
+/* ============================================================== JOG DISPLAY */
+WNumber#JogBpm {
+  color: #f0f0f0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+WNumberRate#JogRate {
+  color: #aaaaaa;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+WRateRange#JogRange {
+  color: #2dd728;
+  font-size: 11px;
+  font-weight: 700;
+  qproperty-alignment: 'AlignLeft | AlignVCenter';
+}
+
+/* ================================================================= LABELS == */
+WLabel,
+WTrackProperty,
+WKey {
+  background-color: transparent;
+  border: none;
+  color: #aaaaaa;
+  font-size: 11px;
+}
+
+WLabel#ChannelLabel,
+WLabel#MasterLabel,
+WLabel#KnobLabel,
+WLabel#EqBandLabel,
+WLabel#RbxSettingsSection {
+  color: #aaaaaa;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+WLabel#ChannelLabel,
+WLabel#MasterLabel {
+  color: #f0f0f0;
+  font-size: 11px;
+}
+
+WLabel#RbxSettingsTitle {
+  color: #f0f0f0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+WLabel#RbxSettingsSection {
+  color: #1473eb;
+}
+
+WNumberRate {
+  color: #aaaaaa;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ============================================================ SPIN BOXES == */
+WBeatSpinBox {
+  background-color: #000000;
+  border: 1px solid #323232;
+  border-radius: 2px;
+  color: #f0f0f0;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0px;
+  selection-background-color: #1473eb;
+  qproperty-alignment: 'AlignCenter';
+  qproperty-buttonSymbols: 'NoButtons';
+}
+
+WBeatSpinBox:focus {
+  border: 1px solid #1473eb;
+}
+
+WBeatSpinBox::up-button,
+WBeatSpinBox::down-button {
+  width: 0px;
+  border: none;
+}
+
+/* ============================================================= WAVEFORMS == */
+WOverview,
+WWaveform {
+  background-color: #000000;
+  border: none;
+}
+
+/* ================================================================ BROWSER == */
+WLibrary,
+WLibrarySidebar,
+WTrackTableView {
+  background-color: #1e1e1e;
+  border: none;
+  color: #c8c8c8;
+  font-size: 11px;
+  selection-background-color: #1473eb;
+  selection-color: #ffffff;
+  alternate-background-color: #232323;
+}
+
+WLibrarySidebar {
+  background-color: #191919;
+  outline: none;
+}
+
+WLibrarySidebar::item {
+  padding: 3px 2px;
+}
+
+WLibrarySidebar::item:hover {
+  background-color: #282828;
+}
+
+WLibrarySidebar::item:selected {
+  background-color: #1473eb;
+  color: #ffffff;
+}
+
+WTrackTableView {
+  border-left: 1px solid #000000;
+  outline: none;
+}
+
+WTrackTableView::item {
+  padding: 1px 4px;
+  border: none;
+}
+
+WTrackTableView::item:hover {
+  background-color: #2d2d2d;
+}
+
+WTrackTableView::item:selected {
+  background-color: #1473eb;
+  color: #ffffff;
+}
+
+WTrackTableViewHeader {
+  background-color: #2d2d2d;
+  border: none;
+}
+
+WTrackTableViewHeader::section {
+  background-color: #2d2d2d;
+  color: #aaaaaa;
+  border: none;
+  border-right: 1px solid #1e1e1e;
+  font-size: 10px;
+  font-weight: 400;
+  padding: 3px 6px;
+}
+
+WTrackTableViewHeader::section:hover {
+  color: #f0f0f0;
+}
+
+#RbxSearchBox {
+  background-color: transparent;
+}
+
+WSearchBox,
+WLibrarySearchLineEdit {
+  background-color: #000000;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  color: #f0f0f0;
+  font-size: 11px;
+  padding: 2px 6px;
+  selection-background-color: #1473eb;
+}
+
+WSearchBox:focus,
+WLibrarySearchLineEdit:focus {
+  border: 1px solid #1473eb;
+}
+
+QScrollBar:vertical {
+  background: #1e1e1e;
+  width: 10px;
+  margin: 0px;
+}
+QScrollBar:horizontal {
+  background: #1e1e1e;
+  height: 10px;
+  margin: 0px;
+}
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+  background-color: #4b4b4b;
+  border: 2px solid #1e1e1e;
+  min-height: 24px;
+  min-width: 24px;
+}
+QScrollBar::handle:hover {
+  background-color: #646464;
+}
+QScrollBar::add-line,
+QScrollBar::sub-line,
+QScrollBar::add-page,
+QScrollBar::sub-page {
+  background: none;
+  border: none;
+  width: 0px;
+  height: 0px;
+}
+
+/* ================================================================ SETTINGS = */
+#RbxSettingsPanel {
+  background-color: #1e1e1e;
+  border: 1px solid #323232;
+}
+
+/* =============================================================== SPLITTERS = */
+QSplitter::handle {
+  background-color: #000000;
+}
+QSplitter::handle:vertical {
+  height: 3px;
+}
+QSplitter::handle:horizontal {
+  width: 3px;
+}
+QSplitter::handle:hover {
+  background-color: #1473eb;
+}
+
+/* ========================================================== EFFECT RACKS == */
+WEffectName,
+WEffectSelector,
+WEffectSelector QAbstractScrollArea,
+WEffectParameterName {
+  background-color: #1e1e1e;
+  color: #8c8c8c;
+  font-size: 10px;
+}
+
+QToolTip {
+  background-color: #282828;
+  color: #f0f0f0;
+  border: 1px solid #4b4b4b;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+/* ================================================= BARS (blackmesa mod) == */
+WNumber#BarNumber,
+WNumber#BeatInBar {
+  color: #f8a030;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+WNumber#BarSizeDisplay {
+  background-color: #000000;
+  border: 1px solid #323232;
+  border-radius: 2px;
+  color: #f8a030;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+WPushButton#BarSync {
+  background-color: #1473eb;
+  border-color: #1473eb;
+  color: #ffffff;
+}
+
+WPushButton#BarSync[value="0"] {
+  background-color: #282828;
+  border-color: #323232;
+  color: #aaaaaa;
+}
+
+WLabel#JogRateUnit {
+  color: #aaaaaa;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+WLabel#JogRangePrefix {
+  color: #2dd728;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Performance controls */
+WPushButton#PadModeButton { font-size: 10px; }
+WPushButton#PadModeButton[displayValue="1"] { border-bottom: 2px solid #1473eb; color: #ffffff; }
+WPushButton#PerformancePad { font-size: 12px; }
+WTrackProperty#SamplerTitle { background-color: #000000; font-size: 10px; }
+#RbxEffectsPanel { background-color: #191919; }
+WPushButton#PitchRangePreset { font-size: 10px; }
+
+/* FX units in the centre of the mixer */
+WLabel#MixerFxTitle { color: #1473eb; font-size: 10px; font-weight: 700; }
+WEffectSelector#MixerFxSelector1, WEffectSelector#MixerFxSelector2 { font-size: 10px; }
+WPushButton#MixerFxOn1[displayValue="1"], WPushButton#MixerFxOn2[displayValue="1"] { background-color: #1473eb; color: #ffffff; }
+
+WEffectChainPresetSelector#CentralColorFxSelector { background-color: #282828; border: 1px solid #323232; border-radius: 2px; color: #d0d0d0; font-size: 10px; }

@@ -1,0 +1,122 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/track_info.xml   (look pass 3)
+  Deck header, 48 px, Rekordbox-style:
+
+    [1] [art]  TITLE
+               Artist                                    0:12.3  -3:22.1
+
+  Identity only. BPM, key and KEY SYNC live at the top of the tempo column
+  (decks/rate.xml), in recessed display boxes; at 1366 px a header that also
+  held them clipped the title to "HELL...".
+
+  "NO TRACK LOADED" lives here, never over a waveform: waveforms are track drop
+  targets and must not be hidden while a deck is empty (README rule 6c).
+  Variables: ChanNum, Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxTrackInfo<Variable name="ChanNum"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <MinimumSize>200,48</MinimumSize>
+    <MaximumSize>,48</MaximumSize>
+    <Children>
+
+      <!-- deck number badge, vertically centred -->
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <Size>24f,48f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Label>
+            <ObjectName>DeckBadge</ObjectName>
+            <Size>24f,24f</Size>
+            <Alignment>center</Alignment>
+            <Text><Variable name="ChanNum"/></Text>
+          </Label>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+      <CoverArt>
+        <TooltipId>coverart</TooltipId>
+        <ObjectName>DeckCover<Variable name="ChanNum"/></ObjectName>
+        <Group><Variable name="Group"/></Group>
+        <Size>48f,48f</Size>
+        <DefaultCover>skin:styles/cover_default.svg</DefaultCover>
+      </CoverArt>
+
+      <WidgetGroup><Size>10f,0me</Size></WidgetGroup>
+
+      <!-- title over artist -->
+      <WidgetGroup>
+        <ObjectName>RbxInfoText<Variable name="ChanNum"/></ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,f</SizePolicy>
+            <Children>
+              <Label>
+                <ObjectName>EmptyHint</ObjectName>
+                <Size>170f,24f</Size>
+                <Alignment>left</Alignment>
+                <Text>NO TRACK LOADED</Text>
+                <Connection>
+                  <ConfigKey><Variable name="Group"/>,track_loaded</ConfigKey>
+                  <Transform><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </Label>
+              <TrackProperty>
+                <ObjectName>TitleText</ObjectName>
+                <Size>40me,24f</Size>
+                <TooltipId>track_title</TooltipId>
+                <Property>titleInfo</Property>
+                <Alignment>Left</Alignment>
+                <Elide>right</Elide>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <Connection>
+                  <ConfigKey><Variable name="Group"/>,track_loaded</ConfigKey>
+                  <BindProperty>highlight</BindProperty>
+                </Connection>
+              </TrackProperty>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,f</SizePolicy>
+            <Children>
+              <TrackProperty>
+                <ObjectName>ArtistText</ObjectName>
+                <Size>40me,18f</Size>
+                <TooltipId>track_artist</TooltipId>
+                <Property>artist</Property>
+                <Elide>right</Elide>
+                <Channel><Variable name="ChanNum"/></Channel>
+              </TrackProperty>
+              <NumberPos>
+                <ObjectName>PlayPositionText</ObjectName>
+                <TooltipId>track_time</TooltipId>
+                <!-- WNumberPos prints elapsed AND remaining: keep it wide -->
+                <Size>124f,18f</Size>
+                <Alignment>right</Alignment>
+                <Channel><Variable name="ChanNum"/></Channel>
+                <Connection>
+                  <ConfigKey><Variable name="Group"/>,playposition</ConfigKey>
+                </Connection>
+              </NumberPos>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

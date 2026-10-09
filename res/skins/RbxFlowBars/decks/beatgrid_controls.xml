@@ -1,0 +1,229 @@
+<!DOCTYPE template>
+<!-- Grid tools keep the original overview height. file_bpm is independent of pitch. -->
+<Template>
+  <WidgetGroup>
+    <ObjectName>
+      RbxBeatgridTools
+      <Variable name="ChanNum"/>
+    </ObjectName>
+    <Layout>vertical</Layout>
+    <Size>102f,60f</Size>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>102f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>BeatCurpos</ObjectName>
+            <TooltipId>beats_translate_curpos</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>GRID</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_curpos</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_match_alignment</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsEarlier</ObjectName>
+            <TooltipId>beats_translate_earlier</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>◀</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_earlier</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsLater</ObjectName>
+            <TooltipId>beats_translate_later</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>▶</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_translate_later</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>102f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>BeatsSlower</ObjectName>
+            <TooltipId>beats_adjust_slower</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>BPM-</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_adjust_slower</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridBpmTap</ObjectName>
+            <TooltipId>bpm_tap</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>TAP</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bpm_tap</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>BeatsFaster</ObjectName>
+            <TooltipId>beats_adjust_faster</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>BPM+</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_adjust_faster</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,3f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>102f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>GridUndo</ObjectName>
+            <TooltipId>beats_undo_adjustment</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>UNDO</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_undo_adjustment</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <Number>
+            <ObjectName>GridBpm</ObjectName>
+            <Size>32f,18f</Size>
+            <Alignment>center</Alignment>
+            <NumberOfDigits>1</NumberOfDigits>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],file_bpm</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </Number>
+          <WidgetGroup>
+            <Size>3f,0me</Size>
+          </WidgetGroup>
+          <PushButton>
+            <ObjectName>GridLock</ObjectName>
+            <TooltipId>bpmlock</TooltipId>
+            <Size>32f,18f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>LOCK</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>LOCK</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bpmlock</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bpmlock</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_beatgrid_controls</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

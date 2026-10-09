@@ -1,0 +1,79 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: waveforms_container.xml   (look pass 3)
+  The waveform band: both decks' scrolling waveforms stacked on one time axis,
+  as Rekordbox shows them before a blend. Each row is a deck-number badge plus
+  the waveform in a recessed well. This is the ONLY place the scrolling
+  waveforms live; the decks show the whole-track overview.
+  The waveforms are track drop targets: never bind their visibility to
+  track_loaded (README rule 6c).
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxWaveformBand</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <MinimumSize>0,160</MinimumSize>
+    <Children>
+      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+      <!-- deck 1 scrolling waveform -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>0,64</MinimumSize>
+        <Children>
+          <Template src="skin:decks/bar_counter.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+          </Template>
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>RbxWaveRow1</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skin:decks/waveform.xml">
+                <SetVariable name="ChanNum">1</SetVariable>
+              </Template>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+          <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <!-- deck 2 scrolling waveform -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>0,64</MinimumSize>
+        <Children>
+          <Template src="skin:decks/bar_counter.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>RbxWaveRow2</ObjectName>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,me</SizePolicy>
+            <Children>
+              <Template src="skin:decks/waveform.xml">
+                <SetVariable name="ChanNum">2</SetVariable>
+              </Template>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+          <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_waveform_band</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,33 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: btn_check
+  The rekordbox global-section check box: "[x] MIXER" in small caps.
+  Persisted 2-state toggle; the box glyph is part of the state text.
+  Variables: Tooltip, Width, Text, ConfigKey
+-->
+<Template>
+  <PushButton>
+    <Tooltip><Variable name="Tooltip"/></Tooltip>
+    <ObjectName>RbxCheck</ObjectName>
+    <Size><Variable name="Width"/>f,22f</Size>
+    <NumberStates>2</NumberStates>
+    <State>
+      <Number>0</Number>
+      <Text>&#9744; <Variable name="Text"/></Text>
+      <Alignment>left</Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_blank.svg</Pressed>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text>&#9745; <Variable name="Text"/></Text>
+      <Alignment>left</Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_blank.svg</Pressed>
+    </State>
+    <Connection>
+      <ConfigKey persist="true"><Variable name="ConfigKey"/></ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>

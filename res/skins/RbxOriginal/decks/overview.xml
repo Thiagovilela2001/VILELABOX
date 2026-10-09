@@ -1,0 +1,110 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/overview.xml
+  The deck's whole-track overview: the deck's main display now that the deck
+  no longer duplicates the scrolling waveform. Recessed well (#RbxOverviewStackN
+  in style.qss), click/drag to seek through the transparent overlay.
+  WOverview is a track drop target, so drag-to-load works here.
+  Variables: ChanNum
+-->
+<Template>
+    <WidgetGroup>
+      <ObjectName>RbxOverviewStack<Variable name="ChanNum"/></ObjectName>
+      <Layout>horizontal</Layout>
+      <Size>200me,60f</Size>
+      <Children>
+        <Overview>
+    <ShowVocalMarkers>true</ShowVocalMarkers>
+          <TooltipId>waveform_overview</TooltipId>
+          <ObjectName>DeckOverview<Variable name="ChanNum"/></ObjectName>
+          <Size>0me,60f</Size>
+          <Group>[Channel<Variable name="ChanNum"/>]</Group>
+          <Connection>
+            <ConfigKey>[Channel<Variable name="ChanNum"/>],playposition</ConfigKey>
+          </Connection>
+          <BgColor><Variable name="BgColorOverview"/></BgColor>
+          <SignalColor><Variable name="SignalColor"/></SignalColor>
+          <SignalHighColor><Variable name="SignalHighColor"/></SignalHighColor>
+          <SignalMidColor><Variable name="SignalMidColor"/></SignalMidColor>
+          <SignalLowColor><Variable name="SignalLowColor"/></SignalLowColor>
+          <SignalRGBHighColor><Variable name="SignalRGBHighColor"/></SignalRGBHighColor>
+          <SignalRGBMidColor><Variable name="SignalRGBMidColor"/></SignalRGBMidColor>
+          <SignalRGBLowColor><Variable name="SignalRGBLowColor"/></SignalRGBLowColor>
+          <PlayedOverlayColor><Variable name="PlayedOverlayColor"/></PlayedOverlayColor>
+          <PlayPosColor><Variable name="PlayPosColor"/></PlayPosColor>
+          <EndOfTrackColor><Variable name="EndOfTrackColor"/></EndOfTrackColor>
+          <ShowPhraseMarkers>true</ShowPhraseMarkers>
+          <PhraseBars>8</PhraseBars>
+          <PhraseMarkerColor>#ff3b30</PhraseMarkerColor>
+          <SlipBorderOutlineColor><Variable name="SlipBorderOutlineColor"/></SlipBorderOutlineColor>
+          <PassthroughLabelColor><Variable name="PassthroughLabelColor"/></PassthroughLabelColor>
+          <LabelFontSize><Variable name="OverviewFontSize"/></LabelFontSize>
+          <DimBrightThreshold><Variable name="DimBrightThresholdOverview"/></DimBrightThreshold>
+          <DefaultMark>
+            <Align>bottom|right</Align>
+            <Color>#ffa600</Color>
+            <TextColor>#0d0f11</TextColor>
+            <Text> %1 </Text>
+          </DefaultMark>
+          <Mark>
+            <Control>cue_point</Control>
+            <Text>CUE</Text>
+            <Align>top|right</Align>
+            <Color><Variable name="CueColor"/></Color>
+            <TextColor>#0d0f11</TextColor>
+          </Mark>
+          <MarkRange>
+            <StartControl>loop_start_position</StartControl>
+            <EndControl>loop_end_position</EndControl>
+            <EnabledControl>loop_enabled</EnabledControl>
+            <Color><Variable name="LoopColor"/></Color>
+            <Opacity>0.85</Opacity>
+            <DisabledColor>#5b646d</DisabledColor>
+            <DisabledOpacity>0.5</DisabledOpacity>
+          </MarkRange>
+          <Mark>
+            <Control>loop_start_position</Control>
+            <Text>|</Text>
+            <Align>top|left</Align>
+            <Color><Variable name="LoopColor"/></Color>
+            <TextColor>#0d0f11</TextColor>
+          </Mark>
+          <MarkRange>
+            <StartControl>intro_start_position</StartControl>
+            <EndControl>intro_end_position</EndControl>
+            <VisibilityControl>[RbxOriginal],show_intro_outro</VisibilityControl>
+            <Color><Variable name="IntroOutroColor"/></Color>
+            <Opacity>0.5</Opacity>
+            <DurationTextColor>#c8cfd6</DurationTextColor>
+            <DurationTextLocation>after</DurationTextLocation>
+          </MarkRange>
+          <Mark>
+            <Control>intro_start_position</Control>
+            <Text>&#9698;</Text>
+            <VisibilityControl>[RbxOriginal],show_intro_outro</VisibilityControl>
+            <Align>top|right</Align>
+            <Color><Variable name="IntroOutroColor"/></Color>
+            <TextColor>#0d0f11</TextColor>
+          </Mark>
+          <MarkRange>
+            <StartControl>outro_start_position</StartControl>
+            <EndControl>outro_end_position</EndControl>
+            <VisibilityControl>[RbxOriginal],show_intro_outro</VisibilityControl>
+            <Color><Variable name="IntroOutroColor"/></Color>
+            <Opacity>0.5</Opacity>
+            <DurationTextColor>#c8cfd6</DurationTextColor>
+            <DurationTextLocation>before</DurationTextLocation>
+          </MarkRange>
+          <Mark>
+            <Control>outro_start_position</Control>
+            <Text>&#9699;</Text>
+            <VisibilityControl>[RbxOriginal],show_intro_outro</VisibilityControl>
+            <Align>top|right</Align>
+            <Color><Variable name="IntroOutroColor"/></Color>
+            <TextColor>#0d0f11</TextColor>
+          </Mark>
+        </Overview>
+
+      </Children>
+    </WidgetGroup>
+</Template>

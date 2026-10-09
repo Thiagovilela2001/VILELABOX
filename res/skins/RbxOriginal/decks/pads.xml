@@ -1,0 +1,207 @@
+<!DOCTYPE template>
+<Template>
+  <WidgetGroup>
+    <Layout>horizontal</Layout>
+    <Size>0me,24f</Size>
+    <Children>
+      <PushButton>
+        <ObjectName>PadModeButton</ObjectName>
+        <Size>0me,24f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>HOT CUE</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>HOT CUE</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <EmitOnDownPress>true</EmitOnDownPress>
+          <Transform>
+            <IsEqual>0</IsEqual>
+          </Transform>
+        </Connection>
+        <LeftClickIsPushButton>true</LeftClickIsPushButton>
+      </PushButton>
+      <WidgetGroup>
+        <Size>4f,0me</Size>
+      </WidgetGroup>
+      <PushButton>
+        <ObjectName>PadModeButton</ObjectName>
+        <Size>0me,24f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>BEAT LOOP</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>BEAT LOOP</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <EmitOnDownPress>true</EmitOnDownPress>
+          <Transform>
+            <IsEqual>1</IsEqual>
+          </Transform>
+        </Connection>
+        <LeftClickIsPushButton>true</LeftClickIsPushButton>
+      </PushButton>
+      <WidgetGroup>
+        <Size>4f,0me</Size>
+      </WidgetGroup>
+      <PushButton>
+        <ObjectName>PadModeButton</ObjectName>
+        <Size>0me,24f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>BEAT JUMP</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>BEAT JUMP</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <EmitOnDownPress>true</EmitOnDownPress>
+          <Transform>
+            <IsEqual>2</IsEqual>
+          </Transform>
+        </Connection>
+        <LeftClickIsPushButton>true</LeftClickIsPushButton>
+      </PushButton>
+      <WidgetGroup>
+        <Size>4f,0me</Size>
+      </WidgetGroup>
+      <PushButton>
+        <ObjectName>PadModeButton</ObjectName>
+        <Size>0me,24f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>true</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>SAMPLER</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>SAMPLER</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+          <EmitOnDownPress>true</EmitOnDownPress>
+          <Transform>
+            <IsEqual>3</IsEqual>
+          </Transform>
+        </Connection>
+        <LeftClickIsPushButton>true</LeftClickIsPushButton>
+      </PushButton>
+    </Children>
+  </WidgetGroup>
+  <WidgetGroup>
+    <Size>0me,4f</Size>
+  </WidgetGroup>
+  <WidgetGroup>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,max</SizePolicy>
+    <Children>
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <MinimumSize>130,94</MinimumSize>
+        <Children>
+          <Template src="skin:decks/hotcues.xml" />
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <BindProperty>visible</BindProperty>
+          <Transform>
+            <IsEqual>0</IsEqual>
+          </Transform>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <MinimumSize>130,94</MinimumSize>
+        <Children>
+          <Template src="skin:decks/pads_loop.xml" />
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <BindProperty>visible</BindProperty>
+          <Transform>
+            <IsEqual>1</IsEqual>
+          </Transform>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <MinimumSize>130,94</MinimumSize>
+        <Children>
+          <Template src="skin:decks/pads_jump.xml" />
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <BindProperty>visible</BindProperty>
+          <Transform>
+            <IsEqual>2</IsEqual>
+          </Transform>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <MinimumSize>130,94</MinimumSize>
+        <Children>
+          <Template src="skin:decks/pads_sampler.xml" />
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],pad_mode_<Variable name="ChanNum" />
+          </ConfigKey>
+          <BindProperty>visible</BindProperty>
+          <Transform>
+            <IsEqual>3</IsEqual>
+          </Transform>
+        </Connection>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

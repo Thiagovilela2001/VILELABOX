@@ -1,0 +1,77 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/eq_knob.xml
+  One EQ band: label ABOVE the knob, then the knob.
+
+  The root used to be `Layout horizontal`, which put the band label BESIDE the
+  knob and added 40 px of width to every band. The kill/reset that used to be a
+  26x13 button absolutely positioned at y=37 (i.e. 10 px outside its own 40 px
+  box) is now bound to the knob's RIGHT CLICK - a knob with a <ButtonState>
+  connection handles the press without breaking the drag on left button.
+
+  Mixxx has no dedicated filter knob per channel; the closest equivalent to
+  Rekordbox's FILTER knob is the per-channel QuickEffect meta knob
+  ([QuickEffectRack1_<Channel>],super1).
+  Variables: ChanNum, EqParameter (1=low,2=mid,3=high), EqRange
+-->
+<Template>
+  <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+  <SetVariable name="EqFxUnit">[EqualizerRack1_<Variable name="Group"/>]</SetVariable>
+  <SetVariable name="EqEffect">[EqualizerRack1_<Variable name="Group"/>_Effect1]</SetVariable>
+
+  <WidgetGroup>
+    <ObjectName>RbxEqKnob<Variable name="ChanNum"/><Variable name="EqRange"/></ObjectName>
+    <Layout>vertical</Layout>
+    <!-- 44f = setFixedWidth(44); 0max = height follows the size hint exactly,
+         so the band can never stretch and push the fader off the strip. -->
+    <Size>44f,0max</Size>
+    <MinimumSize>44,50</MinimumSize>
+    <Children>
+
+      <Label>
+        <ObjectName>EqBandLabel</ObjectName>
+        <Size>44f,10f</Size>
+        <Alignment>center</Alignment>
+        <Elide>none</Elide>
+        <Text><Variable name="EqRange"/></Text>
+      </Label>
+
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+      <EffectParameterKnobComposed>
+        <ObjectName>EqKnob</ObjectName>
+        <Size>38f,38f</Size>
+        <TooltipId>filter<Variable name="EqRange"/></TooltipId>
+        <Knob>skin:bases/knob_indicator_grey.svg</Knob>
+        <BackPath>skin:bases/knob_bg_regular.svg</BackPath>
+        <MinAngle><Variable name="PotiMinAngle"/></MinAngle>
+        <MaxAngle><Variable name="PotiMaxAngle"/></MaxAngle>
+        <ArcRadius><Variable name="ArcRadiusBig"/></ArcRadius>
+        <ArcThickness><Variable name="ArcThicknessBig"/></ArcThickness>
+        <ArcColor><Variable name="ArcColorEq"/></ArcColor>
+        <!-- without a non-zero ArcBgThickness the parser never reads
+             ArcBgColor, so a knob would show a lit arc with no track -->
+        <ArcBgColor>#2a2d33</ArcBgColor>
+        <ArcBgThickness><Variable name="ArcThicknessBig"/></ArcBgThickness>
+        <ArcRoundCaps><Variable name="ArcRoundCaps"/></ArcRoundCaps>
+        <KnobCenterYOffset>0</KnobCenterYOffset>
+        <EffectUnitGroup><Variable name="EqFxUnit"/></EffectUnitGroup>
+        <Effect>1</Effect>
+        <EffectParameter><Variable name="EqParameter"/></EffectParameter>
+        <Connection>
+          <ConfigKey><Variable name="EqEffect"/>,parameter<Variable name="EqParameter"/></ConfigKey>
+        </Connection>
+        <!-- right click = kill / restore this band -->
+        <Connection>
+          <ConfigKey><Variable name="EqEffect"/>,button_parameter<Variable name="EqParameter"/></ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+      </EffectParameterKnobComposed>
+
+    </Children>
+    <Connection>
+      <ConfigKey><Variable name="EqEffect"/>,parameter<Variable name="EqParameter"/>_loaded</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

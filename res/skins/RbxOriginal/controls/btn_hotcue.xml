@@ -1,0 +1,48 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: hotcue button
+  Only variable needed: number (1-8)
+
+  These used to carry generated SVGs (tools/make_hotcue_pads.py) that traced each
+  numeral as a path, on the theory that Mixxx paints a WHotcueButton's fill with
+  the cue's colour but draws no text. That was wrong: with the art missing the
+  pads still render "1".."8", so WHotcueButton draws the number itself. The pads
+  are therefore plain chips like every other button - one less generated asset,
+  crisp type at any size, and no fixed-size constraint.
+
+  Pass 3: the pad is ELASTIC in width (30me) and 39 px tall, so the 2x4 grid
+  fills whatever the deck has left beside the transport. Right-click opens Mixxx's own cue editor, where the
+  label and colour can be changed per cue.
+-->
+<Template>
+      <HotcueButton>
+        <TooltipId>hotcue</TooltipId>
+        <ObjectName>HotcueButton<Variable name="number"/></ObjectName>
+        <Size>30me,44me</Size>
+        <Group><Variable name="Group"/></Group>
+        <Hotcue><Variable name="number"/></Hotcue>
+        <NumberStates>3</NumberStates>
+        <DimBrightThreshold><Variable name="DimBrightThresholdHotcueBtn"/></DimBrightThreshold>
+        <State>
+          <Number>0</Number>
+          <Text><Variable name="number"/></Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text><Variable name="number"/></Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>2</Number>
+          <Text><Variable name="number"/></Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+      </HotcueButton>
+</Template>

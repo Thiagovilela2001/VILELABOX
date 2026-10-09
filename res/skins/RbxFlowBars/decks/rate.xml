@@ -1,0 +1,389 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/rate.xml   (look pass 3)
+  The deck's right-hand column, full card height, Rekordbox-style:
+
+      [   BPM    ]   hero display (24 px / 700) - the deck's headline number
+      [ Em  ][+-]    key display + semitone stepper
+        +0.00%       tempo the fader is applying
+      [   TAP    ]
+      [ SYNC ][M ]   M = sync leader (Mixxx's "master")
+      [ KEY SYNC ]
+         ||          pitch fader: takes every spare pixel
+      [RANGE] 8
+      [-][0][+]
+
+  Pass 3 moved BPM / KEY / KEY SYNC here from the header: at 1366 px the header
+  could not hold title + time + two display boxes + mode chips, and clipped the
+  title to "HELL...". The header's MASTER chip was dropped - it was a second
+  sync_leader button next to this column's M. The tempo arc dial was dropped
+  for the same width/height budget; the % readout says the same thing.
+
+  NOTE: Mixxx 2.5 has no master-BPM control; M toggles [ChannelN],sync_leader.
+  Variables: Group, ChanNum
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxRate<Variable name="ChanNum"/></ObjectName>
+    <Layout>vertical</Layout>
+    <Size>84f,0me</Size>
+    <Children>
+
+      <WidgetGroup>
+        <ObjectName>RbxBpmBox</ObjectName>
+        <Layout>vertical</Layout>
+        <Size>84f,48f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+          <Label>
+            <ObjectName>BoxCaption</ObjectName>
+            <Size>84f,10f</Size>
+            <Alignment>center</Alignment>
+            <Text>BPM</Text>
+          </Label>
+          <Number>
+            <ObjectName>BpmHero</ObjectName>
+            <TooltipId>visual_bpm</TooltipId>
+            <Size>84f,30f</Size>
+            <Alignment>center</Alignment>
+            <NumberOfDigits>2</NumberOfDigits>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,visual_bpm</ConfigKey>
+            </Connection>
+          </Number>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>84f,34f</Size>
+        <Children>
+          <WidgetGroup>
+            <ObjectName>RbxKeyBox</ObjectName>
+            <Layout>horizontal</Layout>
+            <Size>62f,34f</Size>
+            <Children>
+          <Key>
+            <ObjectName>KeySmall</ObjectName>
+            <TooltipId>track_key</TooltipId>
+            <Group><Variable name="Group"/></Group>
+            <Size>62f,34f</Size>
+            <Alignment>center</Alignment>
+            <Elide>right</Elide>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,visual_key</ConfigKey>
+            </Connection>
+          </Key>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <Size>20f,34f</Size>
+            <Children>
+          <PushButton>
+            <ObjectName>KeyUp</ObjectName>
+            <TooltipId>pitch_up</TooltipId>
+            <Size>20f,16f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>+</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,pitch_up</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+            </Connection>
+          </PushButton>
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+          <PushButton>
+            <ObjectName>KeyDown</ObjectName>
+            <TooltipId>pitch_down</TooltipId>
+            <Size>20f,16f</Size>
+            <NumberStates>1</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>-</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,pitch_down</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <EmitOnDownPress>true</EmitOnDownPress>
+            </Connection>
+          </PushButton>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+      <NumberRate>
+            <ObjectName>RateDial</ObjectName>
+            <TooltipId>rate_display</TooltipId>
+            <Size>84f,18f</Size>
+            <Alignment>center</Alignment>
+            <Channel><Variable name="ChanNum"/></Channel>
+            <NumberOfDigits>2</NumberOfDigits>
+          </NumberRate>
+
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+      <PushButton>
+        <TooltipId>tempo_tap</TooltipId>
+        <ObjectName>BpmTap</ObjectName>
+        <Size>84f,20f</Size>
+        <NumberStates>1</NumberStates>
+        <State>
+          <Number>0</Number>
+          <Text>TAP</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,tempo_tap</ConfigKey>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,bpm_tap</ConfigKey>
+          <ButtonState>RightButton</ButtonState>
+        </Connection>
+      </PushButton>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <!-- SYNC + sync-master -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>84,20</MinimumSize>
+        <MaximumSize>,20</MaximumSize>
+        <Children>
+          <PushButton>
+            <TooltipId>sync_enabled</TooltipId>
+            <ObjectName>SyncDeck</ObjectName>
+            <Size>56f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>SYNC</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>SYNC</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_enabled</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_enabled</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+
+          <PushButton>
+            <TooltipId>sync_leader</TooltipId>
+            <ObjectName>SyncLeader</ObjectName>
+            <Size>26f,20f</Size>
+            <NumberStates>3</NumberStates>
+            <RightClickIsPushButton>false</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>M</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>M</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>2</Number>
+              <Text>M</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <PushButton>
+        <TooltipId>sync_reset_key</TooltipId>
+        <ObjectName>HeaderKeySync</ObjectName>
+        <Size>84f,20f</Size>
+        <NumberStates>2</NumberStates>
+        <State>
+          <Number>0</Number>
+          <Text>KEY SYNC</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>KEY SYNC</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,sync_key</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,sync_key</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <!-- pitch slider: fills whatever height is left in the pitch column.
+           No <Pos> here on purpose: <Pos> is only move(), which the parent
+           layout overrules, so it bought nothing and made the rail look
+           detached from its box. The centre tick is baked into
+           slider_pitch.svg, so the floating Label is gone too.
+           Slider uses STRETCH (a vertical rail stretches cleanly) while the
+           handle keeps STRETCH_ASPECT so the cap never squashes. -->
+      <WidgetGroup>
+        <ObjectName>PitchSliderBox<Variable name="ChanNum"/></ObjectName>
+        <Layout>stacked</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>84,80</MinimumSize>
+        <Children>
+          <SliderComposed>
+            <ObjectName>RateSlider</ObjectName>
+            <TooltipId>pitch</TooltipId>
+            <Size>84f,0me</Size>
+            <Handle scalemode="STRETCH_ASPECT">skin:bases/knob_pitch.svg</Handle>
+            <Slider scalemode="STRETCH">skin:bases/slider_pitch.svg</Slider>
+            <Horizontal>false</Horizontal>
+            <BarColor><Variable name="BarColorPitch"/></BarColor>
+            <BarWidth><Variable name="BarWidth"/></BarWidth>
+            <BarMargins><Variable name="BarMarginPitch"/></BarMargins>
+            <BarRoundCaps>true</BarRoundCaps>
+            <BarAxisPos>42.0</BarAxisPos>
+            <BarUnipolar>false</BarUnipolar>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,rate</ConfigKey>
+            </Connection>
+          </SliderComposed>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <!-- pitch range: ONE cycling button + ONE live readout.
+           Mixxx has no Rekordbox-style pair of fixed range buttons: the range
+           is a single cycling control ([ChannelN],rateRange) plus a <RateRange>
+           readout that always shows the value Mixxx is really using. -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>84,20</MinimumSize>
+        <MaximumSize>,20</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_3state.xml">
+            <SetVariable name="TooltipId">rate_range_display</SetVariable>
+            <SetVariable name="ObjectName">PitchRangeButton</SetVariable>
+            <SetVariable name="Size">48f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">RANGE</SetVariable>
+            <SetVariable name="state_1_text">RANGE</SetVariable>
+            <SetVariable name="state_2_text">RANGE</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[Channel<Variable name="ChanNum"/>],rateRange</SetVariable>
+          </Template>
+
+          <RateRange>
+            <TooltipId>rate_range_display</TooltipId>
+            <ObjectName>PitchRangeReadout</ObjectName>
+            <Size>34f,20f</Size>
+            <Channel><Variable name="ChanNum"/></Channel>
+            <Position>Top</Position>
+            <Display>range</Display>
+          </RateRange>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <!-- pitch reset + temporary nudge -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>84,20</MinimumSize>
+        <MaximumSize>,20</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate_temp_down_rate_temp_down_small</SetVariable>
+            <SetVariable name="ObjectName">PitchDown</SetVariable>
+            <SetVariable name="Size">26f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">-</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,rate_perm_down</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,rate_temp_down</SetVariable>
+          </Template>
+
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate</SetVariable>
+            <SetVariable name="ObjectName">PitchReset</SetVariable>
+            <SetVariable name="Size">28f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">0</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,rate_set_default</SetVariable>
+          </Template>
+
+          <Template src="skin:controls/btn_1state_right.xml">
+            <SetVariable name="TooltipId">rate_temp_up_rate_temp_up_small</SetVariable>
+            <SetVariable name="ObjectName">PitchUp</SetVariable>
+            <SetVariable name="Size">26f,20f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">+</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey"><Variable name="Group"/>,rate_perm_up</SetVariable>
+            <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,rate_temp_up</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_pitch</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

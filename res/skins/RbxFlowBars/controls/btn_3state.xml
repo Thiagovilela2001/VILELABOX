@@ -1,0 +1,53 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: btn_3state
+  A 3-state push button. Left click advances the control (Mixxx needs
+  EmitOnPressAndRelease for multi-state controls to cycle through values).
+  Used for the crossfader assignment ([ChannelN],orientation).
+
+  NOTE for anyone editing this skin: inside a <Template> CALL only
+  <SetVariable> children are honoured. Any <State>, <Connection>,
+  <NumberStates> or <Size> written inline in the caller is SILENTLY DROPPED —
+  the widget is built from this template with an empty variable, which renders
+  a blank button and no working click. Set every variable you need here.
+
+Variables:
+  ObjectName, TooltipId, Size, BtnSize (base svg size),
+  state_0_text, state_1_text, state_2_text, Align,
+  ConfigKey (optional), ConfigKeyDisp (optional)
+-->
+<Template>
+  <PushButton>
+    <TooltipId><Variable name="TooltipId"/></TooltipId>
+    <ObjectName><Variable name="ObjectName"/></ObjectName>
+    <Size><Variable name="Size"/></Size>
+    <NumberStates>3</NumberStates>
+    <RightClickIsPushButton>false</RightClickIsPushButton>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="state_0_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>.svg</Pressed>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text><Variable name="state_1_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Pressed>
+    </State>
+    <State>
+      <Number>2</Number>
+      <Text><Variable name="state_2_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Pressed>
+    </State>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+      <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>

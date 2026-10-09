@@ -1,0 +1,568 @@
+/* ===========================================================================
+   RbxFlow — style.qss  (look pass 4: "flat, layered")
+   ===========================================================================
+
+   WHY THIS PASS
+   -------------
+   Pass 3 fixed the flatness of pass 2 with gradients, lit top edges and glossy
+   radial discs. That read as "plastic" - skeuomorphic shine from ~2012. Modern
+   DJ software (Rekordbox 7, Serato 3, Engine DJ 4) is FLAT but LAYERED: depth
+   comes from a few solid tone steps, not from light effects.
+
+   RULES
+     * no gradients, no lit/shaded edges, no glows - anywhere
+     * depth = tone: ground < card < control < control:hover
+     * displays are a step DARKER than their card (inset by tone, not by shadow)
+     * colour only means state: accent = on, orange = cue, green = play/loop
+     * radii: cards 8, controls 5, pads 6, round transport 50%
+
+   TONES
+     ground   #0b0b0d      card     #151619     card line #202226
+     display  #0d0e10      control  #23252a     hover     #2c2f35
+     text-hi  #f2f3f5      text     #c9ccd1     mid #8a8e96   dim #5c6068
+     accent   #2f8cff      cue #ff8c1a      play #2fd162      clip #ff3b30
+
+   TYPE SCALE (weights 400 / 500 / 700 only; Noto Sans has no 600)
+     hero 24/700 BPM · 15/700 title, key · 13/500 time, tempo · 11 body
+     · 9/700 uppercase captions
+   =========================================================================== */
+
+/* ---------------------------------------------------------------- foundation */
+#Mixxx {
+  background-color: #0b0b0d;
+}
+
+WWidget {
+  background-color: transparent;
+  color: #c9ccd1;
+  font-family: "Inter", "Noto Sans", "DejaVu Sans", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* ================================================================== CARDS == */
+#RbxTopBar,
+#RbxDeck1,
+#RbxDeck2,
+#RbxMixer,
+#RbxWaveformBand,
+#RbxLibraryContainer {
+  background-color: #151619;
+  border: 1px solid #202226;
+  border-radius: 8px;
+}
+
+/* displays: one tone darker than the card, no outline */
+#RbxOverviewStack1,
+#RbxOverviewStack2,
+#RbxWaveRow1,
+#RbxWaveRow2,
+#RbxBpmBox,
+#RbxKeyBox {
+  background-color: #0d0e10;
+  border: none;
+  border-radius: 6px;
+}
+
+WLabel#SectionLabel {
+  color: #5c6068;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  padding: 0px;
+}
+
+/* ================================================================ TOP BAR == */
+#RbxBrandBar {
+  background-color: #2f8cff;
+  border-radius: 2px;
+}
+
+WLabel#RbxLogo {
+  color: #f2f3f5;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  padding: 0px 0px 0px 8px;
+}
+
+/* segmented control: a dark track with a lighter "thumb" on the active item */
+#RbxLayoutToggles {
+  background-color: #0d0e10;
+  border: none;
+  border-radius: 6px;
+}
+
+#RbxLayoutToggles WPushButton {
+  background-color: transparent;
+  border: none;
+  border-radius: 5px;
+  color: #8a8e96;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 2px;
+}
+
+#RbxLayoutToggles WPushButton:hover {
+  color: #f2f3f5;
+}
+
+#RbxLayoutToggles WPushButton[value="1"] {
+  background-color: #2c2f35;
+  color: #f2f3f5;
+}
+
+WTime,
+WLabel#RbxClockText {
+  color: #f2f3f5;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+WLabel#RbxCpuLabel {
+  color: #5c6068;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  padding: 0px 0px 0px 6px;
+}
+
+/* ================================================================= BUTTONS ==
+   Solid tone chips. Off = control tone, hover = one step up, on = accent. */
+WPushButton {
+  background-color: #23252a;
+  border: none;
+  border-radius: 5px;
+  color: #c9ccd1;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 0px;
+}
+
+WPushButton:hover {
+  background-color: #2c2f35;
+  color: #ffffff;
+}
+
+WPushButton:pressed,
+WPushButton[value="1"] {
+  background-color: #2f8cff;
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------- CUE / PLAY rounds
+   Off: card-tone disc with a 2 px coloured ring. On: solid colour. */
+WPushButton#CueDeck,
+WPushButton#PlayDeck {
+  background-color: #1b1c20;
+  border: 2px solid #ff8c1a;
+  border-radius: 35px;
+  color: #ff8c1a;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+WPushButton#PlayDeck {
+  border-color: #2fd162;
+  color: #2fd162;
+  font-size: 19px;
+  letter-spacing: 0px;
+}
+
+WPushButton#CueDeck:hover,
+WPushButton#PlayDeck:hover {
+  background-color: #23252a;
+}
+
+WPushButton#CueDeck:pressed,
+WPushButton#CueDeck[value="1"] {
+  background-color: #ff8c1a;
+  color: #1a0d00;
+}
+
+WPushButton#PlayDeck:pressed,
+WPushButton#PlayDeck[value="1"] {
+  background-color: #2fd162;
+  color: #04200c;
+}
+
+/* latched modes read as an accent OUTLINE: on, but not an action */
+WPushButton#SyncLeader[value="2"] {
+  background-color: #23252a;
+  border: 1px solid #2f8cff;
+  color: #6aaeff;
+}
+
+WPushButton#LoopActivate[value="1"] {
+  background-color: #2fd162;
+  color: #04200c;
+}
+
+WPushButton#RecButton[value="1"] {
+  background-color: #ff3b30;
+  color: #ffffff;
+}
+
+/* -------------------------------------------------------------- hot cues
+   Mixxx sets the pad's background-color to the cue's colour when it holds a
+   cue (per-widget stylesheet, painted under the transparent pixmap). Here only
+   the shape and the EMPTY pad. */
+WHotcueButton {
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111111;
+}
+
+WHotcueButton[displayValue="0"] {
+  background-color: #1d1f23;
+  color: #4a4e56;
+}
+
+WHotcueButton[displayValue="0"]:hover {
+  background-color: #25282d;
+  color: #c9ccd1;
+}
+
+WPushButton#OverviewSeek1,
+WPushButton#OverviewSeek2 {
+  background-color: transparent;
+}
+
+WPushButton#RbxSettingCheck {
+  background-color: transparent;
+  color: #8a8e96;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0px;
+}
+
+WPushButton#RbxSettingCheck[value="1"] {
+  background-color: transparent;
+  color: #6aaeff;
+  font-weight: 700;
+}
+
+/* ================================================================= HEADER == */
+WLabel#DeckBadge,
+WLabel#WaveRowTag {
+  background-color: #2f8cff;
+  border-radius: 5px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+WTrackProperty#TitleText {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f2f3f5;
+}
+
+WTrackProperty#ArtistText {
+  font-size: 11px;
+  font-weight: 500;
+  color: #8a8e96;
+}
+
+WNumberPos#PlayPositionText {
+  font-size: 13px;
+  font-weight: 500;
+  color: #c9ccd1;
+}
+
+WNumber#BpmHero {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+WLabel#BoxCaption {
+  color: #5c6068;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+WKey#KeySmall {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ff8c1a;
+}
+
+WLabel#EmptyHint {
+  color: #5c6068;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+}
+
+WTrackProperty:highlight,
+WTrackProperty#TitleText:highlight {
+  color: #ffffff;
+}
+
+/* ================================================================= LABELS == */
+WLabel,
+WTrackProperty,
+WKey {
+  background-color: transparent;
+  border: none;
+  color: #c9ccd1;
+  font-size: 11px;
+}
+
+WLabel#ChannelLabel,
+WLabel#MasterLabel,
+WLabel#KnobLabel,
+WLabel#EqBandLabel,
+WLabel#RbxSettingsSection {
+  color: #5c6068;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+WLabel#ChannelLabel,
+WLabel#MasterLabel {
+  color: #8a8e96;
+  font-size: 10px;
+}
+
+WLabel#RbxSettingsTitle {
+  color: #f2f3f5;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+}
+
+WLabel#RbxSettingsSection {
+  color: #6aaeff;
+}
+
+/* =========================================================== TEMPO COLUMN == */
+WNumberRate#RateDial,
+WNumberRate {
+  color: #ff8c1a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+WRateRange#PitchRangeReadout {
+  color: #8a8e96;
+  font-size: 10px;
+  font-weight: 700;
+  qproperty-alignment: 'AlignCenter';
+}
+
+/* ============================================================ SPIN BOXES == */
+WBeatSpinBox {
+  background-color: #0d0e10;
+  border: none;
+  border-radius: 5px;
+  color: #f2f3f5;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0px;
+  selection-background-color: #2f8cff;
+  qproperty-alignment: 'AlignCenter';
+  qproperty-buttonSymbols: 'NoButtons';
+}
+
+WBeatSpinBox:focus {
+  border: 1px solid #2f8cff;
+}
+
+WBeatSpinBox::up-button,
+WBeatSpinBox::down-button {
+  width: 0px;
+  border: none;
+}
+
+/* ============================================================= WAVEFORMS == */
+WOverview,
+WWaveform {
+  background-color: #0d0e10;
+  border: none;
+}
+
+/* ================================================================ LIBRARY == */
+WLibrary,
+WLibrarySidebar,
+WTrackTableView {
+  background-color: #151619;
+  border: none;
+  color: #c9ccd1;
+  font-size: 11px;
+  selection-background-color: #1d4f8f;
+  selection-color: #ffffff;
+  alternate-background-color: #18191c;
+}
+
+WLibrarySidebar {
+  background-color: transparent;
+  outline: none;
+}
+
+WLibrarySidebar::item {
+  padding: 4px 2px;
+  border-radius: 5px;
+}
+
+WLibrarySidebar::item:hover {
+  background-color: #1d1f23;
+}
+
+WLibrarySidebar::item:selected {
+  background-color: #23252a;
+  color: #ffffff;
+}
+
+WTrackTableView {
+  border-left: 1px solid #202226;
+  outline: none;
+}
+
+WTrackTableView::item {
+  padding: 2px 4px;
+  border: none;
+}
+
+WTrackTableView::item:hover {
+  background-color: #1d1f23;
+}
+
+WTrackTableView::item:selected {
+  background-color: #1d4f8f;
+  color: #ffffff;
+}
+
+WTrackTableViewHeader {
+  background-color: #151619;
+  border: none;
+}
+
+WTrackTableViewHeader::section {
+  background-color: #151619;
+  color: #5c6068;
+  border: none;
+  border-bottom: 1px solid #202226;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 6px 6px;
+}
+
+WTrackTableViewHeader::section:hover {
+  color: #f2f3f5;
+}
+
+#RbxSearchBox {
+  background-color: transparent;
+}
+
+WSearchBox,
+WLibrarySearchLineEdit {
+  background-color: #0d0e10;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #f2f3f5;
+  font-size: 12px;
+  padding: 3px 8px;
+  selection-background-color: #2f8cff;
+}
+
+WSearchBox:focus,
+WLibrarySearchLineEdit:focus {
+  border: 1px solid #2f8cff;
+}
+
+QScrollBar:vertical {
+  background: transparent;
+  width: 8px;
+  margin: 2px;
+}
+QScrollBar:horizontal {
+  background: transparent;
+  height: 8px;
+  margin: 2px;
+}
+QScrollBar::handle:vertical,
+QScrollBar::handle:horizontal {
+  background-color: #2c2f35;
+  border-radius: 2px;
+  min-height: 24px;
+  min-width: 24px;
+}
+QScrollBar::handle:hover {
+  background-color: #3a3d44;
+}
+QScrollBar::add-line,
+QScrollBar::sub-line,
+QScrollBar::add-page,
+QScrollBar::sub-page {
+  background: none;
+  border: none;
+  width: 0px;
+  height: 0px;
+}
+
+/* ================================================================ SETTINGS = */
+#RbxSettingsPanel {
+  background-color: #151619;
+  border: 1px solid #202226;
+  border-radius: 8px;
+}
+
+/* =============================================================== SPLITTERS = */
+QSplitter::handle {
+  background-color: transparent;
+}
+QSplitter::handle:vertical {
+  height: 6px;
+}
+QSplitter::handle:horizontal {
+  width: 6px;
+}
+QSplitter::handle:hover {
+  background-color: #2f8cff;
+}
+
+/* ========================================================== EFFECT RACKS == */
+WEffectName,
+WEffectSelector,
+WEffectSelector QAbstractScrollArea,
+WEffectParameterName {
+  background-color: #151619;
+  color: #8a8e96;
+  font-size: 10px;
+}
+
+QToolTip {
+  background-color: #23252a;
+  color: #f2f3f5;
+  border: none;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+WNumber#BarNumber, WNumber#BeatInBar {
+  color: #ff8c1a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* BARS section (decks/barjump.xml): recessed display like WBeatSpinBox */
+WNumber#BarSizeDisplay {
+  background-color: #0d0e10;
+  border-radius: 5px;
+  color: #ff8c1a;
+  font-size: 14px;
+  font-weight: 700;
+}

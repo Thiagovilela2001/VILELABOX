@@ -1,0 +1,212 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: mixer/channel.xml
+  One rekordbox mixer channel, a single narrow column:
+
+      1         channel number
+      TRIM      pregain
+      HIGH      EQ (right-click = kill)
+      MID
+      LOW
+      CFX       Mixxx QuickEffect super knob, rekordbox's COLOR FX knob
+      [CUE]     headphone cue (pfl); [A - B] crossfader assign under it
+      fader ][  level meter
+  Variables: ChanNum
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxChannel<Variable name="ChanNum"/></ObjectName>
+    <Layout>vertical</Layout>
+    <Size>76f,0max</Size>
+    <MinimumSize>76,</MinimumSize>
+    <Children>
+
+      <Label>
+        <ObjectName>ChannelLabel</ObjectName>
+        <Size>76f,18f</Size>
+        <Alignment>center</Alignment>
+        <Text><Variable name="ChanNum"/></Text>
+      </Label>
+
+      <WidgetGroup>
+        <ObjectName>RbxGain<Variable name="ChanNum"/></ObjectName>
+        <Layout>vertical</Layout>
+        <Size>76f,0max</Size>
+        <Children>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Size>76f,10f</Size>
+            <Alignment>center</Alignment>
+            <Text>TRIM</Text>
+          </Label>
+          <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>76f,34f</Size>
+            <Children>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+              <Template src="skin:controls/knob.xml">
+                <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+                <SetVariable name="Control">pregain</SetVariable>
+                <SetVariable name="TooltipId">pregain</SetVariable>
+                <SetVariable name="Size">34f,34f</SetVariable>
+                <SetVariable name="KnobBg">small</SetVariable>
+                <SetVariable name="KnobColor">small_grey</SetVariable>
+                <SetVariable name="ArcColor"><Variable name="ArcColorGain"/></SetVariable>
+                <SetVariable name="ArcRadius">14.5</SetVariable>
+                <SetVariable name="ArcThickness">2</SetVariable>
+              </Template>
+              <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxEq<Variable name="ChanNum"/></ObjectName>
+        <Layout>vertical</Layout>
+        <Size>76f,0max</Size>
+        <Children>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">3</SetVariable>
+            <SetVariable name="EqRange">High</SetVariable>
+            <SetVariable name="EqLabel">HIGH</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">2</SetVariable>
+            <SetVariable name="EqRange">Mid</SetVariable>
+            <SetVariable name="EqLabel">MID</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">1</SetVariable>
+            <SetVariable name="EqRange">Low</SetVariable>
+            <SetVariable name="EqLabel">LOW</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],show_eq</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+      <!-- COLOR FX amount, selected globally in the centre of the mixer. -->
+      <Label>
+        <ObjectName>KnobLabel</ObjectName>
+        <Size>76f,10f</Size>
+        <Alignment>center</Alignment>
+        <Text>CFX</Text>
+      </Label>
+      <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>76f,34f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[QuickEffectRack1_[Channel<Variable name="ChanNum"/>]]</SetVariable>
+            <SetVariable name="Control">super1</SetVariable>
+            <SetVariable name="TooltipId">QuickEffectRack_super1</SetVariable>
+            <SetVariable name="Size">34f,34f</SetVariable>
+            <SetVariable name="KnobBg">small</SetVariable>
+            <SetVariable name="KnobColor">small_grey</SetVariable>
+            <SetVariable name="ArcColor">#1473eb</SetVariable>
+            <SetVariable name="ArcRadius">14.5</SetVariable>
+            <SetVariable name="ArcThickness">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>76f,22f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_2state.xml">
+            <SetVariable name="TooltipId">pfl</SetVariable>
+            <SetVariable name="ObjectName">HeadphoneCue</SetVariable>
+            <SetVariable name="Size">48f,22f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">CUE</SetVariable>
+            <SetVariable name="state_1_text">CUE</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[Channel<Variable name="ChanNum"/>],pfl</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>76f,16f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_3state.xml">
+            <SetVariable name="TooltipId">orientation</SetVariable>
+            <SetVariable name="ObjectName">XfaderAssign</SetVariable>
+            <SetVariable name="Size">48f,16f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">A</SetVariable>
+            <SetVariable name="state_1_text">THRU</SetVariable>
+            <SetVariable name="state_2_text">B</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[Channel<Variable name="ChanNum"/>],orientation</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxFader<Variable name="ChanNum"/></ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>76f,0max</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>RbxFaderSlot<Variable name="ChanNum"/></ObjectName>
+            <Layout>stacked</Layout>
+            <Size>50f,0me</Size>
+            <Children>
+              <SliderComposed>
+                <TooltipId>channel_volume</TooltipId>
+                <ObjectName>VolumeSlider</ObjectName>
+                <Size>50f,106f</Size>
+                <Handle scalemode="STRETCH_ASPECT">skin:bases/knob_volume.svg</Handle>
+                <Slider scalemode="STRETCH">skin:bases/slider_volume.svg</Slider>
+                <Horizontal>false</Horizontal>
+                <BarColor><Variable name="BarColorVolume"/></BarColor>
+                <BarWidth><Variable name="BarWidth"/></BarWidth>
+                <BarMargins><Variable name="BarMarginVolume"/></BarMargins>
+                <BarRoundCaps>true</BarRoundCaps>
+                <BarAxisPos>25.0</BarAxisPos>
+                <BarUnipolar>false</BarUnipolar>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],volume</ConfigKey>
+                </Connection>
+              </SliderComposed>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+          <Template src="skin:mixer/vu_channel.xml">
+            <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

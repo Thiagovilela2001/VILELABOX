@@ -1,0 +1,29 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: helpers/setting_check.xml
+  One on/off row in the skin settings panel.
+Variables: Text, Setting (config key), TooltipId
+-->
+<Template>
+  <PushButton>
+    <TooltipId><Variable name="TooltipId"/></TooltipId>
+    <ObjectName>RbxSettingCheck</ObjectName>
+    <Size>200me,17f</Size>
+    <NumberStates>2</NumberStates>
+    <RightClickIsPushButton>false</RightClickIsPushButton>
+    <State>
+      <Number>0</Number>
+      <Text>[ ] <Variable name="Text"/></Text>
+      <Alignment>left</Alignment>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text>[x] <Variable name="Text"/></Text>
+      <Alignment>left</Alignment>
+    </State>
+    <Connection>
+      <ConfigKey persist="true"><Variable name="Setting"/></ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+  </PushButton>
+</Template>

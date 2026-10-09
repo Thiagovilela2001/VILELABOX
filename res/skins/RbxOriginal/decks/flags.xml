@@ -1,0 +1,61 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: decks/flags.xml
+  The column right of the jog display: SLIP / Q / MT, as in rekordbox
+  (MT = master tempo, which is Mixxx's key lock). REV sits under them.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxFlags</ObjectName>
+    <Layout>vertical</Layout>
+    <Size>44f,150f</Size>
+    <Children>
+      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+      <Template src="skin:controls/btn_2state.xml">
+        <SetVariable name="TooltipId">slip_mode</SetVariable>
+        <SetVariable name="ObjectName">SlipMode</SetVariable>
+        <SetVariable name="Size">44f,26f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">SLIP</SetVariable>
+        <SetVariable name="state_1_text">SLIP</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey"><Variable name="Group"/>,slip_enabled</SetVariable>
+      </Template>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <Template src="skin:controls/btn_2state.xml">
+        <SetVariable name="TooltipId">quantize</SetVariable>
+        <SetVariable name="ObjectName">Quantize</SetVariable>
+        <SetVariable name="Size">44f,26f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">Q</SetVariable>
+        <SetVariable name="state_1_text">Q</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey"><Variable name="Group"/>,quantize</SetVariable>
+      </Template>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <Template src="skin:controls/btn_2state.xml">
+        <SetVariable name="TooltipId">keylock</SetVariable>
+        <SetVariable name="ObjectName">KeyLock</SetVariable>
+        <SetVariable name="Size">44f,26f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">TOM</SetVariable>
+        <SetVariable name="state_1_text">TOM</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey"><Variable name="Group"/>,keylock</SetVariable>
+      </Template>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <Template src="skin:controls/btn_1state_right.xml">
+        <SetVariable name="TooltipId">reverse</SetVariable>
+        <SetVariable name="ObjectName">Reverse</SetVariable>
+        <SetVariable name="Size">44f,26f</SetVariable>
+        <SetVariable name="BtnSize">blank</SetVariable>
+        <SetVariable name="state_0_text">REV</SetVariable>
+        <SetVariable name="Align">center</SetVariable>
+        <SetVariable name="ConfigKey"><Variable name="Group"/>,reverse</SetVariable>
+        <SetVariable name="ConfigKeyRight"><Variable name="Group"/>,reverseroll</SetVariable>
+      </Template>
+      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

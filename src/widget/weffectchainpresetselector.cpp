@@ -39,6 +39,20 @@ void WEffectChainPresetSelector::setup(const QDomNode& node, const SkinContext& 
         return;
     }
 
+    // Optional second QuickEffect chain for a shared COLOR FX selector.
+    const QString targetGroup = context.selectString(node, "TargetEffectUnitGroup");
+    if (!targetGroup.isEmpty()) {
+        auto target = m_pEffectsManager->getEffectChain(targetGroup);
+        if (target && target != m_pChain &&
+                qobject_cast<QuickEffectChain*>(m_pChain.data()) &&
+                qobject_cast<QuickEffectChain*>(target.data())) {
+            m_pTargetChain = target;
+        } else {
+            SKIN_WARNING(node, context,
+                    QStringLiteral("Invalid TargetEffectUnitGroup for shared QuickEffect selector"));
+        }
+    }
+
     auto* pQuickEffectChain = qobject_cast<QuickEffectChain*>(m_pChain.data());
     if (pQuickEffectChain) {
         connect(m_pChainPresetManager.data(),
@@ -109,8 +123,11 @@ void WEffectChainPresetSelector::populate() {
 
 void WEffectChainPresetSelector::slotEffectChainPresetSelected(int index) {
     Q_UNUSED(index);
-    m_pChain->loadChainPreset(
-            m_pChainPresetManager->getPreset(currentData().toString()));
+    const auto preset = m_pChainPresetManager->getPreset(currentData().toString());
+    m_pChain->loadChainPreset(preset);
+    if (m_pTargetChain) {
+        m_pTargetChain->loadChainPreset(preset);
+    }
     // Clicking a chain item moves keyboard focus to the list view.
     // Move focus back to the previously focused library widget.
     ControlObject::set(ConfigKey("[Library]", "refocus_prev_widget"), 1);

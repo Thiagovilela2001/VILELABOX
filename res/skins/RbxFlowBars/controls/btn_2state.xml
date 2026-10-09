@@ -1,0 +1,45 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: btn_2state
+  A 2-state push button. Left click = ConfigKey (or ConfigKeyRight).
+Variables:
+  ObjectName, TooltipId, Size, BtnSize (base svg size),
+  state_0_text, state_1_text, Align,
+  ConfigKey, ConfigKeyRight (optional), ConfigKeyDisp (optional),
+  Persist (optional, "true" persists the state in mixxx.cfg)
+-->
+<Template>
+  <PushButton>
+    <TooltipId><Variable name="TooltipId"/></TooltipId>
+    <ObjectName><Variable name="ObjectName"/></ObjectName>
+    <Size><Variable name="Size"/></Size>
+    <NumberStates>2</NumberStates>
+    <RightClickIsPushButton>true</RightClickIsPushButton>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="state_0_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Pressed>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text><Variable name="state_1_text"/></Text>
+      <Alignment><Variable name="Align"/></Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_<Variable name="BtnSize"/>_active.svg</Pressed>
+    </State>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKey"/></ConfigKey>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKeyRight"/></ConfigKey>
+      <ButtonState>RightButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey><Variable name="ConfigKeyDisp"/></ConfigKey>
+      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+    </Connection>
+  </PushButton>
+</Template>

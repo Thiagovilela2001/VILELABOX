@@ -1,0 +1,79 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: decks/hotcues.xml   (look pass 3)
+  2x4 hot-cue grid, elastic in width, rows 44-72 px tall. Kept short on purpose
+  so the deck/mixer row stays compact and the library below gets the height. Empty pads are dark raised chips with a dim number; a set
+  pad takes the cue's own colour (Mixxx paints it under the transparent pixmap).
+  Pads 5-8 follow [RbxOriginal],show_8_hotcues.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxHotcues</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,me</SizePolicy>
+    <MinimumSize>130,94</MinimumSize>
+    <MaximumSize>,150</MaximumSize>
+    <Children>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>,44</MinimumSize>
+        <MaximumSize>,72</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">1</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">3</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">4</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>,44</MinimumSize>
+        <MaximumSize>,72</MaximumSize>
+        <Children>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">5</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">6</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">7</SetVariable>
+          </Template>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/btn_hotcue.xml">
+            <SetVariable name="number">8</SetVariable>
+          </Template>
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],show_8_hotcues</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_hotcues</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

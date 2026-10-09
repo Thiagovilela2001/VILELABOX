@@ -1,0 +1,128 @@
+<!DOCTYPE template>
+<!--
+  RbxFlowBars :: decks/barjump.xml
+      BARS
+      [<<][   4   ][>>]             jump back / forward N whole bars (keeps the
+                                    beat in the bar); right-click halves / doubles N
+      [    BAR LOOP    ]            N-bar loop from beat 1 of the current bar
+  Needs the modified Mixxx build (controls bar_size, bar_jump_*, bar_loop_toggle).
+  Elastic in width, fixed 70 px tall.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxBarjump</ObjectName>
+    <Layout>vertical</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <MinimumSize>120,70</MinimumSize>
+    <MaximumSize>,70</MaximumSize>
+    <Children>
+      <Label>
+        <ObjectName>SectionLabel</ObjectName>
+        <Size>0me,12f</Size>
+        <Alignment>left</Alignment>
+        <Text>BARS</Text>
+      </Label>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <PushButton>
+            <ObjectName>BarJumpBack</ObjectName>
+            <Tooltip>Volta N compassos inteiros, mantendo o tempo do compasso. Botão direito: diminui N pela metade.</Tooltip>
+            <Size>32f,26f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number><Text>&#9664;&#9664;</Text><Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_jump_backward</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_size_halve</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <Number>
+            <ObjectName>BarSizeDisplay</ObjectName>
+            <Tooltip>Tamanho em compassos (N) para os saltos e o BAR LOOP. Clique direito nas setas para mudar.</Tooltip>
+            <Size>40me,26f</Size>
+            <Alignment>center</Alignment>
+            <NumberOfDigits>0</NumberOfDigits>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_size</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </Number>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
+          <PushButton>
+            <ObjectName>BarJumpFwd</ObjectName>
+            <Tooltip>Avança N compassos inteiros, mantendo o tempo do compasso. Botão direito: dobra N.</Tooltip>
+            <Size>32f,26f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number><Text>&#9654;&#9654;</Text><Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_jump_forward</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_size_double</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <MinimumSize>,26</MinimumSize>
+        <MaximumSize>,26</MaximumSize>
+        <Children>
+          <PushButton>
+            <ObjectName>BarLoop</ObjectName>
+            <Tooltip>Loop de N compassos a partir do tempo 1 do compasso atual (requer SET 1; sem ele, começa na batida atual). Clique de novo para sair. Aceso = loop ativo.</Tooltip>
+            <Size>0me,26f</Size>
+            <NumberStates>2</NumberStates>
+            <State>
+              <Number>0</Number><Text>BAR LOOP</Text><Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number><Text>BAR LOOP</Text><Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,bar_loop_toggle</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+              <ConnectValueToWidget>false</ConnectValueToWidget>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,loop_enabled</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_beatjump_controls</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>

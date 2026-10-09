@@ -1,0 +1,237 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: topbar.xml
+  Status bar. Rekordbox puts CONTENT up here (master tempo, master key, a clock,
+  engine state). Mixxx 2.5 exposes no master tempo and no master key to the skin
+  at all - there is no [Master],bpm and no next-track control; verified against
+  the binary, and LateNight's toolbar has the same gap - so this bar carries what
+  actually exists and is designed rather than pretending:
+
+      [accent] RBXFLOW | WAVE·MIXER·LIBRARY |          | AutoDJ · clock · CPU · REC · SETTINGS
+        brand            one segmented switcher           live engine state
+
+  What changed from the first draft: the wordmark got a 2 px accent mark, the
+  three toggles became a single segmented control instead of three loose pills,
+  the clock went from 10 px to 13 px, the CPU meter moved inline next to its
+  label, and REC got its own red theme so an armed recorder is unmissable.
+
+  The toggles use `BtnSize=blank`, i.e. fully transparent art: the segmented look
+  (container fill, dividers, active fill) comes from style.qss. That works
+  because WPushButton::paintOnDevice() calls drawPrimitive(QE_Widget) before it
+  draws the state pixmap, so a QSS background does paint - the same mechanism
+  that lets a hot-cue pad show the cue's colour.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxTopBar</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>e,min</SizePolicy>
+    <MaximumSize>,34</MaximumSize>
+    <MinimumSize>,34</MinimumSize>
+    <Children>
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <!-- brand: accent mark + wordmark -->
+      <WidgetGroup>
+        <ObjectName>RbxBrand</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <WidgetGroup>
+            <ObjectName>RbxBrandBar</ObjectName>
+            <Size>4f,18f</Size>
+          </WidgetGroup>
+          <Label>
+            <ObjectName>RbxLogo</ObjectName>
+            <Size>96f,24f</Size>
+            <Alignment>left</Alignment>
+            <Text>RBXFLOW</Text>
+          </Label>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <!-- segmented layout switcher -->
+      <WidgetGroup>
+        <ObjectName>RbxLayoutToggles</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <WidgetGroup><Size>1f,22f</Size></WidgetGroup>
+          <Template src="skin:controls/btn_2state.xml">
+            <SetVariable name="TooltipId">show_waveforms</SetVariable>
+            <SetVariable name="ObjectName">ToggleWaveformBand</SetVariable>
+            <SetVariable name="Size">66f,22f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">WAVE</SetVariable>
+            <SetVariable name="state_1_text">WAVE</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[RbxFlow],show_waveform_band</SetVariable>
+          </Template>
+
+          <Template src="skin:controls/btn_2state.xml">
+            <SetVariable name="TooltipId">show_mixer</SetVariable>
+            <SetVariable name="ObjectName">ToggleMixer</SetVariable>
+            <SetVariable name="Size">62f,22f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">MIXER</SetVariable>
+            <SetVariable name="state_1_text">MIXER</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[RbxFlow],show_mixer</SetVariable>
+          </Template>
+
+          <Template src="skin:controls/btn_2state.xml">
+            <SetVariable name="TooltipId">maximize_library</SetVariable>
+            <SetVariable name="ObjectName">ToggleLibrary</SetVariable>
+            <SetVariable name="Size">66f,22f</SetVariable>
+            <SetVariable name="BtnSize">blank</SetVariable>
+            <SetVariable name="state_0_text">LIBRARY</SetVariable>
+            <SetVariable name="state_1_text">LIBRARY</SetVariable>
+            <SetVariable name="Align">center</SetVariable>
+            <SetVariable name="ConfigKey">[RbxFlow],show_big_library</SetVariable>
+          </Template>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,1min</Size></WidgetGroup>
+
+      <!-- AutoDJ armed indicator -->
+      <StatusLight>
+        <TooltipId>autodj_status</TooltipId>
+        <ObjectName>AutoDjStatus</ObjectName>
+        <Size>18f,18f</Size>
+        <NumberPos>3</NumberPos>
+        <PathBack>skin:bases/btn_sm.svg</PathBack>
+        <PathStatusLight1>skin:bases/btn_sm_set.svg</PathStatusLight1>
+        <PathStatusLight2>skin:bases/btn_sm_set.svg</PathStatusLight2>
+        <PathStatusLight3>skin:bases/btn_sm_set.svg</PathStatusLight3>
+        <Connection>
+          <ConfigKey>[AutoDJ],enabled</ConfigKey>
+        </Connection>
+        <Connection>
+          <ConfigKey>[AutoDJ],enabled</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </StatusLight>
+
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <WidgetGroup><Size>1f,14f</Size></WidgetGroup>
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <!-- clock -->
+      <WidgetGroup>
+        <ObjectName>RbxClock</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Time>
+            <TooltipId>time</TooltipId>
+            <ObjectName>RbxClockText</ObjectName>
+          </Time>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>12f,1min</Size></WidgetGroup>
+
+      <!-- CPU / audio latency: meter inline with its label -->
+      <WidgetGroup>
+        <ObjectName>RbxCpuBox</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <VuMeter>
+            <TooltipId>audio_latency_usage</TooltipId>
+            <ObjectName>RbxCpuMeter</ObjectName>
+            <Size>70f,11f</Size>
+            <PathBack>skin:bases/latency_bg.svg</PathBack>
+            <PathVu>skin:bases/latency_over.svg</PathVu>
+            <Horizontal>true</Horizontal>
+            <PeakHoldSize>5</PeakHoldSize>
+            <PeakHoldTime>1000</PeakHoldTime>
+            <PeakFallTime>100</PeakFallTime>
+            <PeakFallStep>1</PeakFallStep>
+            <Connection>
+              <ConfigKey>[App],audio_latency_usage</ConfigKey>
+            </Connection>
+          </VuMeter>
+          <Label>
+            <ObjectName>RbxCpuLabel</ObjectName>
+            <Size>30f,11f</Size>
+            <Alignment>left</Alignment>
+            <Text>CPU</Text>
+          </Label>
+        </Children>
+        <Connection>
+          <ConfigKey>[App],audio_latency_overload</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>12f,1min</Size></WidgetGroup>
+
+      <!-- recording -->
+      <PushButton>
+        <TooltipId>toggle_recording</TooltipId>
+        <ObjectName>RecButton</ObjectName>
+        <Size>60f,22f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>false</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>&#9679; REC</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>&#9679; REC</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[Recording],toggle_recording</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey>[Recording],status</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+
+      <WidgetGroup><Size>6f,1min</Size></WidgetGroup>
+
+      <!-- skin settings menu -->
+      <PushButton>
+        <TooltipId>skin_settings</TooltipId>
+        <ObjectName>SkinSettingsToggle</ObjectName>
+        <Size>72f,22f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>false</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Text>SETTINGS</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Text>SETTINGS</Text>
+          <Alignment>center</Alignment>
+          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxFlow],show_settings</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+      <WidgetGroup><Size>8f,1min</Size></WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

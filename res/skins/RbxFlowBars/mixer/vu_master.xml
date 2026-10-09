@@ -1,0 +1,81 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/vu_master.xml
+  Stereo master meter from [Main],vu_meter_left / _right.
+
+  Same size model as vu_channel.xml: the pixmaps are generated at their final
+  size (34x230 level, 34x10 clip) and nothing declares a <Size>, because a
+  pixmap without `scalemode` is Fixed to its own size anyway.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxMasterVuBox</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <StatusLight>
+            <TooltipId>main_peak_indicator_left</TooltipId>
+            <ObjectName>MasterClipL</ObjectName>
+            <PathBack>skin:bases/vu_deck_clipping_bg.svg</PathBack>
+            <PathStatusLight>skin:bases/vu_deck_clipping_active.svg</PathStatusLight>
+            <Connection>
+              <ConfigKey>[Main],peak_indicator_left</ConfigKey>
+            </Connection>
+          </StatusLight>
+          <VuMeter>
+            <TooltipId>main_VuMeterL</TooltipId>
+            <ObjectName>MasterVuL</ObjectName>
+            <PathBack>skin:bases/vu_deck_level_bg.svg</PathBack>
+            <PathVu>skin:bases/vu_deck_level_active.svg</PathVu>
+            <Horizontal>false</Horizontal>
+            <PeakHoldSize>4</PeakHoldSize>
+            <PeakHoldTime>500</PeakHoldTime>
+            <PeakFallTime>50</PeakFallTime>
+            <PeakFallStep>2</PeakFallStep>
+            <Connection>
+              <ConfigKey>[Main],vu_meter_left</ConfigKey>
+            </Connection>
+          </VuMeter>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <StatusLight>
+            <TooltipId>main_peak_indicator_right</TooltipId>
+            <ObjectName>MasterClipR</ObjectName>
+            <PathBack>skin:bases/vu_deck_clipping_bg.svg</PathBack>
+            <PathStatusLight>skin:bases/vu_deck_clipping_active.svg</PathStatusLight>
+            <Connection>
+              <ConfigKey>[Main],peak_indicator_right</ConfigKey>
+            </Connection>
+          </StatusLight>
+          <VuMeter>
+            <TooltipId>main_VuMeterR</TooltipId>
+            <ObjectName>MasterVuR</ObjectName>
+            <PathBack>skin:bases/vu_deck_level_bg.svg</PathBack>
+            <PathVu>skin:bases/vu_deck_level_active.svg</PathVu>
+            <Horizontal>false</Horizontal>
+            <PeakHoldSize>4</PeakHoldSize>
+            <PeakHoldTime>500</PeakHoldTime>
+            <PeakFallTime>50</PeakFallTime>
+            <PeakFallStep>2</PeakFallStep>
+            <Connection>
+              <ConfigKey>[Main],vu_meter_right</ConfigKey>
+            </Connection>
+          </VuMeter>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

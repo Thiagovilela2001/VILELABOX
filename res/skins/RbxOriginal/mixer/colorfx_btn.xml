@@ -1,0 +1,48 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: mixer/colorfx_btn.xml
+  One rekordbox COLOR FX selector button. Like rekordbox, the choice is global:
+  it loads the same QuickEffect chain preset on both channels, and the CFX knob
+  of each channel then plays it.
+
+  Selecting by index: loaded_chain_preset is the position in the QuickEffect
+  preset list (Preferences > Effects), where 0 is always the empty preset (no effect).
+  The IsEqual transform lights the button while that preset is loaded; its
+  inverse writes Index when the button turns on and 0 when it turns off, so
+  clicking the lit button clears the colour FX, as on rekordbox.
+  The COLOR FX presets must therefore stay at list positions 1-6.
+  Variables: Index, Label
+-->
+<Template>
+  <PushButton>
+    <TooltipId>QuickEffectRack_super1</TooltipId>
+    <ObjectName>ColorFxButton</ObjectName>
+    <Size>72f,20f</Size>
+    <NumberStates>2</NumberStates>
+    <State>
+      <Number>0</Number>
+      <Text><Variable name="Label"/></Text>
+      <Alignment>center</Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+    </State>
+    <State>
+      <Number>1</Number>
+      <Text><Variable name="Label"/></Text>
+      <Alignment>center</Alignment>
+      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+    </State>
+    <Connection>
+      <ConfigKey>[QuickEffectRack1_[Channel1]],loaded_chain_preset</ConfigKey>
+      <Transform><IsEqual><Variable name="Index"/></IsEqual></Transform>
+      <ButtonState>LeftButton</ButtonState>
+    </Connection>
+    <Connection>
+      <ConfigKey>[QuickEffectRack1_[Channel2]],loaded_chain_preset</ConfigKey>
+      <Transform><IsEqual><Variable name="Index"/></IsEqual></Transform>
+      <ButtonState>LeftButton</ButtonState>
+      <ConnectValueToWidget>false</ConnectValueToWidget>
+    </Connection>
+  </PushButton>
+</Template>

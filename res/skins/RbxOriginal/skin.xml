@@ -1,0 +1,276 @@
+<!DOCTYPE skin>
+<!--
+  ============================================================================
+  RbxOriginal: Mixxx 2.5 (blackmesa build) skin reproducing the rekordbox 6/7
+  Performance mode, 2Deck Horizontal layout.
+
+  PERSONAL USE ONLY - DO NOT DISTRIBUTE. rb/ holds button and icon art copied
+  from the user's own rekordbox installer (AlphaTheta / Pioneer DJ property).
+  Everything else (XML, QSS, knobs, faders, jog ring from tools/make_rb.py) is
+  derived from the RbxFlowBars skin.
+
+  Layout, top to bottom:
+      GLOBAL SECTION     logo, PERFORMANCE, 2Deck Horizontal, panel check boxes
+      ENLARGED WAVEFORMS deck 1 / deck 2 stacked, bar counter on the left
+      DECK 1 | MIXER | DECK 2
+      BROWSER            tree + track list
+  ============================================================================
+-->
+<skin>
+  <manifest>
+    <title>RbxOriginal</title>
+    <author>thiago (personal)</author>
+    <version>0.1.0</version>
+    <description>rekordbox Performance mode (2Deck Horizontal) look for the blackmesa build. Personal use only.</description>
+    <language>en</language>
+    <license>Personal use only (contains rekordbox artwork)</license>
+    <attributes>
+
+      <!-- ============ engine / layout defaults ============ -->
+      <attribute config_key="[App],num_decks">2</attribute>
+      <attribute config_key="[App],num_samplers">4</attribute>
+      <attribute config_key="[App],num_preview_decks">1</attribute>
+      <attribute config_key="[App],leftdeck">1</attribute>
+      <attribute config_key="[App],rightdeck">2</attribute>
+
+      <attribute persist="true" config_key="[RbxOriginal],pad_mode_1">0</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],pad_mode_2">0</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_fx">1</attribute>
+
+      <!-- ============ skin toggles (all editable in the SETTINGS panel) === -->
+      <attribute persist="true" config_key="[RbxOriginal],show_waveform_band">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_mixer">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_library">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_big_library">0</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_settings">0</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_hotcues">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_8_hotcues">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_loop_controls">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_beatjump_controls">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_beatgrid_controls">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_intro_outro">0</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_pitch">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_eq">1</attribute>
+      <attribute persist="true" config_key="[RbxOriginal],show_xfader">1</attribute>
+
+    </attributes>
+  </manifest>
+
+  <Schemes>
+    <Scheme>
+      <Name>RbxOriginal</Name>
+      <Style src="skin:style.qss"/>
+
+      <!--  waveform / overview palette 
+           Low/Mid/High follow the measured Rekordbox waveform colours
+           (blue bass, amber mids, white highs) on a black ground. -->
+      <SetVariable name="BgColorOverview">#000000</SetVariable>
+      <SetVariable name="BgColorWaveform">#000000</SetVariable>
+      <!-- SignalColor is what Mixxx paints the PRE-ROLL triangles with (the
+           area before the track starts / after it ends). At #7f8b95 they were a
+           loud grey sawtooth across half of every waveform; now a quiet hint. -->
+      <SetVariable name="SignalColor">#1a1c20</SetVariable>
+      <SetVariable name="SignalHighColor">#ffffff</SetVariable>
+      <SetVariable name="SignalMidColor">#ffa600</SetVariable>
+      <SetVariable name="SignalLowColor">#0055e1</SetVariable>
+      <SetVariable name="SignalRGBHighColor">#ffffff</SetVariable>
+      <SetVariable name="SignalRGBMidColor">#ffa600</SetVariable>
+      <SetVariable name="SignalRGBLowColor">#0055e1</SetVariable>
+
+      <SetVariable name="DimBrightThresholdOverview">120</SetVariable>
+      <SetVariable name="DimBrightThresholdWaveform">100</SetVariable>
+      <SetVariable name="DimBrightThresholdHotcueBtn">100</SetVariable>
+
+      <!--  marker colours  -->
+      <SetVariable name="AxesColor">#262626</SetVariable>
+      <SetVariable name="BeatColor">#4a4e56</SetVariable>
+      <SetVariable name="PlayPosColor">#ffffff</SetVariable>
+      <SetVariable name="CueColor">#ffb937</SetVariable>
+      <SetVariable name="LoopColor">#f8a030</SetVariable>
+      <SetVariable name="IntroOutroColor">#1473eb</SetVariable>
+      <SetVariable name="PlayedOverlayColor">#b3000000</SetVariable>
+      <SetVariable name="EndOfTrackColor">#ff4b4b</SetVariable>
+      <SetVariable name="SlipBorderOutlineColor">#ffa600</SetVariable>
+      <SetVariable name="PassthroughLabelColor">#8a939c</SetVariable>
+      <SetVariable name="OverviewFontSize">10</SetVariable>
+
+      <!--  knobs  -->
+      <SetVariable name="PotiMinAngle">-135</SetVariable>
+      <SetVariable name="PotiMaxAngle">135</SetVariable>
+      <SetVariable name="ArcRadiusBig">15.5</SetVariable>
+      <SetVariable name="ArcRadiusCompact">12.0</SetVariable>
+      <SetVariable name="ArcThickness">2.5</SetVariable>
+      <SetVariable name="ArcThicknessBig">3</SetVariable>
+      <SetVariable name="ArcRoundCaps">true</SetVariable>
+      <SetVariable name="ArcColorEq">#aaaaaa</SetVariable>
+      <SetVariable name="ArcColorGain">#1473eb</SetVariable>
+      <SetVariable name="ArcColorGainLow">#1473eb</SetVariable>
+      <SetVariable name="ArcColorMstBal">#1473eb</SetVariable>
+
+      <!--  sliders  -->
+      <SetVariable name="BarBgColor">#000000</SetVariable>
+      <SetVariable name="BarColorVolume">#1473eb</SetVariable>
+      <SetVariable name="BarColorCrossfader">#1473eb</SetVariable>
+      <SetVariable name="BarColorPitch">#1473eb</SetVariable>
+      <SetVariable name="BarWidth">3</SetVariable>
+      <SetVariable name="BarMarginVolume">8,8</SetVariable>
+      <SetVariable name="BarMarginPitch">9,9</SetVariable>
+      <SetVariable name="BarMarginCrossfader">7,7</SetVariable>
+    </Scheme>
+  </Schemes>
+
+  <ObjectName>Mixxx</ObjectName>
+  <Style src="skin:style.qss"
+         src-linux="skins:default-menu-styles-linux.qss"
+         src-windows="skins:default-menu-styles-windows.qss"/>
+  <!-- Smallest supported window: nothing important is allowed to disappear.
+       The 2Deck layout needs about 1600x860 (target: the 1920x1080 monitor). -->
+  <MinimumSize>1600,860</MinimumSize>
+  <SizePolicy>me,me</SizePolicy>
+  <Layout>vertical</Layout>
+  <Children>
+
+    <WidgetGroup>
+      <ObjectName>RbxSkinContainer</ObjectName>
+      <Layout>vertical</Layout>
+      <SizePolicy>me,me</SizePolicy>
+      <Children>
+
+        <!--  Outer gutter. Mixxx has no margin/padding tag for a layout, so the
+              inset is made from fixed-size spacer groups. Without it every zone
+              is flush against the window edge and deck A's title is clipped by
+              the frame on the left.  -->
+        <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+        <WidgetGroup>
+          <ObjectName>RbxSkinBody</ObjectName>
+          <Layout>horizontal</Layout>
+          <SizePolicy>me,me</SizePolicy>
+          <Children>
+
+            <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+
+            <WidgetGroup>
+              <ObjectName>RbxSkinColumn</ObjectName>
+              <Layout>vertical</Layout>
+              <SizePolicy>me,me</SizePolicy>
+              <Children>
+
+        <!-- ================= TOP BAR ================= -->
+        <Template src="skin:topbar.xml"/>
+        <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+        <!-- ============ main view vs maximised library ============ -->
+        <WidgetStack currentpage="[RbxOriginal],show_big_library" persist="true">
+          <Children>
+
+            <!-- normal performance view -->
+            <WidgetGroup>
+              <Layout>vertical</Layout>
+              <SizePolicy>me,me</SizePolicy>
+              <Children>
+
+                <!-- ============ WAVEFORM BAND ============ -->
+                <!--  SplitSizes are a ratio, not pixels: Qt scales them so they
+                      fill the splitter, then clamps to each child's minimum.
+                      They are therefore written to sum to roughly one screen
+                      height so the intended proportion survives scaling.  -->
+                <Splitter>
+                  <ObjectName>RbxWaveSplitter</ObjectName>
+                  <Orientation>vertical</Orientation>
+                  <SizePolicy>me,me</SizePolicy>
+                  <SplitSizes>280,800</SplitSizes>
+                  <SplitSizesConfigKey>[RbxOriginal],waveform_splitsize</SplitSizesConfigKey>
+                  <Collapsible>1,0</Collapsible>
+                  <Children>
+
+                    <Template src="skin:waveforms_container.xml"/>
+
+                    <!-- ============ DECKS + MIXER + LIBRARY ============ -->
+                    <WidgetGroup>
+                      <ObjectName>RbxDeckMixerLibrary</ObjectName>
+                      <Layout>vertical</Layout>
+                      <SizePolicy>me,me</SizePolicy>
+                      <Children>
+
+                        <!--  The deck/mixer row takes exactly the height its
+                              content needs; the library below absorbs all the
+                              window's spare height. That is what removes the
+                              large empty bands that used to open under the
+                              mixer and inside each deck.  -->
+                        <!-- FX RACK HORIZONTAL (ESTILO REKORDBOX) -->
+                        <Template src="skin:fx/panel.xml"/>
+
+                        <WidgetGroup>
+                          <ObjectName>RbxDeckMixerRow</ObjectName>
+                          <Layout>horizontal</Layout>
+                          <!-- `max` = ShrinkFlag only: the row takes exactly
+                               the height its content needs and refuses to grow,
+                               so the library below gets every spare pixel. -->
+                          <SizePolicy>me,max</SizePolicy>
+                          <Children>
+
+                            <!-- DECK A -->
+                            <Template src="skin:decks/deck.xml">
+                              <SetVariable name="ChanNum">1</SetVariable>
+                            </Template>
+
+                            <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+
+                            <!-- MIXER (CH A -> MASTER -> CH B) -->
+                            <Template src="skin:mixer/mixer.xml"/>
+
+                            <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+
+                            <!-- DECK B -->
+                            <Template src="skin:decks/deck.xml">
+                              <SetVariable name="ChanNum">2</SetVariable>
+                            </Template>
+
+                          </Children>
+                        </WidgetGroup>
+
+                        <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+                        <!-- ============ LIBRARY ============ -->
+                        <Template src="skin:library.xml"/>
+
+                      </Children>
+                    </WidgetGroup>
+
+                  </Children>
+                </Splitter>
+
+              </Children>
+            </WidgetGroup>
+
+            <!-- maximised library view: decks shrink to a compact strip -->
+            <WidgetGroup>
+              <Layout>vertical</Layout>
+              <SizePolicy>me,me</SizePolicy>
+              <Children>
+                <Template src="skin:library.xml"/>
+              </Children>
+            </WidgetGroup>
+
+          </Children>
+        </WidgetStack>
+
+        <!-- ================= SETTINGS PANEL ================= -->
+        <Template src="skin:skin_settings.xml"/>
+
+              </Children>
+            </WidgetGroup>
+
+            <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+
+          </Children>
+        </WidgetGroup>
+
+        <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+      </Children>
+    </WidgetGroup>
+
+  </Children>
+</skin>

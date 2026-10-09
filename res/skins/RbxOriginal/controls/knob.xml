@@ -1,0 +1,44 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: knob
+  A plain knob bound to [Group],Control.
+Variables:
+  Group, Control, TooltipId, Size, KnobBg, KnobColor,
+  ArcColor, ArcRadius, ArcThickness, ArcUnipolar, ArcReversed
+
+  ArcBgColor / ArcBgThickness default here, at template top level. Without a
+  non-zero ArcBgThickness, `wknobcomposed.cpp` never even reads ArcBgColor, so
+  the knob has no value track at all - just a floating lit arc. A note on
+  scoping: a top-level <SetVariable> OVERWRITES the same name passed by the
+  caller, so do not start passing these two from the call sites.
+-->
+<Template>
+  <SetVariable name="ArcBgColor">#2a2d33</SetVariable>
+  <SetVariable name="ArcBgThickness">2</SetVariable>
+  <WidgetGroup>
+    <Layout>horizontal</Layout>
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+      <KnobComposed>
+        <TooltipId><Variable name="TooltipId"/></TooltipId>
+        <Size><Variable name="Size"/></Size>
+        <Knob>skin:bases/knob_indicator_<Variable name="KnobColor"/>.svg</Knob>
+        <BackPath>skin:bases/knob_bg_<Variable name="KnobBg"/>.svg</BackPath>
+        <MinAngle><Variable name="PotiMinAngle"/></MinAngle>
+        <MaxAngle><Variable name="PotiMaxAngle"/></MaxAngle>
+        <ArcRadius><Variable name="ArcRadius"/></ArcRadius>
+        <ArcUnipolar><Variable name="ArcUnipolar"/></ArcUnipolar>
+        <ArcReversed><Variable name="ArcReversed"/></ArcReversed>
+        <ArcColor><Variable name="ArcColor"/></ArcColor>
+        <ArcBgColor><Variable name="ArcBgColor"/></ArcBgColor>
+        <ArcThickness><Variable name="ArcThickness"/></ArcThickness>
+        <ArcBgThickness><Variable name="ArcBgThickness"/></ArcBgThickness>
+        <ArcRoundCaps><Variable name="ArcRoundCaps"/></ArcRoundCaps>
+        <KnobCenterYOffset>0</KnobCenterYOffset>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,<Variable name="Control"/></ConfigKey>
+        </Connection>
+      </KnobComposed>
+    </Children>
+  </WidgetGroup>
+</Template>

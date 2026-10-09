@@ -1,0 +1,49 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/vu_channel.xml
+  Mono channel meter: clip housing on top, vertical level meter under it.
+
+  SIZE MODEL (this is the part that used to be wrong): in Mixxx an element with
+  no `scalemode` attribute is Fixed, which calls setFixedSize(pixmap size). A
+  <Size> on the widget is then silently ignored. LateNight therefore generates
+  its meter PNGs at the final on-screen size and declares nothing here.
+  RbxFlow does the same: vu_deck_level_*.svg are 34x230 and the clip SVGs are
+  34x10, so the box below is exactly 34x240 with no guessing.
+  Variables: Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxVuBox</ObjectName>
+    <Layout>vertical</Layout>
+    <!-- min,min and NO <Size>: the two children are Fixed to their pixmaps
+         (34x10 clip + 34x230 meter) and the box simply wraps them, including
+         whatever layout spacing Qt adds. Pinning the box to 240 clipped the
+         meter away, because 10 + 230 + spacing > 240. -->
+    <SizePolicy>min,min</SizePolicy>
+    <Children>
+      <StatusLight>
+        <TooltipId>channel_peak_indicator</TooltipId>
+        <ObjectName>ChannelClip</ObjectName>
+        <PathBack>skin:bases/vu_deck_clipping_bg.svg</PathBack>
+        <PathStatusLight>skin:bases/vu_deck_clipping_active.svg</PathStatusLight>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,peak_indicator</ConfigKey>
+        </Connection>
+      </StatusLight>
+      <VuMeter>
+        <TooltipId>channel_VuMeter</TooltipId>
+        <ObjectName>ChannelVu</ObjectName>
+        <PathBack>skin:bases/vu_deck_level_bg.svg</PathBack>
+        <PathVu>skin:bases/vu_deck_level_active.svg</PathVu>
+        <Horizontal>false</Horizontal>
+        <PeakHoldSize>4</PeakHoldSize>
+        <PeakHoldTime>500</PeakHoldTime>
+        <PeakFallTime>10</PeakFallTime>
+        <PeakFallStep>2</PeakFallStep>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,vu_meter</ConfigKey>
+        </Connection>
+      </VuMeter>
+    </Children>
+  </WidgetGroup>
+</Template>

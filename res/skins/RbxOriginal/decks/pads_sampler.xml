@@ -1,0 +1,469 @@
+<!DOCTYPE template>
+<Template>
+  <WidgetGroup>
+    <Layout>vertical</Layout>
+    <Children>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>0me,44f</Size>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,20f</Size>
+                <Children>
+                  <Label>
+                    <Text>S1</Text>
+                    <Size>24f,20f</Size>
+                  </Label>
+                  <TrackProperty>
+                    <ObjectName>SamplerTitle</ObjectName>
+                    <Size>0me,20f</Size>
+                    <Property>titleInfo</Property>
+                    <Group>[Sampler1]</Group>
+                    <Elide>right</Elide>
+                    <Tooltip>Sampler 1: arraste uma faixa aqui para carregar.</Tooltip>
+                  </TrackProperty>
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,24f</Size>
+                <Children>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler1],cue_gotoandplay</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                      <ConnectValueToWidget>false</ConnectValueToWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler1],play</ConfigKey>
+                      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler1],cue_gotoandstop</ConfigKey>
+                      <ButtonState>RightButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>1</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>STOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler1],cue_gotoandstop</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler1],repeat</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Size>4f,0me</Size>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,20f</Size>
+                <Children>
+                  <Label>
+                    <Text>S2</Text>
+                    <Size>24f,20f</Size>
+                  </Label>
+                  <TrackProperty>
+                    <ObjectName>SamplerTitle</ObjectName>
+                    <Size>0me,20f</Size>
+                    <Property>titleInfo</Property>
+                    <Group>[Sampler2]</Group>
+                    <Elide>right</Elide>
+                    <Tooltip>Sampler 2: arraste uma faixa aqui para carregar.</Tooltip>
+                  </TrackProperty>
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,24f</Size>
+                <Children>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler2],cue_gotoandplay</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                      <ConnectValueToWidget>false</ConnectValueToWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler2],play</ConfigKey>
+                      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler2],cue_gotoandstop</ConfigKey>
+                      <ButtonState>RightButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>1</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>STOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler2],cue_gotoandstop</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler2],repeat</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Size>0me,6f</Size>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>0me,44f</Size>
+        <Children>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,20f</Size>
+                <Children>
+                  <Label>
+                    <Text>S3</Text>
+                    <Size>24f,20f</Size>
+                  </Label>
+                  <TrackProperty>
+                    <ObjectName>SamplerTitle</ObjectName>
+                    <Size>0me,20f</Size>
+                    <Property>titleInfo</Property>
+                    <Group>[Sampler3]</Group>
+                    <Elide>right</Elide>
+                    <Tooltip>Sampler 3: arraste uma faixa aqui para carregar.</Tooltip>
+                  </TrackProperty>
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,24f</Size>
+                <Children>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler3],cue_gotoandplay</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                      <ConnectValueToWidget>false</ConnectValueToWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler3],play</ConfigKey>
+                      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler3],cue_gotoandstop</ConfigKey>
+                      <ButtonState>RightButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>1</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>STOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler3],cue_gotoandstop</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler3],repeat</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Size>4f,0me</Size>
+          </WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>me,max</SizePolicy>
+            <Children>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,20f</Size>
+                <Children>
+                  <Label>
+                    <Text>S4</Text>
+                    <Size>24f,20f</Size>
+                  </Label>
+                  <TrackProperty>
+                    <ObjectName>SamplerTitle</ObjectName>
+                    <Size>0me,20f</Size>
+                    <Property>titleInfo</Property>
+                    <Group>[Sampler4]</Group>
+                    <Elide>right</Elide>
+                    <Tooltip>Sampler 4: arraste uma faixa aqui para carregar.</Tooltip>
+                  </TrackProperty>
+                </Children>
+              </WidgetGroup>
+              <WidgetGroup>
+                <Layout>horizontal</Layout>
+                <Size>0me,24f</Size>
+                <Children>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>▶</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler4],cue_gotoandplay</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                      <ConnectValueToWidget>false</ConnectValueToWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler4],play</ConfigKey>
+                      <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                    </Connection>
+                    <Connection>
+                      <ConfigKey>[Sampler4],cue_gotoandstop</ConfigKey>
+                      <ButtonState>RightButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>1</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>STOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler4],cue_gotoandstop</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                  <WidgetGroup>
+                    <Size>4f,0me</Size>
+                  </WidgetGroup>
+                  <PushButton>
+                    <ObjectName>PerformancePad</ObjectName>
+                    <Size>0me,24f</Size>
+                    <NumberStates>2</NumberStates>
+                    <RightClickIsPushButton>true</RightClickIsPushButton>
+                    <State>
+                      <Number>0</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <State>
+                      <Number>1</Number>
+                      <Text>LOOP</Text>
+                      <Alignment>center</Alignment>
+                      <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+                      <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+                    </State>
+                    <Connection>
+                      <ConfigKey>[Sampler4],repeat</ConfigKey>
+                      <ButtonState>LeftButton</ButtonState>
+                    </Connection>
+                  </PushButton>
+                </Children>
+              </WidgetGroup>
+            </Children>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,204 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: decks/track_info.xml
+  rekordbox deck header, 44 px:
+
+    [art] TITLE                              KEY   -03:22.1   [MASTER] [BEAT SYNC]
+          artist
+
+  MASTER is Mixxx's sync leader, BEAT SYNC is sync_enabled
+  (right-click BEAT SYNC also makes this deck the leader).
+  "NO TRACK LOADED" sits here, never over a waveform: waveforms and the
+  overview are track drop targets and must stay visible on an empty deck.
+  Variables: ChanNum, Group
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxTrackInfo<Variable name="ChanNum"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>me,f</SizePolicy>
+    <MinimumSize>200,44</MinimumSize>
+    <MaximumSize>,44</MaximumSize>
+    <Children>
+
+      <CoverArt>
+        <TooltipId>coverart</TooltipId>
+        <ObjectName>DeckCover<Variable name="ChanNum"/></ObjectName>
+        <Group><Variable name="Group"/></Group>
+        <Size>44f,44f</Size>
+        <DefaultCover>skin:styles/cover_default.svg</DefaultCover>
+      </CoverArt>
+
+      <WidgetGroup><Size>10f,0me</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxInfoText<Variable name="ChanNum"/></ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,f</SizePolicy>
+        <Children>
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <SizePolicy>me,f</SizePolicy>
+            <Children>
+              <Label>
+                <ObjectName>EmptyHint</ObjectName>
+                <Size>170f,22f</Size>
+                <Alignment>left</Alignment>
+                <Text>No track loaded</Text>
+                <Connection>
+                  <ConfigKey><Variable name="Group"/>,track_loaded</ConfigKey>
+                  <Transform><Not/></Transform>
+                  <BindProperty>visible</BindProperty>
+                </Connection>
+              </Label>
+              <TrackProperty>
+                <ObjectName>TitleText</ObjectName>
+                <Size>40me,22f</Size>
+                <TooltipId>track_title</TooltipId>
+                <Property>titleInfo</Property>
+                <Alignment>Left</Alignment>
+                <Elide>right</Elide>
+                <Channel><Variable name="ChanNum"/></Channel>
+              </TrackProperty>
+            </Children>
+          </WidgetGroup>
+          <TrackProperty>
+            <ObjectName>ArtistText</ObjectName>
+            <Size>40me,18f</Size>
+            <TooltipId>track_artist</TooltipId>
+            <Property>artist</Property>
+            <Elide>right</Elide>
+            <Channel><Variable name="ChanNum"/></Channel>
+          </TrackProperty>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+      <WidgetGroup><Layout>vertical</Layout><Size>60f,44f</Size><Children>
+      <Key>
+        <ObjectName>HeaderKey</ObjectName>
+        <EditableKey>true</EditableKey>
+        <TooltipId>track_key</TooltipId>
+        <Group><Variable name="Group"/></Group>
+        <Size>60f,24f</Size>
+        <Alignment>center</Alignment>
+        <Elide>right</Elide>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,visual_key</ConfigKey>
+        </Connection>
+      </Key>
+      <VocalStatus><ObjectName>VocalStatus</ObjectName><Group><Variable name="Group"/></Group><Size>60f,18f</Size><Alignment>center</Alignment><Style>QLabel { color: #999; font-size: 10px; } QLabel[highlight="1"] { color: #ff63c6; font-weight: bold; }</Style></VocalStatus>
+      </Children></WidgetGroup>
+
+      <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+
+      <NumberPos>
+        <ObjectName>HeaderTime</ObjectName>
+        <TooltipId>track_time</TooltipId>
+        <Size>132f,44f</Size>
+        <Alignment>right</Alignment>
+        <Channel><Variable name="ChanNum"/></Channel>
+        <Connection>
+          <ConfigKey><Variable name="Group"/>,playposition</ConfigKey>
+        </Connection>
+      </NumberPos>
+
+      <WidgetGroup><Size>12f,0me</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>vertical</Layout>
+        <Size>84f,44f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>84f,20f</Size>
+            <Children>
+          <PushButton>
+            <TooltipId>sync_leader</TooltipId>
+            <ObjectName>SyncLeader</ObjectName>
+            <Size>84f,20f</Size>
+            <NumberStates>3</NumberStates>
+            <State>
+              <Number>0</Number>
+              <Text>MASTER</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>MASTER</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>2</Number>
+              <Text>MASTER</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <EmitOnPressAndRelease>true</EmitOnPressAndRelease>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>84f,20f</Size>
+            <Children>
+          <PushButton>
+            <TooltipId>sync_enabled</TooltipId>
+            <ObjectName>SyncDeck</ObjectName>
+            <Size>84f,20f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>BEAT SYNC</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>BEAT SYNC</Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_enabled</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_leader</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey><Variable name="Group"/>,sync_enabled</ConfigKey>
+              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+            </Connection>
+          </PushButton>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,85 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: mixer/mixer.xml
+  Central mixer, in the Rekordbox reading order:
+      DECK A  ->  CHANNEL 1  ->  MASTER  ->  CHANNEL 2  ->  DECK B
+
+  Sizing: `0max,0max` means "minimum 0, policy Maximum on both axes", i.e. the
+  mixer takes exactly its own size hint and never claims the row's spare width
+  or height. The decks either side are `me` and take the slack.
+
+  The crossfader is a full-width row under the three strips. It used to sit
+  inside the master strip, where it could never be wider than that strip.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxMixer</ObjectName>
+    <Layout>vertical</Layout>
+    <Size>0max,0me</Size>
+    <Children>
+      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <Children>
+          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+          <!-- CH 1 -->
+          <Template src="skin:mixer/channel.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+          </Template>
+
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+
+          <!-- MASTER -->
+          <Template src="skin:mixer/master.xml"/>
+
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+
+          <!-- CH 2 -->
+          <Template src="skin:mixer/channel.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+        </Children>
+      </WidgetGroup>
+
+      <!-- full-width crossfader, spanning all three strips -->
+      <WidgetGroup>
+        <ObjectName>RbxCrossfaderRow</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>0me,36f</Size>
+        <Children>
+          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+
+          <SliderComposed>
+            <TooltipId>crossfader</TooltipId>
+            <ObjectName>CrossfaderSlider</ObjectName>
+            <Size>0me,36f</Size>
+            <Handle scalemode="STRETCH_ASPECT">skin:bases/knob_crossfader.svg</Handle>
+            <Slider scalemode="STRETCH">skin:bases/slider_crossfader.svg</Slider>
+            <Horizontal>true</Horizontal>
+            <BarColor><Variable name="BarColorCrossfader"/></BarColor>
+            <BarWidth><Variable name="BarWidth"/></BarWidth>
+            <BarMargins><Variable name="BarMarginCrossfader"/></BarMargins>
+            <BarRoundCaps>true</BarRoundCaps>
+            <BarAxisPos>18.0</BarAxisPos>
+            <BarUnipolar>false</BarUnipolar>
+            <Connection>
+              <ConfigKey>[Master],crossfader</ConfigKey>
+            </Connection>
+          </SliderComposed>
+          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxFlow],show_xfader</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+
+    </Children>
+  </WidgetGroup>
+</Template>

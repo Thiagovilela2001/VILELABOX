@@ -1,0 +1,209 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: topbar.xml
+  Rekordbox "global section", as in skins/AplicationModeSelect.png of the
+  rekordbox installer: black bar, hexagon mark, mode name, layout name, then a
+  row of small check boxes that show/hide panels.
+
+    [hex] PERFORMANCE | 2Deck Horizontal | [x]WAVE [x]MIXER [x]PADS [ ]GRID  ...  clock  CPU  (rec) (gear)
+
+  Rekordbox's check boxes toggle FX / SAMPLER / MIXER / REC / VIDEO / LYRIC.
+  Mixxx's equivalents here are the panels this skin actually has.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxTopBar</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>e,f</SizePolicy>
+    <MinimumSize>,30</MinimumSize>
+    <MaximumSize>,30</MaximumSize>
+    <Children>
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxHexLogo</ObjectName>
+        <Size>15f,16f</Size>
+        <BackPath scalemode="STRETCH_ASPECT">skin:rb/logo.svg</BackPath>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>22f,1min</Size></WidgetGroup>
+      <Label>
+        <ObjectName>RbxModeName</ObjectName>
+        <Size>96f,30f</Size>
+        <Alignment>left</Alignment>
+        <Text>PERFORMANCE &#8693;</Text>
+      </Label>
+      <WidgetGroup><Size>14f,1min</Size></WidgetGroup>
+      <Label>
+        <ObjectName>RbxLayoutName</ObjectName>
+        <Size>116f,30f</Size>
+        <Alignment>left</Alignment>
+        <Text>2Deck Horizontal &#8693;</Text>
+      </Label>
+      <WidgetGroup><ObjectName>RbxTopDivider</ObjectName><Size>1f,14f</Size></WidgetGroup>
+      <WidgetGroup><Size>14f,1min</Size></WidgetGroup>
+
+      <!-- panel check boxes -->
+      <Template src="skin:controls/btn_check.xml"><SetVariable name="Tooltip">Mostrar/ocultar o rack de efeitos (FX 1 e FX 2)</SetVariable><SetVariable name="Width">42</SetVariable><SetVariable name="Text">FX</SetVariable><SetVariable name="ConfigKey">[RbxOriginal],show_fx</SetVariable></Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Mostrar as waveforms grandes</SetVariable>
+        <SetVariable name="Width">50</SetVariable>
+        <SetVariable name="Text">WAVE</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_waveform_band</SetVariable>
+      </Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Mostrar o mixer</SetVariable>
+        <SetVariable name="Width">56</SetVariable>
+        <SetVariable name="Text">MIXER</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_mixer</SetVariable>
+      </Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Mostrar os pads (HOT CUE)</SetVariable>
+        <SetVariable name="Width">50</SetVariable>
+        <SetVariable name="Text">PADS</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_hotcues</SetVariable>
+      </Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Mostrar as ferramentas de grid</SetVariable>
+        <SetVariable name="Width">48</SetVariable>
+        <SetVariable name="Text">GRID</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_beatgrid_controls</SetVariable>
+      </Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Mostrar a coluna de tempo</SetVariable>
+        <SetVariable name="Width">60</SetVariable>
+        <SetVariable name="Text">TEMPO</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_pitch</SetVariable>
+      </Template>
+      <Template src="skin:controls/btn_check.xml">
+        <SetVariable name="Tooltip">Maximizar o browser</SetVariable>
+        <SetVariable name="Width">64</SetVariable>
+        <SetVariable name="Text">BROWSE</SetVariable>
+        <SetVariable name="ConfigKey">[RbxOriginal],show_big_library</SetVariable>
+      </Template>
+
+      <WidgetGroup><Size>0me,1min</Size></WidgetGroup>
+
+      <!-- AutoDJ armed indicator -->
+      <StatusLight>
+        <TooltipId>autodj_status</TooltipId>
+        <ObjectName>AutoDjStatus</ObjectName>
+        <Size>14f,14f</Size>
+        <NumberPos>3</NumberPos>
+        <PathBack>skin:bases/btn_sm.svg</PathBack>
+        <PathStatusLight1>skin:bases/btn_sm_set.svg</PathStatusLight1>
+        <PathStatusLight2>skin:bases/btn_sm_set.svg</PathStatusLight2>
+        <PathStatusLight3>skin:bases/btn_sm_set.svg</PathStatusLight3>
+        <Connection>
+          <ConfigKey>[AutoDJ],enabled</ConfigKey>
+        </Connection>
+        <Connection>
+          <ConfigKey>[AutoDJ],enabled</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </StatusLight>
+      <WidgetGroup><Size>12f,1min</Size></WidgetGroup>
+
+      <!-- CPU / audio latency -->
+      <WidgetGroup>
+        <ObjectName>RbxCpuBox</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>RbxCpuLabel</ObjectName>
+            <Size>30f,11f</Size>
+            <Alignment>right</Alignment>
+            <Text>CPU</Text>
+          </Label>
+          <WidgetGroup><Size>5f,1min</Size></WidgetGroup>
+          <VuMeter>
+            <TooltipId>audio_latency_usage</TooltipId>
+            <ObjectName>RbxCpuMeter</ObjectName>
+            <Size>56f,8f</Size>
+            <PathBack>skin:bases/latency_bg.svg</PathBack>
+            <PathVu>skin:bases/latency_over.svg</PathVu>
+            <Horizontal>true</Horizontal>
+            <PeakHoldSize>5</PeakHoldSize>
+            <PeakHoldTime>1000</PeakHoldTime>
+            <PeakFallTime>100</PeakFallTime>
+            <PeakFallStep>1</PeakFallStep>
+            <Connection>
+              <ConfigKey>[App],audio_latency_usage</ConfigKey>
+            </Connection>
+          </VuMeter>
+        </Children>
+        <Connection>
+          <ConfigKey>[App],audio_latency_overload</ConfigKey>
+          <BindProperty>highlight</BindProperty>
+        </Connection>
+      </WidgetGroup>
+      <WidgetGroup><Size>16f,1min</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxClock</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Time>
+            <TooltipId>time</TooltipId>
+            <ObjectName>RbxClockText</ObjectName>
+          </Time>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>16f,1min</Size></WidgetGroup>
+
+      <!-- recording: the rekordbox REC panel button -->
+      <PushButton>
+        <TooltipId>toggle_recording</TooltipId>
+        <ObjectName>RecButton</ObjectName>
+        <Size>22f,22f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>false</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/recPanel_rec_btn_off.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/recPanel_rec_btn_on.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/recPanel_rec_btn_on.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/recPanel_rec_btn_on.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[Recording],toggle_recording</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+        <Connection>
+          <ConfigKey>[Recording],status</ConfigKey>
+          <ConnectValueFromWidget>false</ConnectValueFromWidget>
+        </Connection>
+      </PushButton>
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+
+      <!-- skin settings: the rekordbox gear -->
+      <PushButton>
+        <TooltipId>skin_settings</TooltipId>
+        <ObjectName>SkinSettingsToggle</ObjectName>
+        <Size>20f,20f</Size>
+        <NumberStates>2</NumberStates>
+        <RightClickIsPushButton>false</RightClickIsPushButton>
+        <State>
+          <Number>0</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/brws_setting.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/brws_setting.svg</Pressed>
+        </State>
+        <State>
+          <Number>1</Number>
+          <Unpressed scalemode="STRETCH_ASPECT">skin:rb/brws_setting.svg</Unpressed>
+          <Pressed scalemode="STRETCH_ASPECT">skin:rb/brws_setting.svg</Pressed>
+        </State>
+        <Connection>
+          <ConfigKey>[RbxOriginal],show_settings</ConfigKey>
+          <ButtonState>LeftButton</ButtonState>
+        </Connection>
+      </PushButton>
+      <WidgetGroup><Size>10f,1min</Size></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>

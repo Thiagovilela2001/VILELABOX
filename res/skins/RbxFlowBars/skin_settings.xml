@@ -1,0 +1,144 @@
+<!DOCTYPE template>
+<!--
+  RbxFlow :: skin_settings.xml
+  In-skin options panel, opened from the SETTINGS button in the top bar.
+  Every toggle is a persistent Mixxx config key, so settings survive restarts.
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxSkinSettings</ObjectName>
+    <Layout>horizontal</Layout>
+    <SizePolicy>max,me</SizePolicy>
+    <MaximumSize>300,</MaximumSize>
+    <MinimumSize>230,</MinimumSize>
+    <Children>
+
+      <WidgetGroup>
+        <ObjectName>RbxSettingsPanel</ObjectName>
+        <Layout>vertical</Layout>
+        <SizePolicy>me,me</SizePolicy>
+        <MinimumSize>200,</MinimumSize>
+        <Children>
+
+          <Label>
+            <ObjectName>RbxSettingsTitle</ObjectName>
+            <Size>200me,20f</Size>
+            <Alignment>center</Alignment>
+            <Text>RbxFlow SETTINGS</Text>
+          </Label>
+
+          <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+
+          <Label>
+            <ObjectName>RbxSettingsSection</ObjectName>
+            <Size>200me,15f</Size>
+            <Alignment>left</Alignment>
+            <Text>Layout</Text>
+          </Label>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Waveform band</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_waveform_band</SetVariable>
+            <SetVariable name="TooltipId">show_waveforms</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Mixer</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_mixer</SetVariable>
+            <SetVariable name="TooltipId">show_mixer</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Library</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_library</SetVariable>
+            <SetVariable name="TooltipId">maximize_library</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Big library</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_big_library</SetVariable>
+            <SetVariable name="TooltipId">maximize_library</SetVariable>
+          </Template>
+
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+          <Label>
+            <ObjectName>RbxSettingsSection</ObjectName>
+            <Size>200me,15f</Size>
+            <Alignment>left</Alignment>
+            <Text>Decks</Text>
+          </Label>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Hot cues</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_hotcues</SetVariable>
+            <SetVariable name="TooltipId">hotcue</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Hot cues 1-8</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_8_hotcues</SetVariable>
+            <SetVariable name="TooltipId">hotcue</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Loop controls</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_loop_controls</SetVariable>
+            <SetVariable name="TooltipId">beatloop_activate</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Beat jump</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_beatjump_controls</SetVariable>
+            <SetVariable name="TooltipId">beatjump_size</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Beat grid tools</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_beatgrid_controls</SetVariable>
+            <SetVariable name="TooltipId">beats_translate_curpos</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Intro / Outro cues</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_intro_outro</SetVariable>
+            <SetVariable name="TooltipId">show_intro_outro_cues</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Pitch fader</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_pitch</SetVariable>
+            <SetVariable name="TooltipId">pitch</SetVariable>
+          </Template>
+
+          <WidgetGroup><Size>0me,2f</Size></WidgetGroup>
+
+          <Label>
+            <ObjectName>RbxSettingsSection</ObjectName>
+            <Size>200me,15f</Size>
+            <Alignment>left</Alignment>
+            <Text>Mixer</Text>
+          </Label>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">EQ knobs</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_eq</SetVariable>
+            <SetVariable name="TooltipId">filterLow</SetVariable>
+          </Template>
+
+          <Template src="skin:helpers/setting_check.xml">
+            <SetVariable name="Text">Crossfader</SetVariable>
+            <SetVariable name="Setting">[RbxFlow],show_xfader</SetVariable>
+            <SetVariable name="TooltipId">crossfader</SetVariable>
+          </Template>
+
+        </Children>
+      </WidgetGroup>
+
+    </Children>
+    <Connection>
+      <ConfigKey persist="true">[RbxFlow],show_settings</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
+  </WidgetGroup>
+</Template>
