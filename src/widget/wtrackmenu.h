@@ -327,6 +327,7 @@ class WTrackMenu : public QMenu {
 
     // Analysis actions
     parented_ptr<QAction> m_pAnalyzeAction;
+    parented_ptr<QAction> m_pReanalyzePhrasesAction;
     parented_ptr<QAction> m_pReanalyzeAction;
     parented_ptr<QAction> m_pReanalyzeConstBpmAction;
     parented_ptr<QAction> m_pReanalyzeVarBpmAction;

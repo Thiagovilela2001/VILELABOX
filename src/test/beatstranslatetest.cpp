@@ -565,3 +565,19 @@ TEST_F(AutoDownbeatTest, MarksAnalyzedLibraryTrackOnLoad) {
     EXPECT_EQ(1, bar->beat);
     EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup1, "downbeat_valid")));
 }
+
+#include "analyzer/phraseanalysisstore.h"
+#include "track/cue.h"
+TEST_F(BarSyncTest, PhraseSyncMatchesRemainingPhraseBeatsOnPlay) {
+    vilelabox::PhraseFeature f;
+    f.start = 0; f.end = 128; f.rms = 1; f.bass = 1;
+    for (const auto& track : {m_pTrack1, m_pTrack2}) {
+        vilelabox::PhraseAnalysis analysis; analysis.features = {f}; analysis.duration = 128;
+        PhraseAnalysisStore::instance().set(track, analysis, {});
+    }
+    ControlObject::set(ConfigKey(m_sGroup2, "phrase_sync"), 1);
+    playDeck2();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "bar_number")));
+    EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "beat_in_bar")), ControlObject::get(ConfigKey(m_sGroup2, "beat_in_bar")));
+    EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "phrase_bars_left")), ControlObject::get(ConfigKey(m_sGroup2, "phrase_bars_left")));
+}

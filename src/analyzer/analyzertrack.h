@@ -10,6 +10,7 @@ class AnalyzerTrack {
     struct Options {
         /// If set, overrides whether the analysis should assume constant BPM.
         std::optional<bool> useFixedTempo;
+        std::optional<bool> forcePhrases;
     };
 
     explicit AnalyzerTrack(TrackPointer track, Options options = Options());

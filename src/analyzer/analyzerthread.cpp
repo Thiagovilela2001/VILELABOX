@@ -9,6 +9,7 @@
 #include "analyzer/analyzersilence.h"
 #include "analyzer/analyzerwaveform.h"
 #include "analyzer/analyzervocals.h"
+#include "analyzer/analyzerphrases.h"
 #include "analyzer/constants.h"
 #include "library/dao/analysisdao.h"
 #include "moc_analyzerthread.cpp"
@@ -117,6 +118,7 @@ void AnalyzerThread::doRun() {
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerKey>(m_pConfig)));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerSilence>(m_pConfig)));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerVocals>(m_pConfig)));
+    m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerPhrases>(m_pConfig)));
     DEBUG_ASSERT(!m_analyzers.empty());
     kLogger.debug() << "Activated" << m_analyzers.size() << "analyzers";
 

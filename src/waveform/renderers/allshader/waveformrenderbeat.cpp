@@ -5,6 +5,8 @@
 #include "skin/legacy/skincontext.h"
 #include "track/track.h"
 #include "analyzer/vocalanalysisstore.h"
+#include "analyzer/phraseanalysisstore.h"
+#include "widget/phrasecolors.h"
 #include "waveform/renderers/allshader/matrixforwidgetgeometry.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
 #include "widget/wskincolor.h"
@@ -25,6 +27,8 @@ void WaveformRenderBeat::initializeGL() {
 void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context) {
     m_color = QColor(context.selectString(node, "BeatColor"));
     m_color = WSkinColor::getCorrectColor(m_color).toRgb();
+    m_showPhraseRegions = context.selectBool(node, "ShowPhraseRegions", false);
+    m_phraseColors = context.selectString(node, "PhraseColors");
     m_showVocalMarkers = context.selectBool(node, "ShowVocalMarkers", false);
     m_showBarMarkers = context.selectBool(node, "ShowBarMarkers", false);
     m_barColor = context.selectColor(node, "BarMarkerColor");
@@ -53,6 +57,25 @@ void WaveformRenderBeat::paintGL() {
     auto positionType = m_isSlipRenderer ? ::WaveformRendererAbstract::Slip
                                          : ::WaveformRendererAbstract::Play;
 
+    const auto phrases = PhraseAnalysisStore::instance().get(trackInfo->getLocation());
+    if (m_showPhraseRegions && !m_isSlipRenderer && phrases && phrases->duration > 0) {
+        for (const auto& phrase : phrases->phrases) {
+            const float start = m_waveformRenderer->transformSamplePositionInRendererWorld(phrase.start / phrases->duration * m_waveformRenderer->getTrackSamples());
+            const float end = m_waveformRenderer->transformSamplePositionInRendererWorld(phrase.end / phrases->duration * m_waveformRenderer->getTrackSamples());
+            if (end < 0 || start > m_waveformRenderer->getLength()) continue;
+            VertexData vertices;
+            vertices.addRectangle(std::max(0.f, start), 0, std::min(float(m_waveformRenderer->getLength()), end), 5);
+            m_shader.bind();
+            const int position = m_shader.attributeLocation("position");
+            m_shader.enableAttributeArray(position);
+            m_shader.setAttributeArray(position, GL_FLOAT, vertices.constData(), 2);
+            m_shader.setUniformValue(m_shader.uniformLocation("matrix"), matrixForWidgetGeometry(m_waveformRenderer, false));
+            m_shader.setUniformValue(m_shader.uniformLocation("color"), phraseColor(phrase.type, m_phraseColors));
+            glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+            m_shader.disableAttributeArray(position);
+            m_shader.release();
+        }
+    }
     const auto vocals = VocalAnalysisStore::instance().get(trackInfo->getLocation());
     if (m_showVocalMarkers && !m_isSlipRenderer && vocals &&
             vocals->status == VocalAnalysis::Status::Ready && vocals->duration > 0 &&

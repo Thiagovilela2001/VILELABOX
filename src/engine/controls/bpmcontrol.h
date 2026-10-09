@@ -174,6 +174,7 @@ class BpmControl : public EngineControl {
     std::unique_ptr<ControlObject> m_pBarNumber;
     std::unique_ptr<ControlObject> m_pBeatInBar;
     std::unique_ptr<ControlObject> m_pDownbeatValid;
+    std::unique_ptr<ControlPushButton> m_pPhraseSync;
     std::unique_ptr<ControlPushButton> m_pBarSync;
     std::unique_ptr<ControlPushButton> m_pAutoFirstDownbeat;
     std::atomic<bool> m_autoDownbeatPending{false};

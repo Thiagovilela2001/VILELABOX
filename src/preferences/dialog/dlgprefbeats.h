@@ -25,6 +25,8 @@ class DlgPrefBeats : public DlgPreferencePage, public Ui::DlgBeatsDlg {
     void slotUpdate() override;
     void slotResetToDefaults() override;
 
+  private:
+    UserSettingsPointer m_phraseConfig;
   private slots:
     void pluginSelected(int i);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)

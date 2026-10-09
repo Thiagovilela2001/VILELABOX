@@ -2,7 +2,7 @@
 <Template>
   <WidgetGroup>
     <Layout>vertical</Layout>
-    <Size>48f,0me</Size>
+    <Size>72f,0me</Size>
     <Children>
       <PushButton>
         <ObjectName>BarSync</ObjectName>
@@ -23,6 +23,14 @@
           <ConfigKey>[Channel<Variable name="ChanNum"/>],bar_sync</ConfigKey>
         </Connection>
       </PushButton>
+      <PushButton>
+        <Size>48f,18f</Size><NumberStates>2</NumberStates>
+        <Tooltip>PhraseSync ao dar PLAY. Requer análise de frases nos dois decks.</Tooltip>
+        <State><Number>0</Number><Text>PHRASE</Text></State>
+        <State><Number>1</Number><Text>PHRASE</Text></State>
+        <Connection><ConfigKey>[Channel<Variable name="ChanNum"/>],phrase_sync</ConfigKey></Connection>
+      </PushButton>
+      <PhraseStatus><Group>[Channel<Variable name="ChanNum"/>]</Group><Size>72f,18f</Size><Alignment>center</Alignment></PhraseStatus>
       <WidgetGroup>
         <Layout>horizontal</Layout>
         <Size>48f,20f</Size>

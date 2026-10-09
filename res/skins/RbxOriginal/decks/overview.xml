@@ -14,7 +14,8 @@
       <Size>200me,60f</Size>
       <Children>
         <Overview>
-    <ShowVocalMarkers>true</ShowVocalMarkers>
+        <ShowPhraseRegions>true</ShowPhraseRegions>
+        <ShowVocalMarkers>true</ShowVocalMarkers>
           <TooltipId>waveform_overview</TooltipId>
           <ObjectName>DeckOverview<Variable name="ChanNum"/></ObjectName>
           <Size>0me,60f</Size>

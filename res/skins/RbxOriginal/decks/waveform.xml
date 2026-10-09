@@ -25,7 +25,8 @@
     <MinimumSize>0,40</MinimumSize>
     <Children>
       <Visual>
-    <ShowVocalMarkers>true</ShowVocalMarkers>
+    <ShowPhraseRegions>true</ShowPhraseRegions>
+        <ShowVocalMarkers>true</ShowVocalMarkers>
         <ObjectName>Waveform<Variable name="ChanNum"/></ObjectName>
         <TooltipId>waveform_display</TooltipId>
         <Channel><Variable name="ChanNum"/></Channel>

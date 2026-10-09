@@ -37,6 +37,7 @@ class SyncControl;
 class VinylControlControl;
 class LoopingControl;
 class ClockControl;
+class PhraseControl;
 class CueControl;
 class ReadAheadManager;
 class ControlObject;
@@ -143,6 +144,7 @@ class EngineBuffer : public EngineObject {
 
     bool isTrackLoaded() const;
     TrackPointer getLoadedTrack() const;
+    PhraseControl* phraseControl() const { return m_pPhraseControl; }
     void ejectTrack();
 
     mixxx::audio::FramePos getExactPlayPos() const;
@@ -318,6 +320,7 @@ class EngineBuffer : public EngineObject {
     RateControl* m_pRateControl;
     BpmControl* m_pBpmControl;
     KeyControl* m_pKeyControl;
+    PhraseControl* m_pPhraseControl = nullptr;
     ClockControl* m_pClockControl;
     FRIEND_TEST(CueControlTest, SeekOnSetCueCDJ);
     FRIEND_TEST(CueControlTest, SeekOnSetCuePlay);

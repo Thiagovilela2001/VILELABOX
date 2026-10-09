@@ -6,6 +6,7 @@
 #include "control/controlpushbutton.h"
 #include "engine/effects/groupfeaturestate.h"
 #include "engine/enginebuffer.h"
+#include "engine/controls/phrasecontrol.h"
 #include "moc_bpmcontrol.cpp"
 #include "track/beatutils.h"
 #include "track/track.h"
@@ -279,6 +280,8 @@ BpmControl::BpmControl(const QString& group,
     m_pBarNumber->setReadOnly();
     m_pBeatInBar->setReadOnly();
     m_pDownbeatValid->setReadOnly();
+    m_pPhraseSync = std::make_unique<ControlPushButton>(ConfigKey(group, "phrase_sync"), true, 0.0);
+    m_pPhraseSync->setButtonMode(ControlPushButton::TOGGLE);
     m_pBarSync = std::make_unique<ControlPushButton>(
             ConfigKey(group, "bar_sync"), true, 1.0);
     m_pBarSync->setButtonMode(ControlPushButton::TOGGLE);
@@ -1060,8 +1063,27 @@ mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
     }
     mixxx::audio::FramePos newPlayPosition = thisPosition + seekMatch;
 
-    if (matchBars && pOtherEngineBuffer != getEngineBuffer() && m_pBarSync->toBool()) {
-        newPlayPosition += getBarMatchOffset(newPlayPosition, otherBeats, otherPosition);
+    if (matchBars && pOtherEngineBuffer != getEngineBuffer()) {
+        bool matchedPhrase = false;
+        if (m_pPhraseSync->toBool() && m_pBeats->hasDownbeat() && otherBeats->hasDownbeat()) {
+            const auto own = getEngineBuffer()->phraseControl()->analysis();
+            const auto other = pOtherEngineBuffer->phraseControl()->analysis();
+            const int ownIndex = own ? own->indexAt(newPlayPosition.value() / thisSampleRate) : -1;
+            const int otherIndex = other ? other->indexAt(otherPosition.value() / otherBeats->getSampleRate()) : -1;
+            if (ownIndex >= 0 && otherIndex >= 0) {
+                auto here = m_pBeats->iteratorFrom(newPlayPosition);
+                auto there = otherBeats->iteratorFrom(otherPosition);
+                const auto ownEnd = m_pBeats->iteratorFrom(mixxx::audio::FramePos(own->phrases[ownIndex].end * thisSampleRate));
+                const auto otherEnd = otherBeats->iteratorFrom(mixxx::audio::FramePos(other->phrases[otherIndex].end * otherBeats->getSampleRate()));
+                const int difference = (otherEnd - there) - (ownEnd - here);
+                const int back = ((difference % 32) + 32) % 32;
+                newPlayPosition += *(here - back) - *here;
+                matchedPhrase = true;
+            }
+        }
+        if (!matchedPhrase && m_pBarSync->toBool()) {
+            newPlayPosition += getBarMatchOffset(newPlayPosition, otherBeats, otherPosition);
+        }
     }
 
     if (!respectLoops) {

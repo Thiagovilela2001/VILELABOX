@@ -42,6 +42,7 @@
         <BeatColor><Variable name="BeatColor"/></BeatColor>
         <ShowBarMarkers>true</ShowBarMarkers>
         <BarMarkerColor>#ff8c1a</BarMarkerColor>
+        <ShowPhraseRegions>true</ShowPhraseRegions>
         <ShowPhraseMarkers>true</ShowPhraseMarkers>
         <PhraseBars>8</PhraseBars>
         <PhraseMarkerColor>#ff3b30</PhraseMarkerColor>

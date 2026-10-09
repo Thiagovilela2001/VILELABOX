@@ -10,6 +10,8 @@
 
 #include "analyzer/analyzerprogress.h"
 #include "analyzer/vocalanalysisstore.h"
+#include "analyzer/phraseanalysisstore.h"
+#include "widget/phrasecolors.h"
 #include "control/controlproxy.h"
 #include "engine/engine.h"
 #include "mixer/playermanager.h"
@@ -184,6 +186,10 @@ void WOverview::setup(const QDomNode& node, const SkinContext& context) {
             [this](const QString& path) {
                 if (m_pCurrentTrack && m_pCurrentTrack->getLocation() == path) update();
             }, Qt::QueuedConnection);
+    connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated, this,
+            [this](const QString&) { update(); }, Qt::QueuedConnection);
+    setProperty("showPhraseRegions", context.selectBool(node, "ShowPhraseRegions", false));
+    setProperty("phraseColors", context.selectString(node, "PhraseColors"));
     setProperty("showVocalMarkers", context.selectBool(node, "ShowVocalMarkers", false));
     m_marks.setup(m_group, node, context, m_signalColors);
 
@@ -703,6 +709,15 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
             const auto gain = static_cast<CSAMPLE_GAIN>(length() - 2) /
                     static_cast<CSAMPLE_GAIN>(trackSamples);
 
+            const auto phrases = PhraseAnalysisStore::instance().get(m_pCurrentTrack->getLocation());
+            if (property("showPhraseRegions").toBool() && phrases && phrases->duration > 0) {
+                for (const auto& phrase : phrases->phrases) {
+                    const double start = 1 + (length() - 2) * phrase.start / phrases->duration;
+                    const double end = 1 + (length() - 2) * phrase.end / phrases->duration;
+                    painter.fillRect(m_orientation == Qt::Horizontal ? QRectF(start, 0, end - start, 5) : QRectF(0, start, 5, end - start),
+                            phraseColor(phrase.type, property("phraseColors").toString()));
+                }
+            }
             const auto vocals = VocalAnalysisStore::instance().get(m_pCurrentTrack->getLocation());
             if (property("showVocalMarkers").toBool() && vocals &&
                     vocals->status == VocalAnalysis::Status::Ready && vocals->duration > 0) {

@@ -25,7 +25,12 @@ automatically shows a beat-grid for them, and allows you to synchronize tracks u
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="checkBoxAnalyzePhrases">
+     <property name="text"><string>Analisar frases musicais (experimental)</string></property>
+    </widget>
+   </item>
+   <item row="7" column="0">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

@@ -4,6 +4,8 @@
 
 #include "track/track.h"
 #include "analyzer/vocalanalysisstore.h"
+#include "analyzer/phraseanalysisstore.h"
+#include "widget/phrasecolors.h"
 #include "util/painterscope.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
 #include "widget/wskincolor.h"
@@ -21,6 +23,8 @@ WaveformRenderBeat::~WaveformRenderBeat() {
 void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context) {
     m_beatColor = QColor(context.selectString(node, "BeatColor"));
     m_beatColor = WSkinColor::getCorrectColor(m_beatColor).toRgb();
+    m_showPhraseRegions = context.selectBool(node, "ShowPhraseRegions", false);
+    m_phraseColors = context.selectString(node, "PhraseColors");
     m_showVocalMarkers = context.selectBool(node, "ShowVocalMarkers", false);
     m_showBarMarkers = context.selectBool(node, "ShowBarMarkers", false);
     m_barColor = context.selectColor(node, "BarMarkerColor");
@@ -46,6 +50,17 @@ void WaveformRenderBeat::draw(QPainter* painter, QPaintEvent* /*event*/) {
         return;
     }
 
+    const auto phrases = PhraseAnalysisStore::instance().get(pTrackInfo->getLocation());
+    if (m_showPhraseRegions && phrases && phrases->duration > 0) {
+        for (const auto& phrase : phrases->phrases) {
+            const double start = m_waveformRenderer->transformSamplePositionInRendererWorld(phrase.start / phrases->duration * m_waveformRenderer->getTrackSamples());
+            const double end = m_waveformRenderer->transformSamplePositionInRendererWorld(phrase.end / phrases->duration * m_waveformRenderer->getTrackSamples());
+            if (end < 0 || start > m_waveformRenderer->getLength()) continue;
+            painter->fillRect(m_waveformRenderer->getOrientation() == Qt::Horizontal
+                            ? QRectF(start, 0, end - start, 5) : QRectF(0, start, 5, end - start),
+                    phraseColor(phrase.type, m_phraseColors));
+        }
+    }
     const auto vocals = VocalAnalysisStore::instance().get(pTrackInfo->getLocation());
     if (m_showVocalMarkers && vocals && vocals->status == VocalAnalysis::Status::Ready &&
             vocals->duration > 0 && m_waveformRenderer->getTrackSamples() > 0) {

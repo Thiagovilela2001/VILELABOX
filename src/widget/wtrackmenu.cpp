@@ -536,6 +536,12 @@ void WTrackMenu::createActions() {
         m_pAnalyzeAction = make_parented<QAction>(tr("Analyze"), this);
         connect(m_pAnalyzeAction, &QAction::triggered, this, &WTrackMenu::slotAnalyze);
 
+        m_pReanalyzePhrasesAction = make_parented<QAction>(tr("Reanalisar frases"), this);
+        connect(m_pReanalyzePhrasesAction, &QAction::triggered, this, [this] {
+            AnalyzerTrack::Options options;
+            options.forcePhrases = true;
+            addToAnalysis(options);
+        });
         m_pReanalyzeAction = make_parented<QAction>(tr("Reanalyze"), this);
         connect(m_pReanalyzeAction, &QAction::triggered, this, &WTrackMenu::slotReanalyze);
 
@@ -716,6 +722,7 @@ void WTrackMenu::setupActions() {
     if (featureIsEnabled(Feature::Analyze)) {
         m_pAnalyzeMenu->addAction(m_pAnalyzeAction);
         m_pAnalyzeMenu->addAction(m_pReanalyzeAction);
+        m_pAnalyzeMenu->addAction(m_pReanalyzePhrasesAction);
         m_pAnalyzeMenu->addAction(m_pReanalyzeConstBpmAction);
         m_pAnalyzeMenu->addAction(m_pReanalyzeVarBpmAction);
         addMenu(m_pAnalyzeMenu);
