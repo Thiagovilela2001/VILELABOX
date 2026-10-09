@@ -64,6 +64,7 @@
           <BindProperty>visible</BindProperty>
         </Connection>
       </WidgetGroup>
+<WidgetGroup><Layout>horizontal</Layout><Children><PushButton><Size>0me,24f</Size><NumberStates>2</NumberStates><State><Number>0</Number><Text>PADS</Text><Alignment>center</Alignment><Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed><Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed></State><State><Number>1</Number><Text>PADS</Text><Alignment>center</Alignment><Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed><Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed></State><Connection><ConfigKey>[RbxFlowBars],vilelabox_pads_<Variable name="ChanNum"/></ConfigKey></Connection></PushButton></Children></WidgetGroup>
       <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
       <PushButton>
         <ObjectName>SetFirstDownbeat</ObjectName>

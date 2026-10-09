@@ -581,6 +581,36 @@ TEST_F(BarSyncTest, PhraseSyncMatchesRemainingPhraseBeatsOnPlay) {
     EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "beat_in_bar")), ControlObject::get(ConfigKey(m_sGroup2, "beat_in_bar")));
     EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "phrase_bars_left")), ControlObject::get(ConfigKey(m_sGroup2, "phrase_bars_left")));
 }
+TEST_F(BarSyncTest, SlicerAlignsWindowAndReturnsToSlipTimeline) {
+    m_pTrack2->setDuration(32);
+    m_pChannel2->getEngineBuffer()->setTrackEndPosition(mixxx::audio::FramePos(44100 * 32));
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    ControlObject::set(ConfigKey(m_sGroup2, "quantize"), 0);
+    playDeck2();
+    ControlObject::set(ConfigKey(m_sGroup2, "slicer_enable"), 1);
+    ProcessBuffer();
+    auto before = m_pChannel2->getEngineBuffer()->getExactPlayPos();
+    ControlObject::set(ConfigKey(m_sGroup2, "slicer_slice_4"), 1);
+    ProcessBuffer(); ProcessBuffer();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "slip_enabled")));
+    auto sliced = m_pChannel2->getEngineBuffer()->getExactPlayPos();
+    EXPECT_GE(sliced, *(m_pBeats->cfirstmarker() + 11));
+    EXPECT_LT(sliced, *(m_pBeats->cfirstmarker() + 12));
+    ControlObject::set(ConfigKey(m_sGroup2, "slicer_slice_4"), 0);
+    ProcessBuffer(); ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "slip_enabled")));
+    auto restored = m_pChannel2->getEngineBuffer()->getExactPlayPos();
+    EXPECT_GE(restored, before);
+    EXPECT_LT(restored, sliced);
+}
+TEST_F(BarSyncTest, KeyshiftPadsEnableKeylockAndSelectSemitones) {
+    for (int semitone = -6; semitone <= 6; ++semitone) {
+        const auto key = ConfigKey(m_sGroup2, QString("keyshift_%1").arg(semitone));
+        ControlObject::set(key, 1); ControlObject::set(key, 0);
+        EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "keylock")));
+        EXPECT_DOUBLE_EQ(semitone, ControlObject::get(ConfigKey(m_sGroup2, "pitch_adjust")));
+    }
+}
 TEST_F(BarSyncTest, MixPointArmsLaunchesAndCancelsOnStop) {
     const auto trigger = *(m_pBeats->cfirstmarker() + 4);
     m_pTrack1->createAndAddCue(mixxx::CueType::Outro, Cue::kNoHotCue, trigger, *(m_pBeats->cfirstmarker() + 8));
@@ -617,4 +647,23 @@ TEST_F(BarSyncTest, MixPointCancelsEvenSmallSourceSeeksAndStops) {
     arm(); ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
     ControlObject::set(ConfigKey(m_sGroup1, "play"), 0); ProcessBuffer();
     EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+}
+#include "engine/controls/padcontrol.h"
+TEST_F(BarSyncTest, ReleaseEchoUsesOwnBufferAndStopsAfterOneBar) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    playDeck2();
+    auto* pads = m_pChannel2->getEngineBuffer()->padControl();
+    const int rate = static_cast<int>(ControlObject::get(ConfigKey("[App]", "samplerate")));
+    ASSERT_GT(rate, 0);
+    std::vector<CSAMPLE> audio(rate * 2, 0.5f);
+    pads->processAudio(audio.data(), audio.size());
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_stop"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx"), 1);
+    std::fill(audio.begin(), audio.end(), 0);
+    pads->processAudio(audio.data(), audio.size());
+    EXPECT_GT(audio[0], 0.1f);
+    EXPECT_LT(audio.back(), audio[0]);
+    pads->processAudio(audio.data(), audio.size());
+    pads->processAudio(audio.data(), audio.size());
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "play")));
 }

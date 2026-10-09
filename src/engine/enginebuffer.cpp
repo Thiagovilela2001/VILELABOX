@@ -14,6 +14,7 @@
 #include "engine/controls/clockcontrol.h"
 #include "engine/controls/phrasecontrol.h"
 #include "engine/controls/mixpointcontrol.h"
+#include "engine/controls/padcontrol.h"
 #include "engine/controls/cuecontrol.h"
 #include "engine/controls/enginecontrol.h"
 #include "engine/controls/keycontrol.h"
@@ -232,6 +233,8 @@ EngineBuffer::EngineBuffer(const QString& group,
     m_pPhraseControl = new PhraseControl(group, pConfig);
     addControl(m_pPhraseControl);
     addControl(new MixPointControl(group, pConfig));
+    m_pPadControl = new PadControl(group, pConfig);
+    addControl(m_pPadControl);
     m_pClockControl = new ClockControl(group, pConfig);
     addControl(m_pClockControl);
 
@@ -1144,6 +1147,7 @@ void EngineBuffer::processTrackLocked(
         pControl->process(rate, m_playPos, iBufferSize);
     }
 
+    m_pPadControl->processAudio(pOutput, iBufferSize);
     m_scratching_old = is_scratching;
 
     // If we're repeating and crossed the track boundary, ReadAheadManager already

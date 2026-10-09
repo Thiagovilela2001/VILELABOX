@@ -136,6 +136,7 @@
 
           <WidgetGroup><Size>0me,10f</Size></WidgetGroup>
 
+<Template src="skin:decks/vilelabox_pads.xml"><SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable><SetVariable name="Group"><Variable name="Group"/></SetVariable></Template>
           <!-- performance pads -->
           <WidgetGroup>
             <ObjectName>RbxPadSection</ObjectName>

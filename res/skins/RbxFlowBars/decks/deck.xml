@@ -107,6 +107,7 @@
                        bottom edge, level with the mixer's crossfader -->
                   <WidgetGroup><Size>0me,10me</Size></WidgetGroup>
 
+<Template src="skin:decks/vilelabox_pads.xml"><SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable><SetVariable name="Group"><Variable name="Group"/></SetVariable></Template>
                   <!-- transport | hot cues -->
                   <WidgetGroup>
                     <Layout>horizontal</Layout>

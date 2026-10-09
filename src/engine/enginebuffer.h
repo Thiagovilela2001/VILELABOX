@@ -38,6 +38,7 @@ class VinylControlControl;
 class LoopingControl;
 class ClockControl;
 class PhraseControl;
+class PadControl;
 class CueControl;
 class ReadAheadManager;
 class ControlObject;
@@ -145,6 +146,7 @@ class EngineBuffer : public EngineObject {
     bool isTrackLoaded() const;
     TrackPointer getLoadedTrack() const;
     PhraseControl* phraseControl() const { return m_pPhraseControl; }
+    PadControl* padControl() const { return m_pPadControl; }
     int seekGeneration() const { return m_seekGeneration.loadAcquire(); }
     void ejectTrack();
 
@@ -322,6 +324,7 @@ class EngineBuffer : public EngineObject {
     BpmControl* m_pBpmControl;
     KeyControl* m_pKeyControl;
     QAtomicInt m_seekGeneration{0};
+    PadControl* m_pPadControl = nullptr;
     PhraseControl* m_pPhraseControl = nullptr;
     ClockControl* m_pClockControl;
     FRIEND_TEST(CueControlTest, SeekOnSetCueCDJ);

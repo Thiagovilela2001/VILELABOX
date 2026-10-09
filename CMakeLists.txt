@@ -734,6 +734,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/track/autophrasecues.cpp
   src/engine/controls/phrasecontrol.cpp
   src/engine/controls/mixpointcontrol.cpp
+  src/engine/controls/padcontrol.cpp
   src/widget/wphrasestatus.cpp
   src/analyzer/analyzervocals.cpp
   src/analyzer/vocalanalysisstore.cpp

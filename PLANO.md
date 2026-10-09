@@ -24,6 +24,18 @@ independentes entre si e podem ser feitas em qualquer ordem depois da fase 1.
 
 ---
 
+## Estado da execução em 09/10/2026
+
+- Base 2.5.6 mantida por escolha do usuário; stems adiados.
+- Fases 0–5 implementadas na branch `blackmesa`, sem mapeamento de controladoras.
+- Compilação e testes novos aprovados. A regressão tem quatro falhas de
+  temporizadores JavaScript já presentes antes das mudanças.
+- Validação auditiva/visual e anotação das 20 faixas continuam pendentes.
+- Consulte `IMPLEMENTACAO.md` e os documentos dos módulos para uso, resultados
+  de verificação e diferenças de escopo (incluindo a resolução do Mix Point Link).
+
+---
+
 ## Fase 0 — Organização (antes de qualquer recurso)
 
 1. **Controle de versão.** O repositório está em HEAD solto, com 35 arquivos
