@@ -32,6 +32,7 @@
           <PlayedOverlayColor><Variable name="PlayedOverlayColor"/></PlayedOverlayColor>
           <PlayPosColor><Variable name="PlayPosColor"/></PlayPosColor>
           <EndOfTrackColor><Variable name="EndOfTrackColor"/></EndOfTrackColor>
+          <ShowMixPointMarkers>true</ShowMixPointMarkers>
         <ShowPhraseRegions>true</ShowPhraseRegions>
         <ShowPhraseMarkers>true</ShowPhraseMarkers>
           <PhraseBars>8</PhraseBars>

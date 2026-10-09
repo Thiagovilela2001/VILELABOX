@@ -13,6 +13,7 @@
 #include "engine/controls/bpmcontrol.h"
 #include "engine/controls/clockcontrol.h"
 #include "engine/controls/phrasecontrol.h"
+#include "engine/controls/mixpointcontrol.h"
 #include "engine/controls/cuecontrol.h"
 #include "engine/controls/enginecontrol.h"
 #include "engine/controls/keycontrol.h"
@@ -230,6 +231,7 @@ EngineBuffer::EngineBuffer(const QString& group,
     // Create the clock controller
     m_pPhraseControl = new PhraseControl(group, pConfig);
     addControl(m_pPhraseControl);
+    addControl(new MixPointControl(group, pConfig));
     m_pClockControl = new ClockControl(group, pConfig);
     addControl(m_pClockControl);
 
@@ -488,6 +490,7 @@ void EngineBuffer::setNewPlaypos(mixxx::audio::FramePos position) {
     m_iSamplesSinceLastIndicatorUpdate = 1000000;
 
     // Must hold the engineLock while using m_engineControls
+    m_seekGeneration.fetchAndAddOrdered(1);
     for (const auto& pControl : std::as_const(m_engineControls)) {
         pControl->notifySeek(m_playPos);
     }

@@ -188,6 +188,11 @@ void WOverview::setup(const QDomNode& node, const SkinContext& context) {
             }, Qt::QueuedConnection);
     connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated, this,
             [this](const QString&) { update(); }, Qt::QueuedConnection);
+    setProperty("showMixPointMarkers", context.selectBool(node, "ShowMixPointMarkers", false));
+    for (const auto& key : {QStringLiteral("mix_point_in_position"), QStringLiteral("mix_point_out_position")}) {
+        auto* control = new ControlProxy(m_group, key, this);
+        connect(control, &ControlProxy::valueChanged, this, [this](double) { update(); });
+    }
     setProperty("showPhraseRegions", context.selectBool(node, "ShowPhraseRegions", false));
     setProperty("phraseColors", context.selectString(node, "PhraseColors"));
     setProperty("showVocalMarkers", context.selectBool(node, "ShowVocalMarkers", false));
@@ -728,6 +733,19 @@ void WOverview::paintEvent(QPaintEvent* pEvent) {
                                     ? QRectF(start, height() - 5, end - start, 5)
                                     : QRectF(width() - 5, start, 5, end - start),
                             QColor("#ff63c6"));
+                }
+            }
+            if (property("showMixPointMarkers").toBool()) {
+                const QString keys[]{QStringLiteral("mix_point_in_position"), QStringLiteral("mix_point_out_position")};
+                for (int i = 0; i < 2; ++i) {
+                    const double samples = ControlObject::get(ConfigKey(m_group, keys[i]));
+                    if (samples < 0 || samples > trackSamples) continue;
+                    const double position = 1 + (length() - 2) * samples / trackSamples;
+                    painter.setPen(i == 0 ? QColor("#36bfa3") : QColor("#ff4545"));
+                    if (m_orientation == Qt::Horizontal) {
+                        painter.drawLine(QPointF(position, 5), QPointF(position, height()));
+                        painter.drawText(QPointF(position + 2, 15), i == 0 ? QStringLiteral("IN") : QStringLiteral("OUT"));
+                    } else painter.drawLine(QPointF(0, position), QPointF(width(), position));
                 }
             }
             drawBarMarkers(&painter, offset, gain);

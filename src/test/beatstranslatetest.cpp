@@ -581,3 +581,40 @@ TEST_F(BarSyncTest, PhraseSyncMatchesRemainingPhraseBeatsOnPlay) {
     EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "beat_in_bar")), ControlObject::get(ConfigKey(m_sGroup2, "beat_in_bar")));
     EXPECT_DOUBLE_EQ(ControlObject::get(ConfigKey(m_sGroup1, "phrase_bars_left")), ControlObject::get(ConfigKey(m_sGroup2, "phrase_bars_left")));
 }
+TEST_F(BarSyncTest, MixPointArmsLaunchesAndCancelsOnStop) {
+    const auto trigger = *(m_pBeats->cfirstmarker() + 4);
+    m_pTrack1->createAndAddCue(mixxx::CueType::Outro, Cue::kNoHotCue, trigger, *(m_pBeats->cfirstmarker() + 8));
+    m_pTrack2->createAndAddCue(mixxx::CueType::Intro, Cue::kNoHotCue, mixxx::audio::kStartFramePos, *(m_pBeats->cfirstmarker() + 4));
+    ProcessBuffer();
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 0);
+    ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    for (int i = 0; i < 500 && !ControlObject::get(ConfigKey(m_sGroup2, "play")); ++i) ProcessBuffer();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "play")));
+    EXPECT_GE(m_pChannel1->getEngineBuffer()->getExactPlayPos(), trigger);
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+}
+TEST_F(BarSyncTest, MixPointRejectsMissingExitAndDifferentTempo) {
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 0);
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    m_pTrack1->createAndAddCue(mixxx::CueType::Outro, Cue::kNoHotCue, *(m_pBeats->cfirstmarker() + 4), mixxx::audio::kInvalidFramePos);
+    m_pTrack2->trySetBeats(mixxx::Beats::fromConstTempo(m_pTrack2->getSampleRate(), mixxx::audio::kStartFramePos, mixxx::Bpm(130)));
+    ProcessBuffer();
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 1);
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    EXPECT_DOUBLE_EQ(3, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_error")));
+}
+TEST_F(BarSyncTest, MixPointCancelsEvenSmallSourceSeeksAndStops) {
+    m_pTrack1->createAndAddCue(mixxx::CueType::Outro, Cue::kNoHotCue, *(m_pBeats->cfirstmarker() + 8), mixxx::audio::kInvalidFramePos);
+    m_pTrack2->createAndAddCue(mixxx::CueType::Intro, Cue::kNoHotCue, mixxx::audio::kStartFramePos, mixxx::audio::kInvalidFramePos);
+    ProcessBuffer();
+    auto arm = [this] { ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 1); ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 0); };
+    arm(); ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    m_pChannel1->getEngineBuffer()->queueNewPlaypos(m_pChannel1->getEngineBuffer()->getExactPlayPos() + 1, EngineBuffer::SEEK_EXACT);
+    ProcessBuffer(); ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    arm(); ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    ControlObject::set(ConfigKey(m_sGroup1, "play"), 0); ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+}

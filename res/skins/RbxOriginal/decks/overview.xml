@@ -14,6 +14,7 @@
       <Size>200me,60f</Size>
       <Children>
         <Overview>
+    <ShowMixPointMarkers>true</ShowMixPointMarkers>
         <ShowPhraseRegions>true</ShowPhraseRegions>
         <ShowVocalMarkers>true</ShowVocalMarkers>
           <TooltipId>waveform_overview</TooltipId>

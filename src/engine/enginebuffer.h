@@ -145,6 +145,7 @@ class EngineBuffer : public EngineObject {
     bool isTrackLoaded() const;
     TrackPointer getLoadedTrack() const;
     PhraseControl* phraseControl() const { return m_pPhraseControl; }
+    int seekGeneration() const { return m_seekGeneration.loadAcquire(); }
     void ejectTrack();
 
     mixxx::audio::FramePos getExactPlayPos() const;
@@ -320,6 +321,7 @@ class EngineBuffer : public EngineObject {
     RateControl* m_pRateControl;
     BpmControl* m_pBpmControl;
     KeyControl* m_pKeyControl;
+    QAtomicInt m_seekGeneration{0};
     PhraseControl* m_pPhraseControl = nullptr;
     ClockControl* m_pClockControl;
     FRIEND_TEST(CueControlTest, SeekOnSetCueCDJ);
