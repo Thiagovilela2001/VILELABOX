@@ -146,3 +146,49 @@ TEST_F(AnalyzerPhrasesTest, AutomaticCuesPreserveUserSlotsLockAndUndoEdits) {
     EXPECT_TRUE(track->getCuePoints().contains(user)); EXPECT_TRUE(track->getCuePoints().contains(intro));
     generator.setTrack(track); generator.apply({}); EXPECT_EQ(2, track->getCuePoints().size());
 }
+#include "library/related/relatedtracks.h"
+TEST(RelatedTracksTest, CamelotNeighborsAndRelativeModes) {
+    for (int i = 1; i <= 24; ++i) {
+        auto key = KeyUtils::keyFromNumericValue(i);
+        const auto compatible = KeyUtils::getCompatibleKeys(key);
+        for (int j = 1; j <= 24; ++j) {
+            auto candidate = KeyUtils::keyFromNumericValue(j);
+            const bool expected = compatible.contains(candidate) &&
+                    (KeyUtils::keyIsMajor(key) == KeyUtils::keyIsMajor(candidate) ||
+                     KeyUtils::keyToOpenKeyNumber(key) == KeyUtils::keyToOpenKeyNumber(candidate));
+            EXPECT_EQ(expected, vilelabox::relatedScore(120, 120, key, candidate).score > 0);
+        }
+    }
+}
+TEST(RelatedTracksTest, HalfDoubleTempoAndSixPercentLimit) {
+    const auto key = KeyUtils::keyFromNumericValue(1);
+    EXPECT_GT(vilelabox::relatedScore(120, 60, key, key).score, 0);
+    EXPECT_GT(vilelabox::relatedScore(120, 240, key, key).score, 0);
+    EXPECT_GT(vilelabox::relatedScore(120, 127.2, key, key).score, 0);
+    EXPECT_EQ(0, vilelabox::relatedScore(120, 128, key, key).score);
+    EXPECT_EQ(0, vilelabox::relatedScore(0, 120, key, key).score);
+    EXPECT_GT(vilelabox::relatedScore(120, 120, key, key, 5, 5).score, vilelabox::relatedScore(120, 120, key, key, 5, 9).score);
+}
+TEST(RelatedTracksTest, ExplicitCamelotEightANeighbors) {
+    const auto aMinor = KeyUtils::guessKeyFromText("Am");
+    for (const auto& name : {"Am", "Dm", "Em", "C"}) {
+        EXPECT_GT(vilelabox::relatedScore(120, 120, aMinor, KeyUtils::guessKeyFromText(name)).score, 0) << name;
+    }
+    for (const auto& name : {"F#", "G", "F"}) EXPECT_EQ(0, vilelabox::relatedScore(120, 120, aMinor, KeyUtils::guessKeyFromText(name)).score);
+}
+#include "analyzer/analyzerenergy.h"
+TEST_F(AnalyzerPhrasesTest, EnergyIsCachedSeparatelyAndInvalidatedByFileChange) {
+    QTemporaryDir directory;
+    QFile source(directory.filePath("energy.wav")); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("first"); source.close();
+    auto track = Track::newTemporary(source.fileName());
+    config()->setValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), true);
+    AnalyzerEnergy analyzer(config());
+    ASSERT_TRUE(analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), 44100));
+    std::vector<CSAMPLE> silence(44100 * 2, 0);
+    ASSERT_TRUE(analyzer.processSamples(silence.data(), silence.size()));
+    analyzer.storeResults(track); analyzer.cleanup();
+    EXPECT_DOUBLE_EQ(1, vilelabox::loadEnergies(config()->getSettingsPath()).value(vilelabox::energyIdentity(source.fileName())));
+    EXPECT_FALSE(analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), 44100));
+    ASSERT_TRUE(source.open(QIODevice::Append)); source.write("changed"); source.close();
+    EXPECT_TRUE(analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), 44100));
+}
