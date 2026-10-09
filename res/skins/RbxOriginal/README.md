@@ -1,8 +1,8 @@
 # RbxOriginal: modo Performance do rekordbox no Mixxx (blackmesa)
 
-**Uso pessoal, não distribuir.** A pasta `rb/` tem ícones copiados do
-instalador do rekordbox (`~/Downloads/rekordbox_extracted/skins/`), que são
-da AlphaTheta/Pioneer DJ.
+Layout inspirado no modo Performance do rekordbox. Os ícones de `rb/` são
+desenhos próprios e simples; nenhum arquivo do rekordbox é distribuído aqui.
+rekordbox é marca da AlphaTheta Corporation; este projeto não tem relação com ela.
 
 ## Layout (rekordbox 6/7 Performance, 2Deck Horizontal)
 
@@ -32,7 +32,7 @@ BROWSER (árvore + lista)
 
 ## Arquivos
 
-- `rb/`: SVGs originais do rekordbox (CUE, PLAY, PAUSE, REC, engrenagem, logo...)
+- `rb/`: ícones próprios (CUE, PLAY, PAUSE, REC, engrenagem, logo...) com os mesmos nomes e tamanhos usados pelo XML
 - `tools/make_rb.py` (rodar depois de `make_assets.py`/`make_look.py`, que sobrescrevem os knobs): desenha os knobs, os caps e trilhos de fader e o anel do
   display no estilo rekordbox (o instalador não traz essas peças)
 - `style.qss`: paleta tirada das SVGs do rekordbox (#1e1e1e, #282828,

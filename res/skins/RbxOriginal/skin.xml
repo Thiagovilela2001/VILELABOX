@@ -4,9 +4,8 @@
   RbxOriginal: Mixxx 2.5 (blackmesa build) skin reproducing the rekordbox 6/7
   Performance mode, 2Deck Horizontal layout.
 
-  PERSONAL USE ONLY - DO NOT DISTRIBUTE. rb/ holds button and icon art copied
-  from the user's own rekordbox installer (AlphaTheta / Pioneer DJ property).
-  Everything else (XML, QSS, knobs, faders, jog ring from tools/make_rb.py) is
+  rb/ holds original, simple button and icon art (same names and sizes as
+  the XML expects); no rekordbox files are distributed. Everything else (XML, QSS, knobs, faders, jog ring from tools/make_rb.py) is
   derived from the RbxFlowBars skin.
 
   Layout, top to bottom:
@@ -21,9 +20,9 @@
     <title>RbxOriginal</title>
     <author>thiago (personal)</author>
     <version>0.1.0</version>
-    <description>rekordbox Performance mode (2Deck Horizontal) look for the blackmesa build. Personal use only.</description>
+    <description>Two-deck layout inspired by rekordbox Performance mode, for the blackmesa build.</description>
     <language>en</language>
-    <license>Personal use only (contains rekordbox artwork)</license>
+    <license>GPL-2.0-or-later</license>
     <attributes>
 
       <!-- ============ engine / layout defaults ============ -->
