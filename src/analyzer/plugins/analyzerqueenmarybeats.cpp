@@ -1,4 +1,7 @@
 #include <dsp/onsets/DetectionFunction.h>
+#include <dsp/tempotracking/DownBeat.h>
+#include <algorithm>
+#include <cmath>
 #include <dsp/tempotracking/TempoTrackV2.h>
 
 // Class header comes after library includes here since our preprocessor
@@ -38,8 +41,9 @@ DFConfig makeDetectionFunctionConfig(int stepSizeFrames, int windowSize) {
 
 } // namespace
 
-AnalyzerQueenMaryBeats::AnalyzerQueenMaryBeats()
-        : m_windowSize(0),
+AnalyzerQueenMaryBeats::AnalyzerQueenMaryBeats(bool precision)
+        : m_precision(precision),
+          m_windowSize(0),
           m_stepSizeFrames(0) {
 }
 
@@ -48,6 +52,22 @@ AnalyzerQueenMaryBeats::~AnalyzerQueenMaryBeats() {
 
 bool AnalyzerQueenMaryBeats::initialize(mixxx::audio::SampleRate sampleRate) {
     m_detectionResults.clear();
+    m_resultBeats.clear();
+    m_resultDownbeat = {};
+    m_transients.clear();
+    m_audioBlockFill = 0;
+    m_envelopeFill = 0;
+    m_envelopeEnergy = 0;
+    m_previousEnergy = 0;
+    m_envelopeStep = std::max(1, static_cast<int>(sampleRate / 1000));
+    if (m_precision) {
+        size_t factor = 16;
+        while (sampleRate / factor > 4000 && factor < 64) {
+            factor *= 2;
+        }
+        m_pDownbeat = std::make_unique<DownBeat>(sampleRate, factor, m_audioBlock.size());
+        m_pDownbeat->setBeatsPerBar(4);
+    }
     m_sampleRate = sampleRate;
     m_stepSizeFrames = static_cast<int>(m_sampleRate * kStepSecs);
     m_windowSize = MathUtilities::nextPowerOfTwo(m_sampleRate / kMaximumBinSizeHz);
@@ -71,6 +91,24 @@ bool AnalyzerQueenMaryBeats::processSamples(const CSAMPLE* pIn, SINT iLen) {
         return false;
     }
 
+    if (m_precision) {
+        for (SINT i = 0; i < iLen; i += kAnalysisChannels) {
+            const float mono = (pIn[i] + pIn[i + 1]) * 0.5f;
+            m_audioBlock[m_audioBlockFill++] = mono;
+            if (m_audioBlockFill == m_audioBlock.size()) {
+                m_pDownbeat->pushAudioBlock(m_audioBlock.data());
+                m_audioBlockFill = 0;
+            }
+            m_envelopeEnergy += mono * mono;
+            if (++m_envelopeFill == m_envelopeStep) {
+                const double energy = m_envelopeEnergy / m_envelopeStep;
+                m_transients.push_back(std::max(0.0, energy - m_previousEnergy));
+                m_previousEnergy = energy;
+                m_envelopeFill = 0;
+                m_envelopeEnergy = 0;
+            }
+        }
+    }
     return m_helper.processStereoSamples(pIn, iLen);
 }
 
@@ -96,6 +134,12 @@ bool AnalyzerQueenMaryBeats::finalize() {
         beatPeriod.push_back(0.0);
     }
 
+    if (m_precision && (df.size() < 512 ||
+            std::none_of(df.begin(), df.end(), [](double value) { return value > 1e-10; }))) {
+        m_pDetectionFunction.reset();
+        m_pDownbeat.reset();
+        return true;
+    }
     TempoTrackV2 tt(m_sampleRate, m_stepSizeFrames);
     tt.calculateBeatPeriod(df, beatPeriod, tempi);
 
@@ -111,8 +155,68 @@ bool AnalyzerQueenMaryBeats::finalize() {
         m_resultBeats.push_back(result);
     }
 
+    if (m_precision) {
+        refineBeats();
+    }
     m_pDetectionFunction.reset();
+    m_pDownbeat.reset();
     return true;
+}
+
+void AnalyzerQueenMaryBeats::refineBeats() {
+    for (auto& beat : m_resultBeats) {
+        const double center = beat.value() / m_envelopeStep;
+        const int radius = std::max(1, static_cast<int>(m_sampleRate * 0.025 / m_envelopeStep));
+        const int first = std::max(0, static_cast<int>(center) - radius);
+        const int last = std::min(static_cast<int>(m_transients.size()) - 1,
+                static_cast<int>(center) + radius);
+        double bestScore = 1e-10;
+        int best = -1;
+        for (int bin = first; bin <= last; ++bin) {
+            const double score = m_transients[bin] / (1.0 + std::abs(bin - center) / 10.0);
+            if (score > bestScore) {
+                bestScore = score;
+                best = bin;
+            }
+        }
+        if (best >= 0) {
+            beat = audio::FramePos(static_cast<double>(best) * m_envelopeStep);
+        }
+    }
+    if (m_resultBeats.size() < 16 || !m_pDownbeat) {
+        return;
+    }
+    if (m_audioBlockFill) {
+        std::fill(m_audioBlock.begin() + m_audioBlockFill, m_audioBlock.end(), 0.0f);
+        m_pDownbeat->pushAudioBlock(m_audioBlock.data());
+    }
+    std::vector<double> beats;
+    for (const auto& beat : m_resultBeats) {
+        beats.push_back(beat.value() / m_audioBlock.size());
+    }
+    size_t length = 0;
+    const float* audio = m_pDownbeat->getBufferedAudio(length);
+    std::vector<int> downbeats;
+    m_pDownbeat->findDownBeats(audio, length, beats, downbeats);
+    std::vector<double> differences;
+    m_pDownbeat->getBeatSD(differences);
+    std::array<double, 4> scores{};
+    std::array<int, 4> counts{};
+    for (size_t i = 0; i < differences.size(); ++i) {
+        if (std::isfinite(differences[i])) {
+            scores[(i + 1) % 4] += differences[i];
+            ++counts[(i + 1) % 4];
+        }
+    }
+    for (size_t phase = 0; phase < scores.size(); ++phase) {
+        if (counts[phase]) {
+            scores[phase] /= counts[phase];
+        }
+    }
+    std::sort(scores.begin(), scores.end());
+    if (!downbeats.empty() && scores[3] > 1e-6 && scores[3] > scores[2] * 1.1) {
+        m_resultDownbeat = m_resultBeats[downbeats.front()];
+    }
 }
 
 } // namespace mixxx

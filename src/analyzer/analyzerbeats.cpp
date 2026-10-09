@@ -17,6 +17,7 @@
 QList<mixxx::AnalyzerPluginInfo> AnalyzerBeats::availablePlugins() {
     QList<mixxx::AnalyzerPluginInfo> plugins;
     // First one below is the default
+    plugins.append(mixxx::AnalyzerQueenMaryBeats::precisionPluginInfo());
     plugins.append(mixxx::AnalyzerQueenMaryBeats::pluginInfo());
     plugins.append(mixxx::AnalyzerSoundTouchBeats::pluginInfo());
     return plugins;
@@ -101,7 +102,9 @@ bool AnalyzerBeats::initialize(const AnalyzerTrack& track,
 
     DEBUG_ASSERT(!m_pPlugin);
     if (bShouldAnalyze) {
-        if (m_pluginId == mixxx::AnalyzerQueenMaryBeats::pluginInfo().id()) {
+        if (m_pluginId == mixxx::AnalyzerQueenMaryBeats::precisionPluginInfo().id()) {
+            m_pPlugin = std::make_unique<mixxx::AnalyzerQueenMaryBeats>(true);
+        } else if (m_pluginId == mixxx::AnalyzerQueenMaryBeats::pluginInfo().id()) {
             m_pPlugin = std::make_unique<mixxx::AnalyzerQueenMaryBeats>();
         } else if (m_pluginId == mixxx::AnalyzerSoundTouchBeats::pluginInfo().id()) {
             m_pPlugin = std::make_unique<mixxx::AnalyzerSoundTouchBeats>();
@@ -245,7 +248,16 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
         pBeats = mixxx::Beats::fromConstTempo(m_sampleRate, mixxx::audio::kStartFramePos, bpm);
     }
 
-    pTrack->trySetBeats(pBeats);
+    const auto downbeat = m_pPlugin->getFirstDownbeat();
+    if (pBeats && downbeat.isValid()) {
+        const auto closest = pBeats->findClosestBeat(downbeat);
+        if (closest.isValid()) {
+            pBeats = pBeats->withDownbeat(closest);
+        }
+    }
+    if (pBeats) {
+        pTrack->trySetBeats(pBeats);
+    }
 }
 
 // static

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -8,6 +9,7 @@
 #include "analyzer/plugins/buffering_utils.h"
 
 class DetectionFunction;
+class DownBeat;
 
 namespace mixxx {
 
@@ -23,11 +25,17 @@ class AnalyzerQueenMaryBeats : public AnalyzerBeatsPlugin {
                 true);
     }
 
-    AnalyzerQueenMaryBeats();
+    static AnalyzerPluginInfo precisionPluginInfo() {
+        return AnalyzerPluginInfo("vilelabox-qm-precision:1",
+                QObject::tr("VILELABOX / Queen Mary University London"),
+                QObject::tr("VILELABOX — Grid preciso e primeiro tempo"), true);
+    }
+
+    explicit AnalyzerQueenMaryBeats(bool precision = false);
     ~AnalyzerQueenMaryBeats() override;
 
     AnalyzerPluginInfo info() const override {
-        return pluginInfo();
+        return m_precision ? precisionPluginInfo() : pluginInfo();
     }
 
     bool initialize(mixxx::audio::SampleRate sampleRate) override;
@@ -42,7 +50,22 @@ class AnalyzerQueenMaryBeats : public AnalyzerBeatsPlugin {
         return m_resultBeats;
     }
 
+    mixxx::audio::FramePos getFirstDownbeat() const override {
+        return m_resultDownbeat;
+    }
+
   private:
+    void refineBeats();
+    const bool m_precision;
+    std::unique_ptr<DownBeat> m_pDownbeat;
+    std::array<float, 512> m_audioBlock{};
+    size_t m_audioBlockFill = 0;
+    int m_envelopeStep = 1;
+    int m_envelopeFill = 0;
+    double m_envelopeEnergy = 0;
+    double m_previousEnergy = 0;
+    std::vector<double> m_transients;
+    mixxx::audio::FramePos m_resultDownbeat;
     std::unique_ptr<DetectionFunction> m_pDetectionFunction;
     DownmixAndOverlapHelper m_helper;
     mixxx::audio::SampleRate m_sampleRate;

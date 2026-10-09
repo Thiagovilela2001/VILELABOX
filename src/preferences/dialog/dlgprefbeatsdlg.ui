@@ -47,12 +47,12 @@ automatically shows a beat-grid for them, and allows you to synchronize tracks u
       <item>
        <widget class="QCheckBox" name="checkBoxFixedTempo">
         <property name="toolTip">
-         <string>Converts beats detected by the analyzer into a fixed-tempo beatgrid.
-Use this setting if your tracks have a constant tempo (e.g. most electronic music).
-Often results in higher quality beatgrids, but will not do well on tracks that have tempo shifts.</string>
+         <string>Marcado: modo Normal, para músicas com BPM constante.
+Desmarcado: modo Dinâmico, para músicas com variações de andamento.
+O modo Dinâmico acompanha as batidas detectadas ao longo da faixa.</string>
         </property>
         <property name="text">
-         <string>Assume constant tempo (Recommended)</string>
+         <string>Modo Normal: BPM fixo (desmarque para modo Dinâmico)</string>
         </property>
        </widget>
       </item>

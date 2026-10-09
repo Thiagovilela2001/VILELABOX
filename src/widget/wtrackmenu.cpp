@@ -539,13 +539,13 @@ void WTrackMenu::createActions() {
         m_pReanalyzeAction = make_parented<QAction>(tr("Reanalyze"), this);
         connect(m_pReanalyzeAction, &QAction::triggered, this, &WTrackMenu::slotReanalyze);
 
-        m_pReanalyzeConstBpmAction = make_parented<QAction>(tr("Reanalyze (constant BPM)"), this);
+        m_pReanalyzeConstBpmAction = make_parented<QAction>(tr("Reanalisar — Normal (BPM fixo)"), this);
         connect(m_pReanalyzeConstBpmAction,
                 &QAction::triggered,
                 this,
                 &WTrackMenu::slotReanalyzeWithFixedTempo);
 
-        m_pReanalyzeVarBpmAction = make_parented<QAction>(tr("Reanalyze (variable BPM)"), this);
+        m_pReanalyzeVarBpmAction = make_parented<QAction>(tr("Reanalisar — Dinâmico (BPM variável)"), this);
         connect(m_pReanalyzeVarBpmAction,
                 &QAction::triggered,
                 this,

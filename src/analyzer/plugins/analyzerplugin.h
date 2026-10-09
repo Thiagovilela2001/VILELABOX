@@ -70,6 +70,9 @@ class AnalyzerBeatsPlugin : public AnalyzerPlugin {
     ~AnalyzerBeatsPlugin() override = default;
 
     virtual bool supportsBeatTracking() const = 0;
+    virtual mixxx::audio::FramePos getFirstDownbeat() const {
+        return {};
+    }
     virtual mixxx::Bpm getBpm() const {
         return {};
     }
