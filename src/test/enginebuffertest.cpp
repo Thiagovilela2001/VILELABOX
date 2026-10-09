@@ -3,7 +3,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <QMenu>
+#include <QTimer>
 #include <QString>
+
+#include "skin/legacy/skincontext.h"
+#include "widget/wkey.h"
+#include "track/keyutils.h"
 #include <QTest>
 #include <QtDebug>
 
@@ -576,4 +582,47 @@ TEST_F(EngineBufferTest, RatePermTest) {
     ProcessBuffer();
     ControlObject::set(ConfigKey(m_sGroup1, "rate_perm_up_small"), 0);
     EXPECT_EQ(1.06, m_pChannel1->getEngineBuffer()->m_speed_old);
+}
+
+TEST_F(EngineBufferTest, KeyMenuSelectsAndHoldsEveryTonic) {
+    using namespace mixxx::track::io::key;
+    ASSERT_EQ(1.0, ControlObject::get(ConfigKey(m_sGroup1, "track_loaded")));
+    QDomDocument document;
+    ASSERT_TRUE(document.setContent(QStringLiteral("<Key><EditableKey>true</EditableKey></Key>")));
+    SkinContext context(config(), QString());
+    WKey widget(m_sGroup1);
+    widget.setup(document.documentElement(), context);
+    widget.show();
+    for (const auto original : {C_MAJOR, A_MINOR}) {
+        ControlObject::set(ConfigKey(m_sGroup1, "file_key"), original);
+        for (int tonic = 0; tonic < 12; ++tonic) {
+            ControlObject::set(ConfigKey(m_sGroup1, "keylock"), 0.0);
+            ProcessBuffer();
+            ControlObject::set(ConfigKey(m_sGroup1, "pitch"), 0.25);
+            ProcessBuffer();
+            const auto target = KeyUtils::tonicToKey(tonic, KeyUtils::keyIsMajor(original));
+            bool selected = false;
+            QTimer::singleShot(0, &widget, [&] {
+                auto* menu = widget.findChild<QMenu*>();
+                if (menu) {
+                    const auto actions = menu->actions();
+                    if (actions.size() >= 12) {
+                        actions[actions.size() - 12 + tonic]->trigger();
+                        selected = true;
+                    }
+                    menu->close();
+                }
+            });
+            QTest::mouseClick(&widget, Qt::LeftButton);
+            ASSERT_TRUE(selected);
+            ProcessBuffer();
+            EXPECT_EQ(1.0, ControlObject::get(ConfigKey(m_sGroup1, "keylock")));
+            EXPECT_EQ(target, ControlObject::get(ConfigKey(m_sGroup1, "key")));
+            const double pitch = ControlObject::get(ConfigKey(m_sGroup1, "pitch"));
+            ControlObject::set(ConfigKey(m_sGroup1, "rate"), tonic % 2 ? 0.4 : -0.4);
+            ProcessBuffer();
+            EXPECT_NEAR(pitch, ControlObject::get(ConfigKey(m_sGroup1, "pitch")), 1e-9);
+            EXPECT_EQ(target, ControlObject::get(ConfigKey(m_sGroup1, "key")));
+        }
+    }
 }

@@ -11,12 +11,17 @@ class WKey : public WLabel  {
     void onConnectedControlChanged(double dParameter, double dValue) override;
     void setup(const QDomNode& node, const SkinContext& context) override;
 
+  protected:
+    void mousePressEvent(QMouseEvent* event) override;
+
   private slots:
     void setValue(double dValue);
     void keyNotationChanged(double dValue);
     void setCents();
 
   private:
+    const QString m_group;
+    bool m_editableKey = false;
     double m_dOldValue;
     bool m_displayCents;
     bool m_displayKey;
