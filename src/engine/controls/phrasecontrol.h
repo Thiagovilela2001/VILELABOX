@@ -2,6 +2,7 @@
 #include <memory>
 #include "engine/controls/enginecontrol.h"
 #include "track/phrases.h"
+#include "track/autophrasecues.h"
 class ControlObject;
 class ControlPushButton;
 class PhraseControl : public EngineControl {
@@ -22,5 +23,6 @@ class PhraseControl : public EngineControl {
     std::shared_ptr<const State> m_state;
     QMetaObject::Connection m_connection;
     std::unique_ptr<ControlObject> m_type, m_index, m_bars, m_valid;
-    std::unique_ptr<ControlPushButton> m_next, m_previous;
+    std::unique_ptr<ControlPushButton> m_next, m_previous, m_autoCues, m_undoCues;
+    AutoPhraseCues m_cueGenerator;
 };

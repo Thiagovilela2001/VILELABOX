@@ -15,6 +15,11 @@ PhraseControl::PhraseControl(const QString& group, UserSettingsPointer config)
     m_bars = std::make_unique<ControlObject>(ConfigKey(group, "phrase_bars_left"));
     m_valid = std::make_unique<ControlObject>(ConfigKey(group, "phrase_valid"));
     for (auto* control : {m_type.get(), m_index.get(), m_bars.get(), m_valid.get()}) control->setReadOnly();
+    m_autoCues = std::make_unique<ControlPushButton>(ConfigKey(group, "auto_phrase_cues"), true,
+            config->getValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), false) ? 1.0 : 0.0);
+    m_autoCues->setButtonMode(ControlPushButton::TOGGLE);
+    m_undoCues = std::make_unique<ControlPushButton>(ConfigKey(group, "auto_phrase_cues_undo"));
+    connect(m_undoCues.get(), &ControlObject::valueChanged, this, [this](double value) { if (value > 0) m_cueGenerator.undo(); }, Qt::DirectConnection);
     m_next = std::make_unique<ControlPushButton>(ConfigKey(group, "phrase_jump_next"));
     m_previous = std::make_unique<ControlPushButton>(ConfigKey(group, "phrase_jump_prev"));
     connect(m_next.get(), &ControlObject::valueChanged, this, [this](double value) { if (value > 0) jump(true); }, Qt::DirectConnection);
@@ -23,6 +28,7 @@ PhraseControl::PhraseControl(const QString& group, UserSettingsPointer config)
 PhraseControl::~PhraseControl() { QObject::disconnect(m_connection); }
 void PhraseControl::trackLoaded(TrackPointer track) {
     QObject::disconnect(m_connection);
+    m_cueGenerator.setTrack(track);
     std::shared_ptr<const State> state;
     if (track) state = std::make_shared<const State>(State{PhraseAnalysisStore::trackKey(track), track->getBeats(), PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(track))});
     std::atomic_store(&m_state, state);
@@ -35,9 +41,12 @@ void PhraseControl::trackLoaded(TrackPointer track) {
                     if (!track) return;
                     std::shared_ptr<const State> updated = std::make_shared<const State>(State{
                             location, track->getBeats(), PhraseAnalysisStore::instance().get(location)});
-                    std::atomic_compare_exchange_strong(&m_state, &old, updated);
+                    if (std::atomic_compare_exchange_strong(&m_state, &old, updated) && m_autoCues->toBool() && updated->analysis) {
+                        m_cueGenerator.apply(*updated->analysis, track);
+                    }
                 }, Qt::DirectConnection);
     }
+    if (state && state->analysis && m_autoCues->toBool()) m_cueGenerator.apply(*state->analysis, track);
     m_type->forceSet(0); m_index->forceSet(-1); m_bars->forceSet(0); m_valid->forceSet(0);
 }
 std::shared_ptr<const vilelabox::PhraseAnalysis> PhraseControl::analysis() const {

@@ -123,3 +123,26 @@ TEST_F(AnalyzerPhrasesTest, SyntheticAudioFindsFourSectionsAcrossChunkBoundaries
     EXPECT_DOUBLE_EQ(96, result->phrases[2].start);
     EXPECT_DOUBLE_EQ(112, result->phrases[3].start);
 }
+#include "track/autophrasecues.h"
+TEST_F(AnalyzerPhrasesTest, AutomaticCuesPreserveUserSlotsLockAndUndoEdits) {
+    auto track = Track::newTemporary(QStringLiteral("auto-phrase-cues.wav"));
+    track->setAudioProperties(mixxx::audio::ChannelCount(2), mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(1411), mixxx::Duration::fromSeconds(176));
+    auto user = track->createAndAddCue(mixxx::CueType::HotCue, 0, mixxx::audio::FramePos(100), mixxx::audio::kInvalidFramePos);
+    user->setLabel("User");
+    AutoPhraseCues generator;
+    generator.setTrack(track);
+    const auto result = vilelabox::segmentPhrases(sequence(), 176, grid());
+    track->setBpmLocked(true); generator.apply(result); EXPECT_EQ(1, track->getCuePoints().size());
+    track->setBpmLocked(false);
+    generator.apply(result, Track::newTemporary(QStringLiteral("another-track.wav")));
+    EXPECT_EQ(1, track->getCuePoints().size());
+    generator.apply(result);
+    ASSERT_EQ(5, track->getCuePoints().size());
+    EXPECT_EQ("User", user->getLabel()); EXPECT_EQ(mixxx::audio::FramePos(100), user->getPosition());
+    generator.apply(result); EXPECT_EQ(5, track->getCuePoints().size());
+    auto intro = track->findCueByType(mixxx::CueType::Intro); ASSERT_TRUE(intro); intro->setLabel("My Intro");
+    generator.undo(); EXPECT_EQ(2, track->getCuePoints().size());
+    EXPECT_TRUE(track->getCuePoints().contains(user)); EXPECT_TRUE(track->getCuePoints().contains(intro));
+    generator.setTrack(track); generator.apply({}); EXPECT_EQ(2, track->getCuePoints().size());
+}

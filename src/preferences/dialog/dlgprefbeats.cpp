@@ -16,6 +16,7 @@ DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
 
     m_phraseConfig = pConfig;
     checkBoxAnalyzePhrases->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), false));
+    checkBoxAutoPhraseCues->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), false));
     m_availablePlugins = AnalyzerBeats::availablePlugins();
     for (const auto& info : std::as_const(m_availablePlugins)) {
         comboBoxBeatPlugin->addItem(info.name(), info.id());
@@ -202,6 +203,7 @@ void DlgPrefBeats::fastAnalysisEnabled(int i) {
 }
 
 void DlgPrefBeats::slotApply() {
+    m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), checkBoxAutoPhraseCues->isChecked());
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), checkBoxAnalyzePhrases->isChecked());
     m_bpmSettings.setBeatPluginId(m_selectedAnalyzerId);
     m_bpmSettings.setBpmDetectionEnabled(m_bAnalyzerEnabled);
