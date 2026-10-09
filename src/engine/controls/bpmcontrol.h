@@ -2,6 +2,8 @@
 
 #include <gtest/gtest_prod.h>
 
+#include <atomic>
+
 #include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "control/pollingcontrolproxy.h"
@@ -41,10 +43,18 @@ class BpmControl : public EngineControl {
             mixxx::audio::FramePos thisPosition,
             bool respectLoops,
             bool playing);
+    /// Marks bar 1 on the beat closest to the main cue (or the first beat)
+    /// once per loaded track, if the track has beats but no bar reference.
+    /// Called by EngineBuffer after all controls know the track's beats.
+    void autoSetFirstDownbeat(const TrackPointer& pTrack);
+
+    /// With `matchBars`, also aligns bar 1 with the sync target when both
+    /// tracks have a downbeat reference and [ChannelN],bar_sync is enabled.
     mixxx::audio::FramePos getBeatMatchPosition(
             mixxx::audio::FramePos thisPosition,
             bool respectLoops,
-            bool playing);
+            bool playing,
+            bool matchBars = false);
     double getPhaseOffset(mixxx::audio::FramePos thisPosition);
     /// getBeatDistance is adjusted to include the user offset so it's
     /// transparent to other decks.
@@ -115,6 +125,8 @@ class BpmControl : public EngineControl {
     void slotBeatsTranslateMatchAlignment(double);
     void slotToggleBpmLock(double);
     void slotBeatsUndoAdjustment(double value);
+    void slotSetFirstDownbeat(double value);
+    void slotClearFirstDownbeat(double value);
 
   private:
     SyncMode getSyncMode() const {
@@ -125,6 +137,11 @@ class BpmControl : public EngineControl {
     }
     double calcSyncAdjustment(bool userTweakingSync);
     void adjustBeatsBpm(double deltaBpm);
+    void updateBarPosition(mixxx::audio::FramePos position);
+    mixxx::audio::FrameDiff_t getBarMatchOffset(
+            mixxx::audio::FramePos thisPosition,
+            const mixxx::BeatsPointer& pOtherBeats,
+            mixxx::audio::FramePos otherPosition) const;
     void slotScaleBpm(mixxx::Beats::BpmScale bpmScale);
 
     friend class SyncControl;
@@ -152,6 +169,14 @@ class BpmControl : public EngineControl {
     std::unique_ptr<ControlEncoder> m_pTranslateBeatsMove;
     std::unique_ptr<ControlPushButton> m_pBeatsUndo;
     std::unique_ptr<ControlObject> m_pBeatsUndoPossible;
+    std::unique_ptr<ControlPushButton> m_pSetFirstDownbeat;
+    std::unique_ptr<ControlPushButton> m_pClearFirstDownbeat;
+    std::unique_ptr<ControlObject> m_pBarNumber;
+    std::unique_ptr<ControlObject> m_pBeatInBar;
+    std::unique_ptr<ControlObject> m_pDownbeatValid;
+    std::unique_ptr<ControlPushButton> m_pBarSync;
+    std::unique_ptr<ControlPushButton> m_pAutoFirstDownbeat;
+    std::atomic<bool> m_autoDownbeatPending{false};
 
     std::unique_ptr<ControlPushButton> m_pBeatsHalve;
     std::unique_ptr<ControlPushButton> m_pBeatsTwoThirds;

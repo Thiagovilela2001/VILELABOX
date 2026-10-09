@@ -111,6 +111,11 @@ class BaseSignalPathTest : public MixxxTest, SoundSourceProviderRegistration {
                 EngineChannel::CENTER,
                 m_pEngineMixer->registerChannelGroup(m_sPreviewGroup));
         ControlObject::set(ConfigKey(m_sPreviewGroup, "file_bpm"), 2.0);
+        // blackmesa: automatic bar 1 is opt-in for tests, so upstream
+        // expectations are not changed by bar sync.
+        for (const auto& group : {m_sGroup1, m_sGroup2, m_sGroup3, m_sPreviewGroup}) {
+            ControlObject::set(ConfigKey(group, "auto_first_downbeat"), 0.0);
+        }
 
         // TODO(owilliams) Tests fail with this turned on because EngineSync is syncing
         // to this sampler.  FIX IT!

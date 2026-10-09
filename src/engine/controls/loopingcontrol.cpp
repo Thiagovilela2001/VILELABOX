@@ -210,6 +210,37 @@ LoopingControl::LoopingControl(const QString& group,
         m_beatJumps.append(pBeatJump);
     }
 
+    m_pCOBarSize = std::make_unique<ControlObject>(
+            ConfigKey(group, "bar_size"), true, false, true, 4.0);
+    m_pCOBarSizeHalve = std::make_unique<ControlPushButton>(ConfigKey(group, "bar_size_halve"));
+    connect(m_pCOBarSizeHalve.get(),
+            &ControlObject::valueChanged,
+            this,
+            &LoopingControl::slotBarSizeHalve);
+    m_pCOBarSizeDouble = std::make_unique<ControlPushButton>(ConfigKey(group, "bar_size_double"));
+    connect(m_pCOBarSizeDouble.get(),
+            &ControlObject::valueChanged,
+            this,
+            &LoopingControl::slotBarSizeDouble);
+    m_pCOBarJumpForward = std::make_unique<ControlPushButton>(ConfigKey(group, "bar_jump_forward"));
+    m_pCOBarJumpForward->setKbdRepeatable(true);
+    connect(m_pCOBarJumpForward.get(),
+            &ControlObject::valueChanged,
+            this,
+            &LoopingControl::slotBarJumpForward);
+    m_pCOBarJumpBackward = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "bar_jump_backward"));
+    m_pCOBarJumpBackward->setKbdRepeatable(true);
+    connect(m_pCOBarJumpBackward.get(),
+            &ControlObject::valueChanged,
+            this,
+            &LoopingControl::slotBarJumpBackward);
+    m_pCOBarLoopToggle = std::make_unique<ControlPushButton>(ConfigKey(group, "bar_loop_toggle"));
+    connect(m_pCOBarLoopToggle.get(),
+            &ControlObject::valueChanged,
+            this,
+            &LoopingControl::slotBarLoopToggle);
+
     m_pCOLoopMove = new ControlObject(ConfigKey(group, "loop_move"), false);
     connect(m_pCOLoopMove, &ControlObject::valueChanged,
             this, &LoopingControl::slotLoopMove, Qt::DirectConnection);
@@ -1793,6 +1824,79 @@ void LoopingControl::slotBeatJumpBackward(double pressed) {
     if (pressed > 0) {
         slotBeatJump(-1.0 * m_pCOBeatJumpSize->get());
     }
+}
+
+namespace {
+constexpr double kMinBarSize = 1;
+constexpr double kMaxBarSize = 64;
+constexpr int kBeatsPerBar = 4;
+} // namespace
+
+void LoopingControl::slotBarSizeHalve(double pressed) {
+    if (pressed > 0) {
+        m_pCOBarSize->set(std::max(kMinBarSize, m_pCOBarSize->get() / 2));
+    }
+}
+
+void LoopingControl::slotBarSizeDouble(double pressed) {
+    if (pressed > 0) {
+        m_pCOBarSize->set(std::min(kMaxBarSize, m_pCOBarSize->get() * 2));
+    }
+}
+
+void LoopingControl::slotBarJumpForward(double pressed) {
+    if (pressed > 0) {
+        // Whole bars keep the beat inside the bar, so the mix stays aligned.
+        slotBeatJump(kBeatsPerBar * m_pCOBarSize->get());
+    }
+}
+
+void LoopingControl::slotBarJumpBackward(double pressed) {
+    if (pressed > 0) {
+        slotBeatJump(-kBeatsPerBar * m_pCOBarSize->get());
+    }
+}
+
+void LoopingControl::slotBarLoopToggle(double pressed) {
+    if (pressed <= 0 || !m_pTrack) {
+        return;
+    }
+    if (m_bLoopingEnabled) {
+        slotReloopToggle(1);
+        return;
+    }
+    const mixxx::BeatsPointer pBeats = m_pBeats;
+    if (!pBeats) {
+        return;
+    }
+    auto position = m_currentPosition.getValue();
+    const auto seekPosition = getEngineBuffer()->queuedSeekPosition();
+    if (seekPosition.isValid()) {
+        position = seekPosition;
+    }
+    if (!position.isValid()) {
+        return;
+    }
+    // Start on the beat that is playing; with a bar reference, go back to
+    // beat 1 of the current bar.
+    auto it = pBeats->iteratorFrom(position);
+    if (*it > position) {
+        --it;
+    }
+    if (pBeats->hasDownbeat()) {
+        for (int i = 0; i < kBeatsPerBar && !pBeats->isDownbeat(it); ++i) {
+            --it;
+        }
+    }
+    const int beats = kBeatsPerBar * static_cast<int>(m_pCOBarSize->get());
+    const auto startPosition = *it;
+    const auto endPosition = *(it + beats);
+    if (!startPosition.isValid() || !endPosition.isValid() ||
+            startPosition >= endPosition) {
+        return;
+    }
+    emit loopReset();
+    setLoop(startPosition, endPosition, true);
 }
 
 void LoopingControl::slotLoopMove(double beats) {

@@ -89,6 +89,7 @@ EngineBuffer::EngineBuffer(const QString& group,
           m_endButton(nullptr),
           m_bScalerOverride(false),
           m_iSeekPhaseQueued(0),
+          m_iSeekBarsQueued(0),
           m_iEnableSyncQueued(SYNC_REQUEST_NONE),
           m_iSyncModeQueued(static_cast<int>(SyncMode::Invalid)),
           m_bPlayAfterLoading(false),
@@ -570,6 +571,7 @@ void EngineBuffer::slotTrackLoaded(TrackPointer pTrack,
     if (pChannel) {
         m_queuedSeek.setValue(kCloneSeek);
         m_iSeekPhaseQueued = 0;
+        m_iSeekBarsQueued = 0;
     }
 
     // Start buffer processing after all EngineContols are up to date
@@ -675,6 +677,8 @@ void EngineBuffer::notifyTrackLoaded(
                 Qt::DirectConnection);
         bool bpmLocked = pNewTrack.get()->isBpmLocked();
         m_pBpmControl->trackBpmLockChanged(bpmLocked);
+        // After the connection above, so all controls see the new reference.
+        m_pBpmControl->autoSetFirstDownbeat(pNewTrack);
     }
 
     // Inform BaseTrackPlayer via a queued connection
@@ -783,6 +787,7 @@ void EngineBuffer::slotControlPlayRequest(double v) {
                 && m_pVinylControlControl && !m_pVinylControlControl->isEnabled()
 #endif
         ) {
+            m_iSeekBarsQueued = 1;
             requestSyncPhase();
         }
     }
@@ -1316,6 +1321,7 @@ void EngineBuffer::processSeek(bool paused) {
     if (m_iSeekPhaseQueued.fetchAndStoreRelease(0)) {
         seekType |= SEEK_PHASE;
     }
+    const bool matchBars = m_iSeekBarsQueued.fetchAndStoreRelease(0);
 
     switch (seekType) {
         case SEEK_NONE:
@@ -1361,7 +1367,7 @@ void EngineBuffer::processSeek(bool paused) {
             kLogger.trace() << "processSeek" << getGroup() << "Seeking phase";
         }
         const mixxx::audio::FramePos syncPosition =
-                m_pBpmControl->getBeatMatchPosition(position, true, true);
+                m_pBpmControl->getBeatMatchPosition(position, true, true, matchBars);
         position = m_pLoopingControl->getSyncPositionInsideLoop(position, syncPosition);
         if (kLogger.traceEnabled()) {
             kLogger.trace()
@@ -1603,6 +1609,8 @@ void EngineBuffer::slotUpdatedTrackBeats() {
         for (const auto& pControl : std::as_const(m_engineControls)) {
             pControl->trackBeatsUpdated(pTrack->getBeats());
         }
+        // Beats from the analysis of a newly loaded track.
+        m_pBpmControl->autoSetFirstDownbeat(pTrack);
     }
 }
 

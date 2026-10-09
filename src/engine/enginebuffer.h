@@ -446,6 +446,8 @@ class EngineBuffer : public EngineObject {
     bool m_bScalerOverride;
 
     QAtomicInt m_iSeekPhaseQueued;
+    // Set when play starts, so the phase seek also aligns bars.
+    QAtomicInt m_iSeekBarsQueued;
     QAtomicInt m_iEnableSyncQueued;
     QAtomicInt m_iSyncModeQueued;
     ControlValueAtomic<QueuedSeek> m_queuedSeek;

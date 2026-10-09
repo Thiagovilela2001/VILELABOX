@@ -636,3 +636,127 @@ TEST(BeatsTest, IteratorFromFloorUndershoot) {
 }
 
 } // namespace
+
+TEST(BeatsTest, BarMarkersRequireExplicitAnchor) {
+    EXPECT_FALSE(kConstTempoBeats.hasDownbeat());
+    EXPECT_FALSE(kConstTempoBeats.barPosition(kStartPosition));
+    EXPECT_FALSE(kConstTempoBeats.isDownbeat(kConstTempoBeats.cfirstmarker()));
+    EXPECT_FALSE(kConstTempoBeats.withDownbeat(audio::kInvalidFramePos));
+}
+
+TEST(BeatsTest, BarMarkersCountAndWrapBeforeAnchor) {
+    const auto beats = kConstTempoBeats.withDownbeat(kStartPosition + 8 * 24000);
+    auto anchor = beats->cfirstmarker() + 8;
+    for (int offset = -9; offset <= 12; ++offset) {
+        const auto it = anchor + offset;
+        const auto bar = beats->barPosition(*it);
+        ASSERT_TRUE(bar);
+        const int beat = (offset % 4 + 4) % 4;
+        EXPECT_EQ(bar->beat, beat + 1);
+        EXPECT_EQ(bar->bar, (offset - beat) / 4 + 1);
+        EXPECT_EQ(beats->isDownbeat(it), beat == 0);
+    }
+    const auto before = beats->barPosition(*anchor - 1);
+    ASSERT_TRUE(before);
+    EXPECT_EQ(before->bar, 0);
+    EXPECT_EQ(before->beat, 4);
+    const auto after = beats->barPosition(*anchor + 1);
+    ASSERT_TRUE(after);
+    EXPECT_EQ(after->bar, 1);
+    EXPECT_EQ(after->beat, 1);
+}
+
+TEST(BeatsTest, BarMarkersSnapToClosestBeat) {
+    const auto beats = kConstTempoBeats.withDownbeat(kStartPosition + 24000 - 100);
+    const auto bar = beats->barPosition(kStartPosition + 24000);
+    ASSERT_TRUE(bar);
+    EXPECT_EQ(bar->bar, 1);
+    EXPECT_EQ(bar->beat, 1);
+}
+
+TEST(BeatsTest, BarMarkersFollowVariableTempo) {
+    const auto beats = kNonConstTempoBeats.withDownbeat(kStartPosition);
+    for (int index = 0; index < 36; ++index) {
+        const auto it = beats->cfirstmarker() + index;
+        const auto bar = beats->barPosition(*it);
+        ASSERT_TRUE(bar);
+        EXPECT_EQ(bar->bar, index / 4 + 1);
+        EXPECT_EQ(bar->beat, index % 4 + 1);
+    }
+}
+
+TEST(BeatsTest, BarMarkersSurviveGridAndMapSerialization) {
+    for (const auto* original : {&kConstTempoBeats, &kNonConstTempoBeats}) {
+        const auto beats = original->withDownbeat(*(original->cfirstmarker() + 8));
+        const auto loaded = Beats::fromByteArray(kSampleRate,
+                beats->getVersion(), beats->getSubVersion(), beats->toByteArray());
+        ASSERT_TRUE(loaded);
+        EXPECT_TRUE(loaded->hasDownbeat());
+        const auto bar = loaded->barPosition(*(loaded->cfirstmarker() + 8));
+        ASSERT_TRUE(bar);
+        EXPECT_EQ(bar->bar, 1);
+        EXPECT_EQ(bar->beat, 1);
+        const auto cleared = loaded->withoutDownbeat();
+        EXPECT_FALSE(cleared->hasDownbeat());
+        EXPECT_TRUE(loaded->hasDownbeat());
+        const auto reloaded = Beats::fromByteArray(kSampleRate,
+                cleared->getVersion(), cleared->getSubVersion(), cleared->toByteArray());
+        ASSERT_TRUE(reloaded);
+        EXPECT_FALSE(reloaded->hasDownbeat());
+    }
+}
+
+TEST(BeatsTest, OldGridsHaveNoBarMarkers) {
+    const auto loaded = Beats::fromByteArray(kSampleRate,
+            kConstTempoBeats.getVersion(), QString(), kConstTempoBeats.toByteArray());
+    ASSERT_TRUE(loaded);
+    EXPECT_FALSE(loaded->hasDownbeat());
+}
+
+TEST(BeatsTest, BarMarkersFollowTranslationAndBpmEdits) {
+    const auto beats = kConstTempoBeats.withDownbeat(*(kConstTempoBeats.cfirstmarker() + 8));
+    const auto translated = beats->tryTranslate(1234);
+    ASSERT_TRUE(translated);
+    const auto translatedBar = (*translated)->barPosition(*(beats->cfirstmarker() + 8) + 1234);
+    ASSERT_TRUE(translatedBar);
+    EXPECT_EQ(translatedBar->bar, 1);
+    EXPECT_EQ(translatedBar->beat, 1);
+    const auto adjusted = beats->trySetBpm(Bpm(125));
+    ASSERT_TRUE(adjusted);
+    const auto adjustedBar = (*adjusted)->barPosition(*((*adjusted)->cfirstmarker() + 8));
+    ASSERT_TRUE(adjustedBar);
+    EXPECT_EQ(adjustedBar->bar, 1);
+    EXPECT_EQ(adjustedBar->beat, 1);
+    const auto doubled = beats->tryScale(Beats::BpmScale::Double);
+    ASSERT_TRUE(doubled);
+    const auto doubledBar = (*doubled)->barPosition(*(beats->cfirstmarker() + 8));
+    ASSERT_TRUE(doubledBar);
+    EXPECT_EQ(doubledBar->bar, 1);
+    EXPECT_EQ(doubledBar->beat, 1);
+}
+
+TEST(BeatsTest, BarPhaseIncludesBeatFraction) {
+    const auto beats = kConstTempoBeats.withDownbeat(*(kConstTempoBeats.cfirstmarker() + 8));
+    auto anchor = beats->cfirstmarker() + 8;
+    EXPECT_FALSE(kConstTempoBeats.barPhase(*anchor));
+    const auto onDownbeat = beats->barPhase(*anchor);
+    ASSERT_TRUE(onDownbeat);
+    EXPECT_DOUBLE_EQ(0.0, *onDownbeat);
+    const auto inThirdBeat = beats->barPhase(*(anchor + 2) + (*(anchor + 3) - *(anchor + 2)) / 4);
+    ASSERT_TRUE(inThirdBeat);
+    EXPECT_NEAR(2.25, *inThirdBeat, 1e-6);
+    const auto beforeAnchor = beats->barPhase(*(anchor - 1));
+    ASSERT_TRUE(beforeAnchor);
+    EXPECT_DOUBLE_EQ(3.0, *beforeAnchor);
+}
+
+TEST(BeatsTest, PhraseMarkersEveryNBars) {
+    const auto beats = kConstTempoBeats.withDownbeat(*(kConstTempoBeats.cfirstmarker() + 4));
+    auto anchor = beats->cfirstmarker() + 4;
+    for (int offset = -64; offset <= 64; ++offset) {
+        EXPECT_EQ(beats->isDownbeat(anchor + offset, 8), offset % 32 == 0) << offset;
+        EXPECT_EQ(beats->isDownbeat(anchor + offset, 4), offset % 16 == 0) << offset;
+    }
+    EXPECT_FALSE(beats->isDownbeat(anchor, 0));
+    EXPECT_FALSE(kConstTempoBeats.isDownbeat(anchor, 8));
+}

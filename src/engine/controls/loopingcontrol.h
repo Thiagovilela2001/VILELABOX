@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QStack>
+#include <memory>
 
 #include "control/controlvalue.h"
 #include "engine/controls/enginecontrol.h"
@@ -148,6 +149,13 @@ class LoopingControl : public EngineControl {
     void slotBeatJumpForward(double pressed);
     void slotBeatJumpBackward(double pressed);
 
+    // Jumps and loops in whole 4/4 bars (see COMPASSOS.md).
+    void slotBarSizeHalve(double pressed);
+    void slotBarSizeDouble(double pressed);
+    void slotBarJumpForward(double pressed);
+    void slotBarJumpBackward(double pressed);
+    void slotBarLoopToggle(double pressed);
+
     // Move the loop by beats.
     void slotLoopMove(double beats);
 
@@ -256,6 +264,13 @@ class LoopingControl : public EngineControl {
     ControlPushButton* m_pCOBeatJumpForward;
     ControlPushButton* m_pCOBeatJumpBackward;
     QList<BeatJumpControl*> m_beatJumps;
+
+    std::unique_ptr<ControlObject> m_pCOBarSize;
+    std::unique_ptr<ControlPushButton> m_pCOBarSizeHalve;
+    std::unique_ptr<ControlPushButton> m_pCOBarSizeDouble;
+    std::unique_ptr<ControlPushButton> m_pCOBarJumpForward;
+    std::unique_ptr<ControlPushButton> m_pCOBarJumpBackward;
+    std::unique_ptr<ControlPushButton> m_pCOBarLoopToggle;
 
     ControlObject* m_pCOLoopMove;
     QList<LoopMoveControl*> m_loopMoves;

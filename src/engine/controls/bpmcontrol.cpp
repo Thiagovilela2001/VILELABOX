@@ -258,6 +258,33 @@ BpmControl::BpmControl(const QString& group,
     m_pBeatsUndoPossible = std::make_unique<ControlObject>(
             ConfigKey(group, "beats_undo_possible"));
     m_pBeatsUndoPossible->setReadOnly();
+
+    m_pSetFirstDownbeat = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "beats_set_first_downbeat"));
+    connect(m_pSetFirstDownbeat.get(),
+            &ControlObject::valueChanged,
+            this,
+            &BpmControl::slotSetFirstDownbeat,
+            Qt::DirectConnection);
+    m_pClearFirstDownbeat = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "beats_clear_first_downbeat"));
+    connect(m_pClearFirstDownbeat.get(),
+            &ControlObject::valueChanged,
+            this,
+            &BpmControl::slotClearFirstDownbeat,
+            Qt::DirectConnection);
+    m_pBarNumber = std::make_unique<ControlObject>(ConfigKey(group, "bar_number"));
+    m_pBeatInBar = std::make_unique<ControlObject>(ConfigKey(group, "beat_in_bar"));
+    m_pDownbeatValid = std::make_unique<ControlObject>(ConfigKey(group, "downbeat_valid"));
+    m_pBarNumber->setReadOnly();
+    m_pBeatInBar->setReadOnly();
+    m_pDownbeatValid->setReadOnly();
+    m_pBarSync = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "bar_sync"), true, 1.0);
+    m_pBarSync->setButtonMode(ControlPushButton::TOGGLE);
+    m_pAutoFirstDownbeat = std::make_unique<ControlPushButton>(
+            ConfigKey(group, "auto_first_downbeat"), true, 1.0);
+    m_pAutoFirstDownbeat->setButtonMode(ControlPushButton::TOGGLE);
 }
 
 mixxx::Bpm BpmControl::getBpm() const {
@@ -875,7 +902,10 @@ mixxx::audio::FramePos BpmControl::getNearestPositionInPhase(
 }
 
 mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
-        mixxx::audio::FramePos thisPosition, bool respectLoops, bool playing) {
+        mixxx::audio::FramePos thisPosition,
+        bool respectLoops,
+        bool playing,
+        bool matchBars) {
     // Without a beatgrid, we don't know the phase offset.
     if (!m_pBeats) {
         return thisPosition;
@@ -1030,6 +1060,10 @@ mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
     }
     mixxx::audio::FramePos newPlayPosition = thisPosition + seekMatch;
 
+    if (matchBars && pOtherEngineBuffer != getEngineBuffer() && m_pBarSync->toBool()) {
+        newPlayPosition += getBarMatchOffset(newPlayPosition, otherBeats, otherPosition);
+    }
+
     if (!respectLoops) {
         return newPlayPosition;
     }
@@ -1082,6 +1116,34 @@ mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
     return newPlayPosition;
 }
 
+mixxx::audio::FrameDiff_t BpmControl::getBarMatchOffset(
+        mixxx::audio::FramePos thisPosition,
+        const mixxx::BeatsPointer& pOtherBeats,
+        mixxx::audio::FramePos otherPosition) const {
+    const mixxx::BeatsPointer pBeats = m_pBeats;
+    if (!pBeats || !pOtherBeats) {
+        return 0;
+    }
+    const auto thisPhase = pBeats->barPhase(thisPosition);
+    const auto otherPhase = pOtherBeats->barPhase(otherPosition);
+    if (!thisPhase || !otherPhase) {
+        return 0;
+    }
+    // Both decks are already in beat phase, so they differ by whole beats.
+    // Prefer moving back (0..3 beats): the cued downbeat then lands on the
+    // next downbeat of the other deck instead of being skipped.
+    int beats = static_cast<int>(std::lround(*otherPhase - *thisPhase));
+    beats = ((beats % 4) + 4) % 4;
+    if (beats == 0) {
+        return 0;
+    }
+    auto it = pBeats->iteratorFrom(thisPosition);
+    if (*it > thisPosition) {
+        --it;
+    }
+    return *(it - (4 - beats)) - *it;
+}
+
 mixxx::audio::FrameDiff_t BpmControl::getPhaseOffset(mixxx::audio::FramePos thisPosition) {
     // This does not respect looping
     const mixxx::audio::FramePos position = getNearestPositionInPhase(thisPosition, false, false);
@@ -1120,6 +1182,7 @@ void BpmControl::slotUpdateRateSlider(double value) {
 
 // called from an engine worker thread
 void BpmControl::trackLoaded(TrackPointer pNewTrack) {
+    m_autoDownbeatPending = static_cast<bool>(pNewTrack);
     mixxx::BeatsPointer pBeats;
     if (pNewTrack) {
         pBeats = pNewTrack->getBeats();
@@ -1136,6 +1199,7 @@ void BpmControl::trackBeatsUpdated(mixxx::BeatsPointer pBeats) {
                                    : mixxx::Bpm());
     }
     m_pBeats = pBeats;
+    updateBarPosition(frameInfo().currentPosition);
     updateLocalBpm();
     resetSyncAdjustment();
     TrackPointer pTrack = getEngineBuffer()->getLoadedTrack();
@@ -1154,6 +1218,63 @@ void BpmControl::trackBpmLockChanged(bool locked) {
 
 void BpmControl::notifySeek(mixxx::audio::FramePos position) {
     updateBeatDistance(position);
+}
+
+void BpmControl::autoSetFirstDownbeat(const TrackPointer& pTrack) {
+    if (!pTrack || !m_autoDownbeatPending) {
+        return;
+    }
+    const auto pBeats = pTrack->getBeats();
+    if (!pBeats) {
+        // Wait for the beats from the analysis.
+        return;
+    }
+    // Only once per load: clearing the reference by hand must stick.
+    m_autoDownbeatPending = false;
+    if (!m_pAutoFirstDownbeat->toBool() || pBeats->hasDownbeat() || pTrack->isBpmLocked()) {
+        return;
+    }
+    // The main cue usually sits on beat 1 (first sound or the DJ's cue).
+    auto anchor = pTrack->getMainCuePosition();
+    if (!anchor.isValid()) {
+        anchor = *pBeats->cfirstmarker();
+    }
+    const auto updated = pBeats->withDownbeat(anchor);
+    if (updated) {
+        pTrack->trySetBeats(updated);
+    }
+}
+
+void BpmControl::slotSetFirstDownbeat(double value) {
+    if (value <= 0) {
+        return;
+    }
+    const auto track = getEngineBuffer()->getLoadedTrack();
+    if (!track) {
+        return;
+    }
+    const auto beats = track->getBeats();
+    if (!beats) {
+        return;
+    }
+    const auto updated = beats->withDownbeat(frameInfo().currentPosition);
+    if (updated) {
+        track->trySetBeats(updated);
+    }
+}
+
+void BpmControl::slotClearFirstDownbeat(double value) {
+    if (value <= 0) {
+        return;
+    }
+    const auto track = getEngineBuffer()->getLoadedTrack();
+    if (!track) {
+        return;
+    }
+    const auto beats = track->getBeats();
+    if (beats && beats->hasDownbeat()) {
+        track->trySetBeats(beats->withoutDownbeat());
+    }
 }
 
 void BpmControl::slotBeatsTranslate(double v) {
@@ -1237,6 +1358,13 @@ mixxx::Bpm BpmControl::updateLocalBpm() {
     return localBpm;
 }
 
+void BpmControl::updateBarPosition(mixxx::audio::FramePos position) {
+    const auto bar = m_pBeats ? m_pBeats->barPosition(position) : std::nullopt;
+    m_pBarNumber->forceSet(bar ? bar->bar : 0);
+    m_pBeatInBar->forceSet(bar ? bar->beat : 0);
+    m_pDownbeatValid->forceSet(bar.has_value());
+}
+
 double BpmControl::updateBeatDistance() {
     return updateBeatDistance(frameInfo().currentPosition);
 }
@@ -1244,6 +1372,7 @@ double BpmControl::updateBeatDistance() {
 double BpmControl::updateBeatDistance(mixxx::audio::FramePos playpos) {
     double beatDistance = getBeatDistance(playpos);
     m_pThisBeatDistance.set(beatDistance);
+    updateBarPosition(playpos);
     if (!isSynchronized() && m_dUserOffset.getValue() != 0.0) {
         m_dUserOffset.setValue(0.0);
     }

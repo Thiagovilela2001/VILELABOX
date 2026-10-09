@@ -216,13 +216,32 @@ class Beats : private std::enable_shared_from_this<Beats> {
     friend bool operator==(const Beats& lhs, const Beats& rhs) {
         return lhs.m_markers == rhs.m_markers &&
                 lhs.m_lastMarkerPosition == rhs.m_lastMarkerPosition &&
-                lhs.m_lastMarkerBpm == rhs.m_lastMarkerBpm && lhs.m_sampleRate &&
-                rhs.m_sampleRate;
+                lhs.m_lastMarkerBpm == rhs.m_lastMarkerBpm &&
+                lhs.m_sampleRate && rhs.m_sampleRate &&
+                lhs.m_firstDownbeatIndex == rhs.m_firstDownbeatIndex;
     }
 
     friend bool operator!=(const Beats& lhs, const Beats& rhs) {
         return !(lhs == rhs);
     }
+
+    struct BarPosition {
+        int bar;
+        int beat;
+    };
+
+    bool hasDownbeat() const {
+        return m_firstDownbeatIndex.has_value();
+    }
+
+    BeatsPointer withDownbeat(audio::FramePos position) const;
+    BeatsPointer withoutDownbeat() const;
+    /// True if the beat starts a bar; with `bars` > 1, only every `bars`-th
+    /// bar counting from bar 1 (e.g. 8 for phrase markers).
+    bool isDownbeat(const ConstIterator& it, int bars = 1) const;
+    std::optional<BarPosition> barPosition(audio::FramePos position) const;
+    /// Position inside the current bar in beats, in the range [0, 4).
+    std::optional<double> barPhase(audio::FramePos position) const;
 
     BeatsPointer clonePointer() const {
         // All instances are immutable and can be shared safely
@@ -423,6 +442,8 @@ class Beats : private std::enable_shared_from_this<Beats> {
     Beats(const Beats&) = delete;
     Beats(Beats&&) = delete;
 
+    BeatsPointer withDownbeatIndex(std::optional<int> index) const;
+
     QByteArray toBeatGridByteArray() const;
     QByteArray toBeatMapByteArray() const;
 
@@ -433,6 +454,8 @@ class Beats : private std::enable_shared_from_this<Beats> {
     mixxx::audio::FramePos m_lastMarkerPosition;
     mixxx::Bpm m_lastMarkerBpm;
     mixxx::audio::SampleRate m_sampleRate;
+
+    std::optional<int> m_firstDownbeatIndex;
 
     // The sub-version of this beatgrid.
     const QString m_subVersion;
