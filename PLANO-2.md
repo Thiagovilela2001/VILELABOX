@@ -151,7 +151,16 @@ e escrita fora da thread da interface (`QtConcurrent::run`).
 
 Teste: 20 recálculos seguidos resultam em 1 escrita, e o arquivo continua válido no `load()`.
 
-### B5. Release Echo — decisão do usuário antes de codificar
+### B5. Release Echo — concluída (2026-10-10)
+
+Decisão do usuário: seguir o rekordbox extraído. Implementado como Release FX
+com os tipos BREAK / ECHO / SPIN e duração ajustável (Adjust Time); solta os
+efeitos desligando as unidades, sem mexer nas rotas; STOP APÓS ligado por
+padrão, e volta com fade quando desligado. Detalhes em PADS.md. Testes:
+`BarSyncTest.ReleaseBreakSlowsDownToAStop`, `ReleaseSpinPlaysBackwards`,
+`ReleaseTurnsOffBeatEffectsAndKeepsRouting`, `ReleaseWithoutStopFadesTheDeckBackIn`.
+
+Registro original:
 
 Comportamento atual, documentado no PADS.md:
 - as rotas de efeito do deck são desligadas e não voltam;

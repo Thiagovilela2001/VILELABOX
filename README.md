@@ -28,7 +28,7 @@ Cada recurso tem um documento próprio, com controles, uso, limites e testes.
 | **Cues automáticos** | Intro/Outro e hot cues de Up, Chorus e Down gerados a partir das frases, só em slots vazios, com desfazer | [CUES.md](CUES.md) |
 | **Mix Point Link** | Arma o deck parado para começar sozinho quando o outro deck chega ao ponto de saída | [MIXPOINT.md](MIXPOINT.md) |
 | **Faixas relacionadas** | Seção na biblioteca que sugere faixas por tom compatível (Camelot), BPM (±6%, com metade e dobro) e uma nota de energia própria | [RELACIONADAS.md](RELACIONADAS.md) |
-| **Pads na tela** | Slicer, KeyShift, Keyboard e Release Echo, em painel opcional na skin | [PADS.md](PADS.md) |
+| **Pads na tela** | Slicer, KeyShift, Keyboard e Release FX (BREAK, ECHO, SPIN), em painel opcional na skin | [PADS.md](PADS.md) |
 | **Skins** | `RbxOriginal` (layout de dois decks no estilo do modo Performance) e `RbxFlowBars` (gráficos gerados por scripts próprios) com todos os controles do mod | [res/skins/](res/skins/) |
 | **Ponte XML** | Exporta e importa faixas, hot cues, loops, grid e playlists em `rekordbox.xml` | [tools/rekordbox/sync.py](tools/rekordbox/sync.py) |
 
@@ -146,9 +146,6 @@ O detector de vocal usa um Python com NumPy e SciPy (padrão
 
 Experimental, em uso pessoal. Antes de tocar ao vivo, considere:
 
-- **Release Echo**: desliga as rotas de efeito do deck e não as religa; com
-  STOP APÓS desligado, a música volta de repente depois do eco
-  (decisão pendente, B5 em [PLANO-2.md](PLANO-2.md)).
 - **Validação auditiva e visual em uso real ainda está pendente** para a maioria
   dos módulos. Os testes automatizados usam áudio sintético.
 - **Stems ainda não existem.** Dependem de migrar para o Mixxx 2.6.

@@ -620,3 +620,7 @@ WEffectSelector#MixerFxSelector1, WEffectSelector#MixerFxSelector2 { font-size: 
 WPushButton#MixerFxOn1[displayValue="1"], WPushButton#MixerFxOn2[displayValue="1"] { background-color: #1473eb; color: #ffffff; }
 
 WEffectChainPresetSelector#CentralColorFxSelector { background-color: #282828; border: 1px solid #323232; border-radius: 2px; color: #d0d0d0; font-size: 10px; }
+
+/* Release FX (PADS panel) */
+WPushButton#ReleaseFire[value="1"] { background-color: #f8a030; border-color: #f8a030; color: #111111; }
+WNumber#ReleaseBeats { background-color: #000000; border: 1px solid #323232; border-radius: 2px; color: #f0f0f0; font-size: 11px; font-weight: 700; }

@@ -15,6 +15,8 @@ PadControl::PadControl(const QString& group, UserSettingsPointer config) : Engin
     m_play = std::make_unique<ControlProxy>(group, "play", this);
     m_bpm = std::make_unique<ControlProxy>(group, "bpm", this);
     m_sampleRate = std::make_unique<ControlProxy>("[App]", "samplerate", this);
+    m_scratch2 = std::make_unique<ControlProxy>(group, "scratch2", this);
+    m_scratch2Enable = std::make_unique<ControlProxy>(group, "scratch2_enable", this);
     if (group.startsWith(QStringLiteral("[Channel"))) {
         // One beat at 30 BPM (2 s) at the highest supported output rate, stereo.
         constexpr size_t kMaxRate = 192000;
@@ -46,14 +48,37 @@ PadControl::PadControl(const QString& group, UserSettingsPointer config) : Engin
         }, Qt::DirectConnection);
     }
     m_release = std::make_unique<ControlPushButton>(ConfigKey(group, "release_fx"));
-    m_stop = std::make_unique<ControlPushButton>(ConfigKey(group, "release_fx_stop"), true, 0.0);
+    // The three release types are exit effects; by default the deck stops.
+    m_stop = std::make_unique<ControlPushButton>(ConfigKey(group, "release_fx_stop"), true, 1.0);
     m_stop->setButtonMode(ControlPushButton::TOGGLE);
     connect(m_release.get(), &ControlObject::valueChanged, this, [this](double v) { if (v > 0) releaseFx(); }, Qt::DirectConnection);
+    m_releaseType = std::make_unique<ControlObject>(ConfigKey(group, "release_fx_type"), true, false, true, kEcho);
+    m_releaseBeats = std::make_unique<ControlObject>(ConfigKey(group, "release_fx_beats"), true, false, true, 4.0);
+    m_releaseActive = std::make_unique<ControlObject>(ConfigKey(group, "release_fx_active"));
+    m_releaseActive->setReadOnly();
+    static const char* typeNames[]{"release_fx_break", "release_fx_echo", "release_fx_spin"};
+    for (int type = 0; type < 3; ++type) {
+        m_releaseTypeButtons[type] = std::make_unique<ControlPushButton>(ConfigKey(group, typeNames[type]));
+        connect(m_releaseTypeButtons[type].get(), &ControlObject::valueChanged, this,
+                [this, type](double v) { if (v > 0) m_releaseType->set(type); }, Qt::DirectConnection);
+    }
+    // Adjust Time: 1 to 16 beats in powers of two.
+    m_releaseBeatsHalve = std::make_unique<ControlPushButton>(ConfigKey(group, "release_fx_beats_halve"));
+    m_releaseBeatsDouble = std::make_unique<ControlPushButton>(ConfigKey(group, "release_fx_beats_double"));
+    connect(m_releaseBeatsHalve.get(), &ControlObject::valueChanged, this, [this](double v) {
+        if (v > 0) m_releaseBeats->set(std::max(1.0, m_releaseBeats->get() / 2));
+    }, Qt::DirectConnection);
+    connect(m_releaseBeatsDouble.get(), &ControlObject::valueChanged, this, [this](double v) {
+        if (v > 0) m_releaseBeats->set(std::min(16.0, m_releaseBeats->get() * 2));
+    }, Qt::DirectConnection);
 }
 PadControl::~PadControl() = default;
 void PadControl::trackLoaded(TrackPointer track) {
     m_active = -1; m_window = {}; m_beats = track ? track->getBeats() : nullptr;
     m_enable->set(0); m_loop->set(0); m_releaseSamples = 0; m_releaseTotal = 0;
+    m_fadeSamples = 0;
+    if (m_scratching) { m_scratch2Enable->set(0); m_scratching = false; }
+    m_releaseActive->forceSet(0);
 }
 void PadControl::leaveSlice() {
     if (m_active < 0) return;
@@ -74,7 +99,20 @@ void PadControl::slice(int index, bool pressed) {
     setLoop(start, end, true); seekExact(start); m_active = index;
 }
 void PadControl::process(double rate, mixxx::audio::FramePos position, int bufferSize) {
-    Q_UNUSED(rate); Q_UNUSED(bufferSize);
+    Q_UNUSED(bufferSize);
+    const qint64 remaining = m_releaseSamples.load();
+    const int type = m_activeType.load();
+    if (remaining > 0 && type != kEcho) {
+        if (!m_scratching) {
+            m_startRate = rate != 0 ? rate : 1;
+            m_scratching = true;
+            m_scratch2Enable->set(1);
+        }
+        const double left = static_cast<double>(remaining) / std::max<qint64>(1, m_releaseTotal.load());
+        // BREAK: speed falls linearly to a stop. SPIN: a fast backspin that
+        // slows down quadratically.
+        m_scratch2->set(type == kBreak ? m_startRate * left : -3.0 * left * left);
+    }
     if (!m_enable->toBool() || !m_beats || m_active >= 0) return;
     if (m_loop->toBool() && m_window.isValid()) {
         auto it = m_beats->iteratorFrom(m_window);
@@ -90,31 +128,68 @@ void PadControl::process(double rate, mixxx::audio::FramePos position, int buffe
 }
 void PadControl::releaseFx() {
     if (!m_play->toBool() || m_bpm->get() <= 0 || m_delay.empty()) return;
+    // Release the beat effects playing on this deck, as rekordbox does: the
+    // units routed here are switched off, the routing itself is kept.
     for (int i = 1; i <= 4; ++i) {
-        const auto route = ControlObject::getControl(ConfigKey(QString("[EffectRack1_EffectUnit%1]").arg(i),
-                QString("group_%1_enable").arg(getGroup())), ControlFlag::NoWarnIfMissing);
-        if (route) route->set(0);
+        const QString unit = QString("[EffectRack1_EffectUnit%1]").arg(i);
+        const auto route = ControlObject::getControl(ConfigKey(unit, QString("group_%1_enable").arg(getGroup())),
+                ControlFlag::NoWarnIfMissing);
+        if (!route || !route->toBool()) continue;
+        for (const auto& key : {ConfigKey(unit, "enabled"),
+                     ConfigKey(QString("[EffectRack1_EffectUnit%1_Effect1]").arg(i), "enabled")}) {
+            if (auto* control = ControlObject::getControl(key, ControlFlag::NoWarnIfMissing)) control->set(0);
+        }
     }
     const double rate = std::max(8000.0, m_sampleRate->get());
-    m_releaseTotal = std::llround(rate * 240 / m_bpm->get()) * 2;
-    m_releaseSamples = m_releaseTotal;
+    const double beats = std::clamp(m_releaseBeats->get(), 1.0, 16.0);
+    m_activeType = std::clamp(static_cast<int>(m_releaseType->get()), 0, 2);
+    const qint64 total = std::llround(rate * 60 * beats / m_bpm->get()) * 2;
+    m_releaseTotal = total;
+    m_releaseSamples = total;
+}
+void PadControl::finishRelease(CSAMPLE* samples, int from, int count) {
+    if (m_scratching) { m_scratch2Enable->set(0); m_scratching = false; }
+    m_releaseActive->forceSet(0);
+    if (m_stop->toBool()) {
+        m_play->set(0);
+        std::fill(samples + from, samples + count, 0);
+        return;
+    }
+    // Bring the deck back in over half a beat instead of a hard cut.
+    const double rate = std::max(8000.0, m_sampleRate->get());
+    m_fadeTotal = std::max<qint64>(2, std::llround(rate * 30 / std::max(30.0, m_bpm->get())) * 2);
+    m_fadeSamples = m_fadeTotal;
 }
 void PadControl::processAudio(CSAMPLE* samples, int count) {
     if (m_delay.empty()) return;
     const double rate = std::max(8000.0, m_sampleRate->get());
     const size_t beatSamples = std::min(m_delay.size() - 2,
             std::max(size_t(2), static_cast<size_t>(rate * 60 / std::max(30.0, m_bpm->get())) * 2));
+    qint64 remaining = m_releaseSamples.load();
+    const qint64 total = std::max<qint64>(1, m_releaseTotal.load());
+    const bool echo = m_activeType.load() == kEcho;
+    if (remaining > 0) m_releaseActive->forceSet(1);
     for (int i = 0; i < count; ++i) {
-        if (m_releaseSamples > 0) {
-            const float echo = m_delay[(m_delayWrite + m_delay.size() - beatSamples) % m_delay.size()];
-            m_delay[m_delayWrite] = echo * 0.6f;
-            samples[i] = echo * static_cast<float>(m_releaseSamples) / m_releaseTotal;
-            if (--m_releaseSamples == 0 && m_stop->toBool()) {
-                m_play->set(0);
-                std::fill(samples + i + 1, samples + count, 0);
-                break;
+        if (remaining > 0 && echo) {
+            // ECHO: the dry signal is cut, the last beat repeats and decays.
+            const float wet = m_delay[(m_delayWrite + m_delay.size() - beatSamples) % m_delay.size()];
+            m_delay[m_delayWrite] = wet * 0.6f;
+            samples[i] = wet * static_cast<float>(remaining) / total;
+        } else {
+            // BREAK and SPIN change the playback speed in process(); the audio
+            // passes through. Also feeds the echo buffer.
+            if (m_fadeSamples > 0) {
+                samples[i] *= 1.0f - static_cast<float>(m_fadeSamples) / m_fadeTotal;
+                --m_fadeSamples;
             }
-        } else m_delay[m_delayWrite] = samples[i];
+            m_delay[m_delayWrite] = samples[i];
+        }
         m_delayWrite = (m_delayWrite + 1) % m_delay.size();
+        if (remaining > 0 && --remaining == 0) {
+            m_releaseSamples = 0;
+            finishRelease(samples, i + 1, count);
+            if (m_stop->toBool()) return;
+        }
     }
+    if (remaining > 0) m_releaseSamples = remaining;
 }

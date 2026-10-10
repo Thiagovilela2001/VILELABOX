@@ -743,3 +743,64 @@ TEST_F(BarSyncTest, MixPointLaunchCompensatesExitOvershoot) {
     EXPECT_NEAR(ControlObject::get(ConfigKey(m_sGroup1, "beat_distance")),
             ControlObject::get(ConfigKey(m_sGroup2, "beat_distance")), 0.002);
 }
+TEST_F(BarSyncTest, ReleaseBreakSlowsDownToAStop) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    playDeck2();
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_type"), 0);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_beats"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx"), 1);
+    for (int i = 0; i < 10; ++i) ProcessBuffer();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "scratch2_enable")));
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "release_fx_active")));
+    const double speed = ControlObject::get(ConfigKey(m_sGroup2, "scratch2"));
+    EXPECT_GT(speed, 0); EXPECT_LT(speed, 1);
+    for (int i = 0; i < 200 && ControlObject::get(ConfigKey(m_sGroup2, "play")); ++i) ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "play")));
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "scratch2_enable")));
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "release_fx_active")));
+}
+TEST_F(BarSyncTest, ReleaseSpinPlaysBackwards) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    playDeck2();
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_type"), 2);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_beats"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx"), 1);
+    for (int i = 0; i < 5; ++i) ProcessBuffer();
+    EXPECT_LT(ControlObject::get(ConfigKey(m_sGroup2, "scratch2")), 0);
+}
+TEST_F(BarSyncTest, ReleaseTurnsOffBeatEffectsAndKeepsRouting) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    playDeck2();
+    const ConfigKey route("[EffectRack1_EffectUnit1]", QString("group_%1_enable").arg(m_sGroup2));
+    const ConfigKey unit("[EffectRack1_EffectUnit1]", "enabled");
+    const ConfigKey effect("[EffectRack1_EffectUnit1_Effect1]", "enabled");
+    std::vector<std::unique_ptr<ControlObject>> created;
+    for (const auto& key : {route, unit, effect}) {
+        if (!ControlObject::getControl(key, ControlFlag::NoWarnIfMissing)) created.push_back(std::make_unique<ControlObject>(key));
+        ControlObject::set(key, 1);
+    }
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx"), 1);
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(unit));
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(effect));
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(route));
+}
+TEST_F(BarSyncTest, ReleaseWithoutStopFadesTheDeckBackIn) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    playDeck2();
+    auto* pads = m_pChannel2->getEngineBuffer()->padControl();
+    const int rate = static_cast<int>(ControlObject::get(ConfigKey("[App]", "samplerate")));
+    std::vector<CSAMPLE> audio(rate * 2, 0.5f);
+    pads->processAudio(audio.data(), audio.size());
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_stop"), 0);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_type"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx_beats"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "release_fx"), 1);
+    // One second of stereo audio: the one-beat release (half a second at
+    // 120 BPM) ends at sample `rate`, then the deck fades in over half a beat.
+    pads->processAudio(audio.data(), audio.size());
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "play")));
+    EXPECT_LT(audio[rate + 2], 0.05f);
+    EXPECT_GT(audio[rate + rate / 4], 0.15f);
+    EXPECT_LT(audio[rate + rate / 4], 0.35f);
+    EXPECT_FLOAT_EQ(0.5f, audio.back());
+}

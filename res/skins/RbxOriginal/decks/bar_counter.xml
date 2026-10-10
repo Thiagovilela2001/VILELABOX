@@ -125,7 +125,7 @@
             <Tooltip>Mostra o painel de pads deste deck: Slicer, KeyShift, Keyboard, Release Echo, Mix Point Link e cues automáticos.</Tooltip>
             <State><Number>0</Number><Text>PADS</Text><Alignment>center</Alignment></State>
             <State><Number>1</Number><Text>PADS</Text><Alignment>center</Alignment></State>
-            <Connection><ConfigKey>[RbxOriginal],vilelabox_pads_<Variable name="ChanNum"/></ConfigKey></Connection>
+            <Connection><ConfigKey persist="true">[RbxOriginal],vilelabox_pads_<Variable name="ChanNum"/></ConfigKey></Connection>
           </PushButton>
         </Children>
       </WidgetGroup>
