@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSaveFile>
+#include <QThreadPool>
 #include <cmath>
 #include "analyzer/vocalanalysisstore.h"
 #include "track/track.h"
@@ -15,6 +16,45 @@
 namespace { constexpr int kVersion = 1; }
 PhraseAnalysisStore::PhraseAnalysisStore() {
     if (QCoreApplication::instance()) moveToThread(QCoreApplication::instance()->thread());
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(2000);
+    connect(m_saveTimer, &QTimer::timeout, this, [this] { writePendingSaves(true); });
+}
+PhraseAnalysisStore::~PhraseAnalysisStore() {
+    writePendingSaves(false);
+}
+int PhraseAnalysisStore::pendingSaveCount() const {
+    QReadLocker lock(&m_lock);
+    return m_pendingSaves.size();
+}
+void PhraseAnalysisStore::flushPendingSaves() {
+    writePendingSaves(false);
+}
+void PhraseAnalysisStore::scheduleSave(const QString& location, const mixxx::BeatsPointer& beats) {
+    {
+        QWriteLocker lock(&m_lock);
+        const auto cache = m_caches.value(location);
+        if (cache.isEmpty()) return;
+        m_pendingSaves.insert(location, {cache, m_results.value(location), beats});
+    }
+    // The timer belongs to the GUI thread; analyzer threads also get here.
+    QMetaObject::invokeMethod(m_saveTimer, qOverload<>(&QTimer::start), Qt::AutoConnection);
+}
+void PhraseAnalysisStore::writePendingSaves(bool async) {
+    QHash<QString, PendingSave> pending;
+    {
+        QWriteLocker lock(&m_lock);
+        pending.swap(m_pendingSaves);
+    }
+    for (const auto& save : std::as_const(pending)) {
+        if (!save.analysis) continue;
+        if (async) {
+            QThreadPool::globalInstance()->start([save] { PhraseAnalysisStore::save(save.cache, *save.analysis, save.beats); });
+        } else {
+            PhraseAnalysisStore::save(save.cache, *save.analysis, save.beats);
+        }
+    }
 }
 PhraseAnalysisStore& PhraseAnalysisStore::instance() {
     static PhraseAnalysisStore store;
@@ -80,7 +120,8 @@ bool PhraseAnalysisStore::save(const QString& path, const vilelabox::PhraseAnaly
     QSaveFile file(path);
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
 }
-void PhraseAnalysisStore::set(TrackPointer track, vilelabox::PhraseAnalysis analysis, const QString& cache) {
+void PhraseAnalysisStore::set(TrackPointer track, vilelabox::PhraseAnalysis analysis, const QString& cache,
+        bool persist) {
     const auto location = trackKey(track);
     {
         QWriteLocker lock(&m_lock);
@@ -97,11 +138,11 @@ void PhraseAnalysisStore::set(TrackPointer track, vilelabox::PhraseAnalysis anal
     const std::weak_ptr<Track> weak(track);
     QObject::disconnect(track.get(), &Track::beatsUpdated, this, nullptr);
     QObject::connect(track.get(), &Track::beatsUpdated, this, [this, weak] {
-        if (auto current = weak.lock()) recalculate(current);
+        if (auto current = weak.lock()) recalculate(current, Save::Debounced);
     }, Qt::QueuedConnection);
-    recalculate(track);
+    recalculate(track, persist ? Save::Now : Save::None);
 }
-void PhraseAnalysisStore::recalculate(TrackPointer track) {
+void PhraseAnalysisStore::recalculate(TrackPointer track, Save save) {
     const auto location = trackKey(track);
     const auto old = get(location);
     if (!old) return;
@@ -110,12 +151,17 @@ void PhraseAnalysisStore::recalculate(TrackPointer track) {
     if (voice && voice->status == VocalAnalysis::Status::Ready) vocals = voice->segments;
     auto result = std::make_shared<const vilelabox::PhraseAnalysis>(vilelabox::segmentPhrases(
             old->features, old->duration, track->getBeats(), vocals));
+    const auto beats = track->getBeats();
     QString cache;
     {
         QWriteLocker lock(&m_lock);
         m_results.insert(location, result);
         cache = m_caches.value(location);
     }
-    if (!cache.isEmpty()) save(cache, *result, track->getBeats());
+    if (save == Save::Now && !cache.isEmpty()) {
+        PhraseAnalysisStore::save(cache, *result, beats);
+    } else if (save == Save::Debounced) {
+        scheduleSave(location, beats);
+    }
     emit updated(location);
 }

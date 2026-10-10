@@ -8,7 +8,9 @@
 class AutoPhraseCues {
   public:
     void setTrack(TrackPointer track);
-    void apply(const vilelabox::PhraseAnalysis& analysis, TrackPointer expectedTrack = {});
+    /// Returns true if the analysis was usable for this track (whether or not
+    /// any cue had to be created), false if it was rejected.
+    bool apply(const vilelabox::PhraseAnalysis& analysis, TrackPointer expectedTrack = {});
     void undo();
   private:
     struct Created {

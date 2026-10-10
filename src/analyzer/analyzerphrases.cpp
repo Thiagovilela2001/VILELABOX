@@ -98,7 +98,7 @@ void AnalyzerPhrases::storeResults(TrackPointer track) {
     vilelabox::PhraseAnalysis result;
     result.features = std::move(m_features);
     result.duration = static_cast<double>(m_frames) / m_rate;
-    PhraseAnalysisStore::instance().set(track, std::move(result), m_cache);
+    PhraseAnalysisStore::instance().set(track, std::move(result), m_cache, true);
 }
 void AnalyzerPhrases::cleanup() {
     m_rate = 0; m_frames = 0; m_cache.clear(); m_block.clear(); m_previousSpectrum.clear(); m_features.clear();

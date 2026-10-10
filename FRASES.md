@@ -13,7 +13,10 @@ O hash inclui caminho, tamanho, data do arquivo e versão do algoritmo. O arquiv
 contém também as frases e a serialização do grid, incluindo a referência de
 compasso. Alterações de grid ou SET 1 recalculam a segmentação sem ler o áudio.
 Esse recálculo é agendado na fila da interface, sem escrever cache no callback
-de áudio que recebeu a edição do grid.
+de áudio que recebeu a edição do grid. Uma análise nova grava o cache na hora,
+na thread do analisador. Recálculos por edição de grid gravam uma única vez,
+2 s depois da última edição, numa thread de fundo; ao fechar o programa, o que
+estiver pendente é gravado.
 A segmentação agrega características por compasso, calcula novidade com um kernel
 Foote local de oito compassos e escolhe limites por programação dinâmica em
 múltiplos de quatro, preferindo oito. A matriz local evita memória quadrática.

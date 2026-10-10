@@ -21,8 +21,9 @@ Controles `[ChannelN]`: `slicer_enable`, `slicer_loop`, `slicer_slice_1..8`,
 `release_fx_stop`. Slicer exige SET 1. Pads de Slicer são momentâneos.
 
 Release Echo mantém um buffer circular em memória; não carrega uma cadeia de
-usuário nem usa modelos. O efeito usa a taxa de áudio vigente ao carregar a
-faixa. Recarregue a faixa se mudar a taxa do dispositivo. Não há vinyl brake
+usuário nem usa modelos. O buffer é alocado uma vez por deck, ao abrir o
+programa (cerca de 3 MB), e nunca durante o áudio; o efeito acompanha a taxa
+atual do dispositivo. Não há vinyl brake
 nessa versão. Com STOP APÓS desligado, a reprodução normal volta após o eco.
 As rotas de efeitos desativadas permanecem desligadas até o usuário religá-las.
 

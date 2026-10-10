@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <memory>
 #include "engine/controls/enginecontrol.h"
 #include "track/phrases.h"
@@ -15,6 +16,8 @@ class PhraseControl : public EngineControl {
     std::shared_ptr<const vilelabox::PhraseAnalysis> analysis() const;
   private:
     void jump(bool next);
+    // Runs on the GUI thread: cue creation locks the track and allocates.
+    void applyAutoCues(const TrackWeakPointer& weak);
     struct State {
         QString location;
         mixxx::BeatsPointer beats;
@@ -25,4 +28,7 @@ class PhraseControl : public EngineControl {
     std::unique_ptr<ControlObject> m_type, m_index, m_bars, m_valid;
     std::unique_ptr<ControlPushButton> m_next, m_previous, m_autoCues, m_undoCues;
     AutoPhraseCues m_cueGenerator;
+    // Set once cues were generated from a usable analysis of the loaded track,
+    // so later grid edits (which recalculate phrases) do not add cues again.
+    std::atomic<bool> m_cuesApplied{false};
 };

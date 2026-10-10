@@ -27,27 +27,38 @@ PhraseControl::PhraseControl(const QString& group, UserSettingsPointer config)
 }
 PhraseControl::~PhraseControl() { QObject::disconnect(m_connection); }
 void PhraseControl::trackLoaded(TrackPointer track) {
+    // Called from the audio callback: no cue creation or locking here.
     QObject::disconnect(m_connection);
-    m_cueGenerator.setTrack(track);
+    m_cuesApplied = false;
     std::shared_ptr<const State> state;
     if (track) state = std::make_shared<const State>(State{PhraseAnalysisStore::trackKey(track), track->getBeats(), PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(track))});
     std::atomic_store(&m_state, state);
+    const TrackWeakPointer weak(track);
     if (track) {
         m_connection = connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated, this,
-                [this, weak = TrackWeakPointer(track)](const QString& location) {
+                [this, weak](const QString& location) {
                     auto old = std::atomic_load(&m_state);
                     if (!old || old->location != location) return;
                     auto track = weak.lock();
                     if (!track) return;
                     std::shared_ptr<const State> updated = std::make_shared<const State>(State{
                             location, track->getBeats(), PhraseAnalysisStore::instance().get(location)});
-                    if (std::atomic_compare_exchange_strong(&m_state, &old, updated) && m_autoCues->toBool() && updated->analysis) {
-                        m_cueGenerator.apply(*updated->analysis, track);
+                    if (std::atomic_compare_exchange_strong(&m_state, &old, updated) && updated->analysis) {
+                        QMetaObject::invokeMethod(this, [this, weak] { applyAutoCues(weak); }, Qt::QueuedConnection);
                     }
                 }, Qt::DirectConnection);
     }
-    if (state && state->analysis && m_autoCues->toBool()) m_cueGenerator.apply(*state->analysis, track);
+    QMetaObject::invokeMethod(this, [this, weak] {
+        m_cueGenerator.setTrack(weak.lock());
+        applyAutoCues(weak);
+    }, Qt::QueuedConnection);
     m_type->forceSet(0); m_index->forceSet(-1); m_bars->forceSet(0); m_valid->forceSet(0);
+}
+void PhraseControl::applyAutoCues(const TrackWeakPointer& weak) {
+    const auto track = weak.lock();
+    if (!track || m_cuesApplied || !m_autoCues->toBool() || track != getEngineBuffer()->getLoadedTrack()) return;
+    const auto state = std::atomic_load(&m_state);
+    if (state && state->analysis && m_cueGenerator.apply(*state->analysis, track)) m_cuesApplied = true;
 }
 std::shared_ptr<const vilelabox::PhraseAnalysis> PhraseControl::analysis() const {
     const auto state = std::atomic_load(&m_state);

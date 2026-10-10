@@ -146,11 +146,9 @@ O detector de vocal usa um Python com NumPy e SciPy (padrão
 
 Experimental, em uso pessoal. Antes de tocar ao vivo, considere:
 
-- **Defeitos conhecidos**, com correção planejada em [PLANO-2.md](PLANO-2.md):
-  - hot cues automáticos podem duplicar ao editar o grid;
-  - alguns recursos fazem trabalho bloqueante no processamento de áudio, com
-    risco de estalos ao carregar faixas;
-  - o Mix Point Link pode entrar alguns milissegundos atrasado.
+- **Release Echo**: desliga as rotas de efeito do deck e não as religa; com
+  STOP APÓS desligado, a música volta de repente depois do eco
+  (decisão pendente, B5 em [PLANO-2.md](PLANO-2.md)).
 - **Validação auditiva e visual em uso real ainda está pendente** para a maioria
   dos módulos. Os testes automatizados usam áudio sintético.
 - **Stems ainda não existem.** Dependem de migrar para o Mixxx 2.6.

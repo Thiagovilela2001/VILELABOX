@@ -22,8 +22,13 @@ aumentar esse volume continua sendo uma ação do usuário.
 
 Seek, stop, troca de faixa ou alteração de BPM na fonte cancelam o armado.
 Seek no destino também cancela. Loops que provocam seek na fonte cancelam.
-O motor verifica o cruzamento do ponto em cada callback e solicita seek e PLAY;
-a resolução de disparo é de um callback, não um agendador de amostra individual.
+O motor verifica o cruzamento do ponto em cada callback e solicita seek e PLAY.
+Como o deck só começa no callback seguinte, o disparo prevê onde o outro deck
+estará nesse momento e entra o mesmo número de batidas depois do ponto de entrada.
+No teste com buffer de 512 frames, a diferença de fase entre os decks ficou abaixo
+de 1 ms com QUANTIZE desligado. Os pontos de entrada e saída são recalculados na
+thread da interface quando os cues ou as frases mudam; o processamento de áudio
+só lê valores prontos e não trava a faixa.
 O PLAY segue o alinhamento por compasso/frase quando QUANTIZE/SYNC e os controles
 correspondentes estão ligados. Para precisão audível, confirme com seu buffer de
 áudio real. O Link não efetua uma transição automática completa.

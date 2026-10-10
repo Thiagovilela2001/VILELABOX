@@ -81,6 +81,19 @@ sem recursos ausentes (`mixxx --developer` com a skin, sem avisos de arquivo).
 
 Cada item recebe um teste que **falha antes da correção**.
 
+**Situação (2026-10-10): B1–B4 concluídas** na branch `vilelabox-publico`.
+Testes novos: `BarSyncTest.GridEditsDoNotDuplicateAutomaticPhraseCues`,
+`BarSyncTest.LoadingTracksReusesReleaseEchoBuffer`,
+`BarSyncTest.MixPointEntryFollowsCueChangesOutsideAudioThread`,
+`BarSyncTest.MixPointLaunchCompensatesExitOvershoot`,
+`AnalyzerPhrasesTest.AutomaticCuesToleratePhraseShiftsFromGridEdits` e
+`AnalyzerPhrasesTest.GridEditsWriteCacheOnceAfterTheySettle`. Suíte completa:
+871 testes passaram (excluídos `ControllerScriptEngineLegacyTimerTest.*` e
+`ControlObjectAliasTest.PlayerManager`, que já falhavam antes do mod).
+Diferença da B3 em relação ao plano: além do quanto o outro deck passou do
+ponto, a compensação inclui o buffer seguinte, porque a posição informada
+durante o callback é a do início do buffer. B5 aguarda decisão.
+
 ### B1. Hot cues duplicados ao editar o grid (alta)
 
 Causa: `PhraseControl` chama `AutoPhraseCues::apply` em todo

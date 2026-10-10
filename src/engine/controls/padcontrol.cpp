@@ -14,6 +14,12 @@ PadControl::PadControl(const QString& group, UserSettingsPointer config) : Engin
     m_pitch = std::make_unique<ControlProxy>(group, "pitch_adjust", this);
     m_play = std::make_unique<ControlProxy>(group, "play", this);
     m_bpm = std::make_unique<ControlProxy>(group, "bpm", this);
+    m_sampleRate = std::make_unique<ControlProxy>("[App]", "samplerate", this);
+    if (group.startsWith(QStringLiteral("[Channel"))) {
+        // One beat at 30 BPM (2 s) at the highest supported output rate, stereo.
+        constexpr size_t kMaxRate = 192000;
+        m_delay.assign(kMaxRate * 21 / 10 * 2, 0);
+    }
     m_enable = std::make_unique<ControlPushButton>(ConfigKey(group, "slicer_enable"));
     m_enable->setButtonMode(ControlPushButton::TOGGLE);
     m_loop = std::make_unique<ControlPushButton>(ConfigKey(group, "slicer_loop"));
@@ -48,8 +54,6 @@ PadControl::~PadControl() = default;
 void PadControl::trackLoaded(TrackPointer track) {
     m_active = -1; m_window = {}; m_beats = track ? track->getBeats() : nullptr;
     m_enable->set(0); m_loop->set(0); m_releaseSamples = 0; m_releaseTotal = 0;
-    m_outputRate = std::max(8000, static_cast<int>(ControlObject::get(ConfigKey("[App]", "samplerate"))));
-    m_delay.assign(m_outputRate * 8 * 2, 0); m_delayWrite = 0;
 }
 void PadControl::leaveSlice() {
     if (m_active < 0) return;
@@ -91,13 +95,15 @@ void PadControl::releaseFx() {
                 QString("group_%1_enable").arg(getGroup())), ControlFlag::NoWarnIfMissing);
         if (route) route->set(0);
     }
-    m_releaseTotal = std::llround(m_outputRate * 240 / m_bpm->get()) * 2;
+    const double rate = std::max(8000.0, m_sampleRate->get());
+    m_releaseTotal = std::llround(rate * 240 / m_bpm->get()) * 2;
     m_releaseSamples = m_releaseTotal;
 }
 void PadControl::processAudio(CSAMPLE* samples, int count) {
     if (m_delay.empty()) return;
+    const double rate = std::max(8000.0, m_sampleRate->get());
     const size_t beatSamples = std::min(m_delay.size() - 2,
-            std::max(size_t(2), static_cast<size_t>(m_outputRate * 60 / std::max(30.0, m_bpm->get())) * 2));
+            std::max(size_t(2), static_cast<size_t>(rate * 60 / std::max(30.0, m_bpm->get())) * 2));
     for (int i = 0; i < count; ++i) {
         if (m_releaseSamples > 0) {
             const float echo = m_delay[(m_delayWrite + m_delay.size() - beatSamples) % m_delay.size()];

@@ -1,5 +1,6 @@
 #include "track/autophrasecues.h"
 #include <array>
+#include <cmath>
 #include "track/track.h"
 
 void AutoPhraseCues::setTrack(TrackPointer track) {
@@ -7,11 +8,11 @@ void AutoPhraseCues::setTrack(TrackPointer track) {
     m_track = track;
     m_created.clear();
 }
-void AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPointer expectedTrack) {
+bool AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPointer expectedTrack) {
     QMutexLocker lock(&m_mutex);
     auto track = m_track.lock();
     if (!track || (expectedTrack && expectedTrack != track) || track->isBpmLocked() || analysis.lowConfidence || analysis.phrases.isEmpty() ||
-            !track->getSampleRate().isValid()) return;
+            !track->getSampleRate().isValid()) return false;
     std::array<bool, 8> occupied{};
     const auto cues = track->getCuePoints();
     for (const auto& cue : cues) if (cue->getHotCue() >= 0 && cue->getHotCue() < 8) occupied[cue->getHotCue()] = true;
@@ -31,10 +32,14 @@ void AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPoint
             if (phrase.type == vilelabox::PhraseType::Chorus) { label = "Chorus"; color = mixxx::RgbColor(0xff4545); }
             else if (phrase.type == vilelabox::PhraseType::Down) { label = "Down"; color = mixxx::RgbColor(0x498dff); }
             else label = "Up";
-            // Reanalysis does not duplicate an existing cue at this boundary.
+            // Grid edits move phrase boundaries slightly; a cue with the same
+            // label within one beat counts as the same boundary.
+            const auto position = mixxx::audio::FramePos(phrase.start * rate);
+            const auto beats = track->getBeats();
+            const double tolerance = beats ? beats->iteratorFrom(position).beatLengthFrames() : rate * 0.5;
             bool exists = false;
-            for (const auto& cue : track->getCuePoints()) if (cue->getType() == type &&
-                    cue->getPosition() == mixxx::audio::FramePos(phrase.start * rate)) { exists = true; break; }
+            for (const auto& cue : track->getCuePoints()) if (cue->getType() == type && cue->getLabel() == label &&
+                    std::abs(cue->getPosition() - position) <= tolerance) { exists = true; break; }
             if (exists) { occupied[slot] = false; continue; }
         }
         if (type == mixxx::CueType::Invalid || (type != mixxx::CueType::HotCue && track->findCueByType(type))) continue;
@@ -45,6 +50,7 @@ void AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPoint
         cue->setLabel(label);
         m_created.push_back({cue, cue->getStartAndEndPosition(), label, color});
     }
+    return true;
 }
 void AutoPhraseCues::undo() {
     QMutexLocker lock(&m_mutex);

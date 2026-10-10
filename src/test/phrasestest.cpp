@@ -192,3 +192,44 @@ TEST_F(AnalyzerPhrasesTest, EnergyIsCachedSeparatelyAndInvalidatedByFileChange) 
     ASSERT_TRUE(source.open(QIODevice::Append)); source.write("changed"); source.close();
     EXPECT_TRUE(analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), 44100));
 }
+TEST_F(AnalyzerPhrasesTest, AutomaticCuesToleratePhraseShiftsFromGridEdits) {
+    auto track = Track::newTemporary(QStringLiteral("auto-phrase-shift.wav"));
+    track->setAudioProperties(mixxx::audio::ChannelCount(2), mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(1411), mixxx::Duration::fromSeconds(176));
+    track->trySetBeats(grid());
+    AutoPhraseCues generator;
+    generator.setTrack(track);
+    ASSERT_TRUE(generator.apply(vilelabox::segmentPhrases(sequence(), 176, grid())));
+    const int created = track->getCuePoints().size();
+    ASSERT_GT(created, 0);
+    // Same track loaded again after nudging the grid by 10 ms.
+    const auto nudged = mixxx::Beats::fromConstTempo(mixxx::audio::SampleRate(44100),
+            mixxx::audio::FramePos(441), mixxx::Bpm(120))->withDownbeat(mixxx::audio::FramePos(441));
+    track->trySetBeats(nudged);
+    generator.setTrack(track);
+    ASSERT_TRUE(generator.apply(vilelabox::segmentPhrases(sequence(), 176, nudged)));
+    EXPECT_EQ(created, track->getCuePoints().size());
+}
+TEST_F(AnalyzerPhrasesTest, GridEditsWriteCacheOnceAfterTheySettle) {
+    QTemporaryDir directory;
+    QFile source(directory.filePath("debounce.wav")); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("x"); source.close();
+    auto track = Track::newTemporary(source.fileName()); track->trySetBeats(grid());
+    const auto cache = PhraseAnalysisStore::cachePath(directory.path(), source.fileName());
+    PhraseAnalysisStore::instance().flushPendingSaves(); // leftovers of other tests
+    vilelabox::PhraseAnalysis analysis; analysis.features = sequence(); analysis.duration = 176;
+    PhraseAnalysisStore::instance().set(track, analysis, cache);
+    EXPECT_FALSE(QFile::exists(cache));
+    for (int i = 1; i <= 20; ++i) {
+        const auto position = mixxx::audio::FramePos(i * 10);
+        track->trySetBeats(mixxx::Beats::fromConstTempo(mixxx::audio::SampleRate(44100), position,
+                mixxx::Bpm(120))->withDownbeat(position));
+        QCoreApplication::processEvents();
+    }
+    EXPECT_FALSE(QFile::exists(cache));
+    EXPECT_EQ(1, PhraseAnalysisStore::instance().pendingSaveCount());
+    PhraseAnalysisStore::instance().flushPendingSaves();
+    EXPECT_EQ(0, PhraseAnalysisStore::instance().pendingSaveCount());
+    vilelabox::PhraseAnalysis loaded;
+    ASSERT_TRUE(PhraseAnalysisStore::load(cache, &loaded));
+    EXPECT_EQ(88, loaded.features.size());
+}

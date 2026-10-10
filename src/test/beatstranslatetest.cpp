@@ -667,3 +667,79 @@ TEST_F(BarSyncTest, ReleaseEchoUsesOwnBufferAndStopsAfterOneBar) {
     pads->processAudio(audio.data(), audio.size());
     EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "play")));
 }
+namespace {
+// 15 bars of 2 s at 120 BPM: quiet intro, loud chorus, quiet outro.
+vilelabox::PhraseAnalysis introChorusOutro() {
+    vilelabox::PhraseAnalysis analysis;
+    analysis.duration = 30;
+    for (int bar = 0; bar < 15; ++bar) {
+        const bool loud = bar >= 4 && bar < 8;
+        vilelabox::PhraseFeature f;
+        f.start = bar * 2; f.end = (bar + 1) * 2;
+        f.rms = loud ? 1 : 0.2; f.bass = loud ? 1 : 0.01;
+        f.chroma[loud ? 0 : 7] = 1; f.timbre[loud ? 0 : 5] = 1;
+        analysis.features.push_back(f);
+    }
+    return analysis;
+}
+int hotCueCount(const TrackPointer& track) {
+    int count = 0;
+    for (const auto& cue : track->getCuePoints()) count += cue->getType() == mixxx::CueType::HotCue;
+    return count;
+}
+} // namespace
+TEST_F(BarSyncTest, GridEditsDoNotDuplicateAutomaticPhraseCues) {
+    QCoreApplication::processEvents();
+    ControlObject::set(ConfigKey(m_sGroup2, "auto_phrase_cues"), 1);
+    PhraseAnalysisStore::instance().set(m_pTrack2, introChorusOutro(), {});
+    QCoreApplication::processEvents();
+    const int created = hotCueCount(m_pTrack2);
+    ASSERT_GT(created, 0);
+    for (int i = 0; i < 5; ++i) {
+        ControlObject::set(ConfigKey(m_sGroup2, "beats_translate_later"), 1);
+        ControlObject::set(ConfigKey(m_sGroup2, "beats_translate_later"), 0);
+        QCoreApplication::processEvents();
+    }
+    for (int i = 0; i < 2; ++i) {
+        ControlObject::set(ConfigKey(m_sGroup2, "beats_adjust_faster"), 1);
+        ControlObject::set(ConfigKey(m_sGroup2, "beats_adjust_faster"), 0);
+        QCoreApplication::processEvents();
+    }
+    EXPECT_EQ(created, hotCueCount(m_pTrack2));
+}
+TEST_F(BarSyncTest, LoadingTracksReusesReleaseEchoBuffer) {
+    auto* pads = m_pChannel2->getEngineBuffer()->padControl();
+    const CSAMPLE* buffer = pads->echoBufferForTesting();
+    ASSERT_NE(nullptr, buffer);
+    for (int i = 0; i < 3; ++i) {
+        loadTrack(m_pMixerDeck2, Track::newTemporary(getTestDir().filePath(QStringLiteral("sine-30.wav"))));
+        EXPECT_EQ(buffer, pads->echoBufferForTesting());
+    }
+}
+TEST_F(BarSyncTest, MixPointEntryFollowsCueChangesOutsideAudioThread) {
+    QCoreApplication::processEvents();
+    const auto intro = *(m_pBeats->cfirstmarker() + 8);
+    m_pTrack2->createAndAddCue(mixxx::CueType::Intro, Cue::kNoHotCue, intro, mixxx::audio::kInvalidFramePos);
+    QCoreApplication::processEvents();
+    EXPECT_DOUBLE_EQ(intro.toEngineSamplePos(), ControlObject::get(ConfigKey(m_sGroup2, "mix_point_in_position")));
+}
+TEST_F(BarSyncTest, MixPointLaunchCompensatesExitOvershoot) {
+    ControlObject::set(ConfigKey(m_sGroup2, "bar_sync"), 0);
+    ControlObject::set(ConfigKey(m_sGroup2, "quantize"), 0);
+    // An exit point that the source crosses in the middle of a buffer.
+    const auto trigger = *(m_pBeats->cfirstmarker() + 4) + kProcessBufferSize / 3;
+    m_pTrack1->createAndAddCue(mixxx::CueType::Outro, Cue::kNoHotCue, trigger, mixxx::audio::kInvalidFramePos);
+    m_pTrack2->createAndAddCue(mixxx::CueType::Intro, Cue::kNoHotCue,
+            mixxx::audio::kStartFramePos + kProcessBufferSize / 3, mixxx::audio::kInvalidFramePos);
+    ProcessBuffer();
+    QCoreApplication::processEvents();
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 1);
+    ControlObject::set(ConfigKey(m_sGroup2, "mix_point_link"), 0);
+    ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "mix_point_link_armed")));
+    for (int i = 0; i < 500 && !ControlObject::get(ConfigKey(m_sGroup2, "play")); ++i) ProcessBuffer();
+    ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "play")));
+    ProcessBuffer(); ProcessBuffer();
+    // 1 ms at 120 BPM is 0.002 of a beat.
+    EXPECT_NEAR(ControlObject::get(ConfigKey(m_sGroup1, "beat_distance")),
+            ControlObject::get(ConfigKey(m_sGroup2, "beat_distance")), 0.002);
+}
