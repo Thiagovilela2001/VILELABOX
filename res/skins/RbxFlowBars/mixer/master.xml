@@ -123,7 +123,7 @@
           <Template src="skin:controls/knob.xml">
             <SetVariable name="Group">[Master]</SetVariable>
             <SetVariable name="Control">headGain</SetVariable>
-            <SetVariable name="TooltipId">headGain</SetVariable>
+            <SetVariable name="TooltipId">headphone_gain</SetVariable>
             <SetVariable name="Size">38f,38f</SetVariable>
             <SetVariable name="KnobBg">regular</SetVariable>
             <SetVariable name="KnobColor">grey</SetVariable>

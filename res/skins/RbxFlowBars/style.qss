@@ -552,11 +552,14 @@ QToolTip {
   padding: 5px 8px;
 }
 
-WNumber#BarNumber, WNumber#BeatInBar {
+/* Bar column left of each waveform (decks/bar_counter.xml) */
+WNumber#BarNumber, WNumber#BeatInBar, WLabel#BarSeparator {
   color: #ff8c1a;
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 700;
 }
+WLabel#BarSeparator { color: #8a5214; }
+WLabel#PhraseStatus { font-size: 9px; font-weight: 700; }
 
 /* BARS section (decks/barjump.xml): recessed display like WBeatSpinBox */
 WNumber#BarSizeDisplay {

@@ -1,15 +1,15 @@
 <!DOCTYPE template>
 <!--
   RbxFlow :: fx/panel.xml
-  Rack horizontal de efeitos (Rekordbox style):
-  Exibe FX 1 e FX 2 lado a lado de forma simétrica.
+  Rack horizontal de efeitos: FX 1 e FX 2 lado a lado, uma linha de 34 px
+  cada, centralizados.
   Visibilidade controlada pelo botão FX na barra superior.
 -->
 <Template>
   <WidgetGroup>
     <ObjectName>RbxEffectsPanel</ObjectName>
     <Layout>horizontal</Layout>
-    <Size>0me,108f</Size>
+    <Size>0me,36f</Size>
     <Children>
       <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
       <Template src="skin:fx/unit.xml">

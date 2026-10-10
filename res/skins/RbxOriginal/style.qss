@@ -49,6 +49,24 @@ WWidget {
   border: none;
 }
 
+/* Semitone down / up: the glyphs need a larger size to read at 9 px rows. */
+WPushButton#KeyDown,
+WPushButton#KeyUp {
+  color: #c8c8c8;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Grid BPM: a recessed read-out, like the other displays. */
+WNumber#GridBpm {
+  background-color: #000000;
+  border: 1px solid #323232;
+  border-radius: 2px;
+  color: #f0f0f0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 WLabel#SectionLabel {
   color: #646464;
   font-size: 9px;
@@ -156,7 +174,8 @@ WPushButton#Quantize,
 WPushButton#KeyLock,
 WPushButton#Reverse {
   background-color: #1e1e1e;
-  border: none;
+  border: 1px solid #2d2d2d;
+  border-radius: 2px;
   color: #4b4b4b;
   font-size: 13px;
   font-weight: 400;
@@ -169,16 +188,14 @@ WPushButton#Reverse:hover {
   color: #8c8c8c;
 }
 
+/* Lit = blue, like every other toggle in the skin. */
 WPushButton#SlipMode[value="1"],
+WPushButton#Quantize[value="1"],
 WPushButton#KeyLock[value="1"],
 WPushButton#Reverse:pressed {
   background-color: #1e1e1e;
+  border-color: #1473eb;
   color: #1473eb;
-}
-
-WPushButton#Quantize[value="1"] {
-  background-color: #1e1e1e;
-  color: #e91429;
 }
 
 WPushButton#LoopActivate[value="1"],
@@ -542,10 +559,21 @@ QToolTip {
 }
 
 /* ================================================= BARS (blackmesa mod) == */
+/* Bar column left of each waveform (decks/bar_counter.xml) */
 WNumber#BarNumber,
-WNumber#BeatInBar {
+WNumber#BeatInBar,
+WLabel#BarSeparator {
   color: #f8a030;
-  font-size: 11px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+WLabel#BarSeparator {
+  color: #8a5a1c;
+}
+
+WLabel#PhraseStatus {
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -558,16 +586,12 @@ WNumber#BarSizeDisplay {
   font-weight: 700;
 }
 
-WPushButton#BarSync {
+WPushButton#BarSync[value="1"],
+WPushButton#PhraseSync[value="1"],
+WPushButton#PadsToggle[value="1"] {
   background-color: #1473eb;
   border-color: #1473eb;
   color: #ffffff;
-}
-
-WPushButton#BarSync[value="0"] {
-  background-color: #282828;
-  border-color: #323232;
-  color: #aaaaaa;
 }
 
 WLabel#JogRateUnit {

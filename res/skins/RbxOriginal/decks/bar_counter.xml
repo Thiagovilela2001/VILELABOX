@@ -1,91 +1,135 @@
 <!DOCTYPE template>
+<!--
+  Bar column left of each scrolling waveform, centred, sized to fit a 64 px row:
+      [ 1 · BAR ][ PHRASE ]   sync toggles
+           -32 : 1            bar : beat (hidden without SET 1, space kept)
+         CHORUS · 6           phrase and bars left (only with an analysis)
+      [  SET 1  ][  PADS  ]   bar 1 reference, pad panel
+-->
 <Template>
   <WidgetGroup>
+    <ObjectName>BarColumn</ObjectName>
     <Layout>vertical</Layout>
-    <Size>72f,0me</Size>
+    <Size>84f,0me</Size>
     <Children>
-      <PushButton>
-        <ObjectName>BarSync</ObjectName>
-        <Size>48f,18f</Size>
-        <NumberStates>2</NumberStates>
-        <Tooltip>Sync por compasso: ao dar PLAY com QUANTIZE ou SYNC, alinha o compasso 1 com o outro deck tocando. Requer SET 1 nas duas faixas. Aceso = ligado.</Tooltip>
-        <State>
-          <Number>0</Number><Text><Variable name="ChanNum"/> · BAR</Text><Alignment>center</Alignment>
-          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
-          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-        </State>
-        <State>
-          <Number>1</Number><Text><Variable name="ChanNum"/> · BAR</Text><Alignment>center</Alignment>
-          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
-          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-        </State>
-        <Connection>
-          <ConfigKey>[Channel<Variable name="ChanNum"/>],bar_sync</ConfigKey>
-        </Connection>
-      </PushButton>
-      <PushButton>
-        <Size>48f,18f</Size><NumberStates>2</NumberStates>
-        <Tooltip>PhraseSync ao dar PLAY. Requer análise de frases nos dois decks.</Tooltip>
-        <State><Number>0</Number><Text>PHRASE</Text></State>
-        <State><Number>1</Number><Text>PHRASE</Text></State>
-        <Connection><ConfigKey>[Channel<Variable name="ChanNum"/>],phrase_sync</ConfigKey></Connection>
-      </PushButton>
-      <PhraseStatus><Group>[Channel<Variable name="ChanNum"/>]</Group><Size>72f,18f</Size><Alignment>center</Alignment></PhraseStatus>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
       <WidgetGroup>
         <Layout>horizontal</Layout>
-        <Size>48f,20f</Size>
+        <Size>84f,18f</Size>
         <Children>
-          <Number>
-            <ObjectName>BarNumber</ObjectName>
-            <Size>30f,20f</Size>
-            <Alignment>center</Alignment>
-            <NumberOfDigits>0</NumberOfDigits>
-            <Tooltip>Compasso atual. SET 1 define o compasso 1 na batida mais próxima.</Tooltip>
+          <PushButton>
+            <ObjectName>BarSync</ObjectName>
+            <Size>40f,18f</Size>
+            <NumberStates>2</NumberStates>
+            <Tooltip>Sync por compasso: ao dar PLAY com QUANTIZE ou SYNC, alinha o compasso 1 com o outro deck tocando. Requer SET 1 nas duas faixas. Aceso = ligado.</Tooltip>
+            <State><Number>0</Number><Text><Variable name="ChanNum"/> · BAR</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text><Variable name="ChanNum"/> · BAR</Text><Alignment>center</Alignment></State>
             <Connection>
-              <ConfigKey>[Channel<Variable name="ChanNum"/>],bar_number</ConfigKey>
-              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],bar_sync</ConfigKey>
             </Connection>
-          </Number>
-          <Label><Size>4f,20f</Size><Alignment>center</Alignment><Text>:</Text></Label>
-          <Number>
-            <ObjectName>BeatInBar</ObjectName>
-            <Size>14f,20f</Size>
-            <Alignment>center</Alignment>
-            <NumberOfDigits>0</NumberOfDigits>
-            <Tooltip>Tempo do compasso, de 1 a 4.</Tooltip>
+          </PushButton>
+          <WidgetGroup><Size>4f,18f</Size></WidgetGroup>
+          <PushButton>
+            <ObjectName>PhraseSync</ObjectName>
+            <Size>40f,18f</Size>
+            <NumberStates>2</NumberStates>
+            <Tooltip>PhraseSync: ao dar PLAY, alinha também a posição dentro da frase com o outro deck. Requer análise de frases nos dois decks. Aceso = ligado.</Tooltip>
+            <State><Number>0</Number><Text>PHRASE</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>PHRASE</Text><Alignment>center</Alignment></State>
+            <Connection><ConfigKey>[Channel<Variable name="ChanNum"/>],phrase_sync</ConfigKey></Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>84f,22f</Size>
+        <Children>
+          <WidgetGroup>
+            <Layout>horizontal</Layout>
+            <Size>84f,22f</Size>
+            <Children>
+              <Number>
+                <ObjectName>BarNumber</ObjectName>
+                <Size>44f,22f</Size>
+                <Alignment>right</Alignment>
+                <NumberOfDigits>0</NumberOfDigits>
+                <Tooltip>Compasso atual. SET 1 define o compasso 1 na batida mais próxima.</Tooltip>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],bar_number</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                </Connection>
+              </Number>
+              <Label><ObjectName>BarSeparator</ObjectName><Size>10f,22f</Size><Alignment>center</Alignment><Text>:</Text></Label>
+              <Number>
+                <ObjectName>BeatInBar</ObjectName>
+                <Size>30f,22f</Size>
+                <Alignment>left</Alignment>
+                <NumberOfDigits>0</NumberOfDigits>
+                <Tooltip>Tempo do compasso, de 1 a 4.</Tooltip>
+                <Connection>
+                  <ConfigKey>[Channel<Variable name="ChanNum"/>],beat_in_bar</ConfigKey>
+                  <ConnectValueFromWidget>false</ConnectValueFromWidget>
+                </Connection>
+              </Number>
+            </Children>
             <Connection>
-              <ConfigKey>[Channel<Variable name="ChanNum"/>],beat_in_bar</ConfigKey>
-              <ConnectValueFromWidget>false</ConnectValueFromWidget>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],downbeat_valid</ConfigKey>
+              <BindProperty>visible</BindProperty>
             </Connection>
-          </Number>
+          </WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>84f,12f</Size>
+        <Children>
+          <PhraseStatus>
+            <ObjectName>PhraseStatus</ObjectName>
+            <Group>[Channel<Variable name="ChanNum"/>]</Group>
+            <Size>84f,12f</Size>
+            <Alignment>center</Alignment>
+            <Tooltip>Frase atual e compassos até o fim dela.</Tooltip>
+          </PhraseStatus>
         </Children>
         <Connection>
-          <ConfigKey>[Channel<Variable name="ChanNum"/>],downbeat_valid</ConfigKey>
+          <ConfigKey>[Channel<Variable name="ChanNum"/>],phrase_valid</ConfigKey>
           <BindProperty>visible</BindProperty>
         </Connection>
       </WidgetGroup>
-<WidgetGroup><Layout>horizontal</Layout><Children><PushButton><Size>0me,24f</Size><NumberStates>2</NumberStates><State><Number>0</Number><Text>PADS</Text><Alignment>center</Alignment><Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed><Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed></State><State><Number>1</Number><Text>PADS</Text><Alignment>center</Alignment><Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed><Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed></State><Connection><ConfigKey>[RbxOriginal],vilelabox_pads_<Variable name="ChanNum"/></ConfigKey></Connection></PushButton></Children></WidgetGroup>
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>84f,18f</Size>
+        <Children>
+          <PushButton>
+            <ObjectName>SetFirstDownbeat</ObjectName>
+            <Size>40f,18f</Size>
+            <NumberStates>1</NumberStates>
+            <RightClickIsPushButton>true</RightClickIsPushButton>
+            <Tooltip>O compasso 1 é marcado automaticamente ao carregar a faixa (na batida mais próxima do CUE principal). Para corrigir, com LOCK desligado, pause no tempo 1 e clique: a batida mais próxima vira compasso 1, tempo 1. Botão direito remove a referência.</Tooltip>
+            <State><Number>0</Number><Text>SET 1</Text><Alignment>center</Alignment></State>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_set_first_downbeat</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+            <Connection>
+              <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_clear_first_downbeat</ConfigKey>
+              <ButtonState>RightButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup><Size>4f,18f</Size></WidgetGroup>
+          <PushButton>
+            <ObjectName>PadsToggle</ObjectName>
+            <Size>40f,18f</Size>
+            <NumberStates>2</NumberStates>
+            <Tooltip>Mostra o painel de pads deste deck: Slicer, KeyShift, Keyboard, Release Echo, Mix Point Link e cues automáticos.</Tooltip>
+            <State><Number>0</Number><Text>PADS</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>PADS</Text><Alignment>center</Alignment></State>
+            <Connection><ConfigKey>[RbxOriginal],vilelabox_pads_<Variable name="ChanNum"/></ConfigKey></Connection>
+          </PushButton>
+        </Children>
+      </WidgetGroup>
       <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
-      <PushButton>
-        <ObjectName>SetFirstDownbeat</ObjectName>
-        <Size>48f,18f</Size>
-        <NumberStates>1</NumberStates>
-        <RightClickIsPushButton>true</RightClickIsPushButton>
-        <Tooltip>O compasso 1 é marcado automaticamente ao carregar a faixa (na batida mais próxima do CUE principal). Para corrigir, com LOCK desligado, pause no tempo 1 e clique: a batida mais próxima vira compasso 1, tempo 1. Botão direito remove a referência.</Tooltip>
-        <State>
-          <Number>0</Number><Text>SET 1</Text><Alignment>center</Alignment>
-          <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
-          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-        </State>
-        <Connection>
-          <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_set_first_downbeat</ConfigKey>
-          <ButtonState>LeftButton</ButtonState>
-        </Connection>
-        <Connection>
-          <ConfigKey>[Channel<Variable name="ChanNum"/>],beats_clear_first_downbeat</ConfigKey>
-          <ButtonState>RightButton</ButtonState>
-        </Connection>
-      </PushButton>
     </Children>
   </WidgetGroup>
 </Template>

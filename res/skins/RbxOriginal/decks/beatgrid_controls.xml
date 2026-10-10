@@ -270,7 +270,7 @@
           </WidgetGroup>
           <Number>
             <ObjectName>GridBpm</ObjectName>
-            <Size>71f,18f</Size>
+            <Size>145f,18f</Size>
             <Tooltip>BPM original do grid, independente do tempo de reprodução.</Tooltip>
             <Alignment>center</Alignment>
             <NumberOfDigits>2</NumberOfDigits>
@@ -279,15 +279,6 @@
               <ConnectValueFromWidget>false</ConnectValueFromWidget>
             </Connection>
           </Number>
-          <WidgetGroup>
-            <Size>3f,0me</Size>
-          </WidgetGroup>
-          <Label>
-            <ObjectName>SectionLabel</ObjectName>
-            <Size>71f,18f</Size>
-            <Alignment>center</Alignment>
-            <Text>BEAT GRID</Text>
-          </Label>
         </Children>
       </WidgetGroup>
     </Children>

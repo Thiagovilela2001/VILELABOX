@@ -1,220 +1,124 @@
 <!DOCTYPE template>
+<!--
+  One effect unit as a single 34 px row:
+    FX 1 [effect v] ON 1 2   MIX (o)  META (o)
+-->
 <Template>
   <WidgetGroup>
-    <ObjectName>MixerFxUnit<Variable name="Unit" />
-    </ObjectName>
-    <Layout>vertical</Layout>
-    <Size>112f,104f</Size>
+    <ObjectName>MixerFxUnit<Variable name="Unit"/></ObjectName>
+    <Layout>horizontal</Layout>
+    <Size>390f,34f</Size>
     <Children>
-      <Label>
-        <ObjectName>MixerFxTitle</ObjectName>
-        <Text>FX <Variable name="Unit" />
-        </Text>
-        <Size>112f,12f</Size>
-        <Alignment>center</Alignment>
-      </Label>
-      <EffectSelector>
-        <ObjectName>MixerFxSelector<Variable name="Unit" />
-        </ObjectName>
-        <Tooltip>Escolha um efeito do Mixxx para esta unidade.</Tooltip>
-        <EffectRack>1</EffectRack>
-        <EffectUnit>
-          <Variable name="Unit" />
-        </EffectUnit>
-        <Effect>1</Effect>
-        <Size>112f,22f</Size>
-        <MinimumSize>112,22</MinimumSize>
-        <MaximumSize>112,22</MaximumSize>
-      </EffectSelector>
-      <WidgetGroup>
-        <Size>0me,2f</Size>
-      </WidgetGroup>
-      <WidgetGroup>
-        <Layout>horizontal</Layout>
-        <Size>112f,22f</Size>
-        <Children>
-          <PushButton>
-            <ObjectName>MixerFxOn<Variable name="Unit" />
-            </ObjectName>
-            <Tooltip>Ativa ou desativa o efeito e sua unidade.</Tooltip>
+          <Label>
+            <ObjectName>MixerFxTitle</ObjectName>
+            <Text>FX <Variable name="Unit"/></Text>
             <Size>34f,22f</Size>
+            <Alignment>left</Alignment>
+          </Label>
+          <EffectSelector>
+            <ObjectName>MixerFxSelector<Variable name="Unit"/></ObjectName>
+            <Tooltip>Escolha um efeito do Mixxx para esta unidade.</Tooltip>
+            <EffectRack>1</EffectRack>
+            <EffectUnit><Variable name="Unit"/></EffectUnit>
+            <Effect>1</Effect>
+            <Size>132f,22f</Size>
+            <MinimumSize>132,22</MinimumSize>
+            <MaximumSize>132,22</MaximumSize>
+          </EffectSelector>
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+          <PushButton>
+            <ObjectName>MixerFxOn<Variable name="Unit"/></ObjectName>
+            <Tooltip>Ativa ou desativa o efeito e sua unidade.</Tooltip>
+            <Size>30f,22f</Size>
             <NumberStates>2</NumberStates>
-            <State>
-              <Number>0</Number>
-              <Text>ON</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
-            <State>
-              <Number>1</Number>
-              <Text>ON</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
+            <State><Number>0</Number><Text>ON</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>ON</Text><Alignment>center</Alignment></State>
             <Connection>
-              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />_Effect1],enabled</ConfigKey>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>_Effect1],enabled</ConfigKey>
               <ButtonState>LeftButton</ButtonState>
             </Connection>
             <Connection>
-              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />],enabled</ConfigKey>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>],enabled</ConfigKey>
               <ButtonState>LeftButton</ButtonState>
               <ConnectValueToWidget>false</ConnectValueToWidget>
             </Connection>
           </PushButton>
-          <WidgetGroup>
-            <Size>4f,0me</Size>
-          </WidgetGroup>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
           <PushButton>
-            <ObjectName>MixerFxRoute<Variable name="Unit" />1</ObjectName>
-            <Tooltip>Enviar FX <Variable name="Unit" /> ao canal 1. Pode ativar os dois canais.</Tooltip>
-            <Size>34f,22f</Size>
+            <ObjectName>MixerFxRoute<Variable name="Unit"/>1</ObjectName>
+            <Tooltip>Enviar FX <Variable name="Unit"/> ao canal 1. Pode ativar os dois canais.</Tooltip>
+            <Size>24f,22f</Size>
             <NumberStates>2</NumberStates>
-            <State>
-              <Number>0</Number>
-              <Text>1</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
-            <State>
-              <Number>1</Number>
-              <Text>1</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
+            <State><Number>0</Number><Text>1</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>1</Text><Alignment>center</Alignment></State>
             <Connection>
-              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />],group_[Channel1]_enable</ConfigKey>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>],group_[Channel1]_enable</ConfigKey>
               <ButtonState>LeftButton</ButtonState>
             </Connection>
           </PushButton>
-          <WidgetGroup>
-            <Size>4f,0me</Size>
-          </WidgetGroup>
+          <WidgetGroup><Size>3f,0me</Size></WidgetGroup>
           <PushButton>
-            <ObjectName>MixerFxRoute<Variable name="Unit" />2</ObjectName>
-            <Tooltip>Enviar FX <Variable name="Unit" /> ao canal 2. Pode ativar os dois canais.</Tooltip>
-            <Size>34f,22f</Size>
+            <ObjectName>MixerFxRoute<Variable name="Unit"/>2</ObjectName>
+            <Tooltip>Enviar FX <Variable name="Unit"/> ao canal 2. Pode ativar os dois canais.</Tooltip>
+            <Size>24f,22f</Size>
             <NumberStates>2</NumberStates>
-            <State>
-              <Number>0</Number>
-              <Text>2</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
-            <State>
-              <Number>1</Number>
-              <Text>2</Text>
-              <Alignment>center</Alignment>
-              <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
-              <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-            </State>
+            <State><Number>0</Number><Text>2</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>2</Text><Alignment>center</Alignment></State>
             <Connection>
-              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />],group_[Channel2]_enable</ConfigKey>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>],group_[Channel2]_enable</ConfigKey>
               <ButtonState>LeftButton</ButtonState>
             </Connection>
           </PushButton>
-        </Children>
-      </WidgetGroup>
-      <WidgetGroup>
-        <Size>0me,2f</Size>
-      </WidgetGroup>
-      <WidgetGroup>
-        <Layout>horizontal</Layout>
-        <Size>112f,42f</Size>
-        <Children>
-          <WidgetGroup>
-            <Layout>vertical</Layout>
-            <Size>52f,42f</Size>
-            <Children>
-              <Label>
-                <ObjectName>KnobLabel</ObjectName>
-                <Text>MIX</Text>
-                <Size>52f,10f</Size>
-                <Alignment>center</Alignment>
-              </Label>
-              <WidgetGroup>
-                <Layout>horizontal</Layout>
-                <Children>
-                  <WidgetGroup>
-                    <Size>0me,0me</Size>
-                  </WidgetGroup>
-                  <KnobComposed>
-                    <ObjectName>MixerFxMIX<Variable name="Unit" />
-                    </ObjectName>
-                    <TooltipId>EffectUnit_mix</TooltipId>
-                    <Size>30f,30f</Size>
-                    <Knob>skin:bases/knob_indicator_small_grey.svg</Knob>
-                    <BackPath>skin:bases/knob_bg_small.svg</BackPath>
-                    <MinAngle>-135</MinAngle>
-                    <MaxAngle>135</MaxAngle>
-                    <ArcRadius>12</ArcRadius>
-                    <ArcThickness>2</ArcThickness>
-                    <ArcColor>#1473eb</ArcColor>
-                    <ArcBgThickness>2</ArcBgThickness>
-                    <ArcBgColor>#3a3a3a</ArcBgColor>
-                    <ArcUnipolar>true</ArcUnipolar>
-                    <Connection>
-                      <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />],mix</ConfigKey>
-                    </Connection>
-                  </KnobComposed>
-                  <WidgetGroup>
-                    <Size>0me,0me</Size>
-                  </WidgetGroup>
-                </Children>
-              </WidgetGroup>
-            </Children>
-          </WidgetGroup>
-          <WidgetGroup>
-            <Size>8f,0me</Size>
-          </WidgetGroup>
-          <WidgetGroup>
-            <Layout>vertical</Layout>
-            <Size>52f,42f</Size>
-            <Children>
-              <Label>
-                <ObjectName>KnobLabel</ObjectName>
-                <Text>META</Text>
-                <Size>52f,10f</Size>
-                <Alignment>center</Alignment>
-              </Label>
-              <WidgetGroup>
-                <Layout>horizontal</Layout>
-                <Children>
-                  <WidgetGroup>
-                    <Size>0me,0me</Size>
-                  </WidgetGroup>
-                  <KnobComposed>
-                    <ObjectName>MixerFxMETA<Variable name="Unit" />
-                    </ObjectName>
-                    <Tooltip>Ajustar o parâmetro principal do efeito selecionado.</Tooltip>
-                    <Size>30f,30f</Size>
-                    <Knob>skin:bases/knob_indicator_small_grey.svg</Knob>
-                    <BackPath>skin:bases/knob_bg_small.svg</BackPath>
-                    <MinAngle>-135</MinAngle>
-                    <MaxAngle>135</MaxAngle>
-                    <ArcRadius>12</ArcRadius>
-                    <ArcThickness>2</ArcThickness>
-                    <ArcColor>#1473eb</ArcColor>
-                    <ArcBgThickness>2</ArcBgThickness>
-                    <ArcBgColor>#3a3a3a</ArcBgColor>
-                    <ArcUnipolar>true</ArcUnipolar>
-                    <Connection>
-                      <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit" />_Effect1],meta</ConfigKey>
-                    </Connection>
-                  </KnobComposed>
-                  <WidgetGroup>
-                    <Size>0me,0me</Size>
-                  </WidgetGroup>
-                </Children>
-              </WidgetGroup>
-            </Children>
-          </WidgetGroup>
-        </Children>
-      </WidgetGroup>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Text>MIX</Text>
+            <Size>24f,22f</Size>
+            <Alignment>right</Alignment>
+          </Label>
+          <KnobComposed>
+            <ObjectName>MixerFxMIX<Variable name="Unit"/></ObjectName>
+            <TooltipId>EffectUnit_mix</TooltipId>
+            <Size>28f,28f</Size>
+            <Knob>skin:bases/knob_indicator_small_grey.svg</Knob>
+            <BackPath>skin:bases/knob_bg_small.svg</BackPath>
+            <MinAngle>-135</MinAngle>
+            <MaxAngle>135</MaxAngle>
+            <ArcRadius>11</ArcRadius>
+            <ArcThickness>2</ArcThickness>
+            <ArcColor>#1473eb</ArcColor>
+            <ArcBgThickness>2</ArcBgThickness>
+            <ArcBgColor>#3a3a3a</ArcBgColor>
+            <ArcUnipolar>true</ArcUnipolar>
+            <Connection>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>],mix</ConfigKey>
+            </Connection>
+          </KnobComposed>
+          <WidgetGroup><Size>2f,0me</Size></WidgetGroup>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Text>META</Text>
+            <Size>30f,22f</Size>
+            <Alignment>right</Alignment>
+          </Label>
+          <KnobComposed>
+            <ObjectName>MixerFxMETA<Variable name="Unit"/></ObjectName>
+            <Tooltip>Ajustar o parâmetro principal do efeito selecionado.</Tooltip>
+            <Size>28f,28f</Size>
+            <Knob>skin:bases/knob_indicator_small_grey.svg</Knob>
+            <BackPath>skin:bases/knob_bg_small.svg</BackPath>
+            <MinAngle>-135</MinAngle>
+            <MaxAngle>135</MaxAngle>
+            <ArcRadius>11</ArcRadius>
+            <ArcThickness>2</ArcThickness>
+            <ArcColor>#1473eb</ArcColor>
+            <ArcBgThickness>2</ArcBgThickness>
+            <ArcBgColor>#3a3a3a</ArcBgColor>
+            <ArcUnipolar>true</ArcUnipolar>
+            <Connection>
+              <ConfigKey>[EffectRack1_EffectUnit<Variable name="Unit"/>_Effect1],meta</ConfigKey>
+            </Connection>
+          </KnobComposed>
     </Children>
   </WidgetGroup>
 </Template>
