@@ -6,7 +6,7 @@
 bool AnalyzerEnergy::initialize(const AnalyzerTrack& track, mixxx::audio::SampleRate rate, SINT length) {
     cleanup();
     if (!rate.isValid() || length <= 0 || !m_config->getValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), false)) return false;
-    if (vilelabox::loadEnergies(m_config->getSettingsPath()).contains(vilelabox::energyIdentity(track.getTrack()->getLocation()))) return false;
+    if (vilelabox::loadEnergy(m_config->getSettingsPath(), track.getTrack()->getLocation())) return false;
     m_rate = static_cast<int>(rate);
     m_state = ebur128_init(2, m_rate, EBUR128_MODE_I);
     return m_state != nullptr;

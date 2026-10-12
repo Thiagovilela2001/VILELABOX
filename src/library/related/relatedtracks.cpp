@@ -1,11 +1,16 @@
 #include "library/related/relatedtracks.h"
+#include "moc_relatedtracks.cpp"
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 #include <QFileInfo>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QUuid>
+#include <algorithm>
 #include <cmath>
 namespace vilelabox {
 RelatedScore relatedScore(double sourceBpm, double candidateBpm,
@@ -60,6 +65,16 @@ void saveEnergy(const QString& settingsPath, const QString& location, double ene
         query.addBindValue(energyIdentity(location)); query.addBindValue(energy); query.exec();
     });
 }
+std::optional<double> loadEnergy(const QString& settingsPath, const QString& location) {
+    std::optional<double> result;
+    withEnergyDb(settingsPath, [&](const QSqlDatabase& db) {
+        QSqlQuery query(db);
+        query.prepare("SELECT value FROM energy WHERE identity = ?");
+        query.addBindValue(energyIdentity(location));
+        if (query.exec() && query.next()) result = query.value(0).toDouble();
+    });
+    return result;
+}
 QHash<QString, double> loadEnergies(const QString& settingsPath) {
     QHash<QString, double> result;
     withEnergyDb(settingsPath, [&](const QSqlDatabase& db) {
@@ -67,5 +82,73 @@ QHash<QString, double> loadEnergies(const QString& settingsPath) {
         while (query.next()) result.insert(query.value(0).toString(), query.value(1).toDouble());
     });
     return result;
+}
+QVector<RelatedRow> findRelated(const QString& databasePath, const QString& settingsPath,
+        const RelatedReference& reference, int limit) {
+    QVector<RelatedRow> rows;
+    if (reference.bpm <= 0 || limit <= 0) return rows;
+    const auto energies = loadEnergies(settingsPath);
+    const double referenceEnergy = energies.value(energyIdentity(reference.location));
+    const QString name = "vilelabox-related-" + QUuid::createUuid().toString();
+    {
+        auto db = QSqlDatabase::addDatabase("QSQLITE", name);
+        db.setDatabaseName(databasePath);
+        db.setConnectOptions("QSQLITE_OPEN_READONLY;QSQLITE_BUSY_TIMEOUT=5000");
+        if (db.open()) {
+            QSqlQuery query(db);
+            query.setForwardOnly(true);
+            if (query.exec("SELECT l.id,l.artist,l.title,l.bpm,l.key_id,t.location FROM library l "
+                           "JOIN track_locations t ON l.location=t.id "
+                           "WHERE t.fs_deleted=0 AND l.mixxx_deleted=0")) {
+                while (query.next()) {
+                    const auto location = query.value(5).toString();
+                    if (location == reference.location) continue;
+                    const double bpm = query.value(3).toDouble();
+                    const auto key = KeyUtils::keyFromNumericValue(query.value(4).toInt());
+                    // Key and tempo filter first: the energy identity needs a file
+                    // stat and a hash, so it is only computed for candidates.
+                    if (relatedScore(reference.bpm, bpm, reference.key, key).score <= 0) continue;
+                    const double energy = energies.value(energyIdentity(location));
+                    const auto score = relatedScore(reference.bpm, bpm, reference.key, key, referenceEnergy, energy);
+                    if (score.score <= 0) continue;
+                    rows.push_back({query.value(0).toInt(), query.value(1).toString(), query.value(2).toString(),
+                            KeyUtils::keyToString(key, KeyUtils::KeyNotation::Lancelot), bpm, energy, score});
+                }
+            }
+        }
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(name);
+    const auto better = [](const RelatedRow& a, const RelatedRow& b) { return a.score.score > b.score.score; };
+    if (rows.size() > limit) {
+        std::partial_sort(rows.begin(), rows.begin() + limit, rows.end(), better);
+        rows.resize(limit);
+    } else {
+        std::sort(rows.begin(), rows.end(), better);
+    }
+    return rows;
+}
+RelatedSearch::RelatedSearch(QString databasePath, QString settingsPath, QObject* parent)
+        : QObject(parent), m_databasePath(std::move(databasePath)), m_settingsPath(std::move(settingsPath)) {}
+void RelatedSearch::start(const RelatedReference& reference, int limit) {
+    const int generation = ++m_generation;
+    struct Result { QVector<RelatedRow> rows; qint64 elapsed = 0; };
+    // The watcher is a child of this object: if the search object goes away,
+    // the result is simply never delivered.
+    auto* watcher = new QFutureWatcher<Result>(this);
+    connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, generation] {
+        const auto result = watcher->result();
+        watcher->deleteLater();
+        if (generation == m_generation) emit finished(result.rows, result.elapsed);
+    });
+    watcher->setFuture(QtConcurrent::run([databasePath = m_databasePath, settingsPath = m_settingsPath,
+                                                 reference, limit] {
+        QElapsedTimer timer;
+        timer.start();
+        Result result;
+        result.rows = findRelated(databasePath, settingsPath, reference, limit);
+        result.elapsed = timer.elapsed();
+        return result;
+    }));
 }
 }

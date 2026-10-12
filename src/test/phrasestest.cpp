@@ -233,3 +233,92 @@ TEST_F(AnalyzerPhrasesTest, GridEditsWriteCacheOnceAfterTheySettle) {
     ASSERT_TRUE(PhraseAnalysisStore::load(cache, &loaded));
     EXPECT_EQ(88, loaded.features.size());
 }
+#include <QElapsedTimer>
+#include <QSignalSpy>
+#include <QTest>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QUuid>
+namespace {
+// Minimal Mixxx library schema with `count` tracks; every 4th is 120 BPM in
+// C major (compatible with the reference), the rest are incompatible.
+QString makeLibrary(const QString& directory, int count) {
+    const QString path = QDir(directory).filePath(QStringLiteral("library-%1.sqlite").arg(count));
+    const QString name = QUuid::createUuid().toString();
+    {
+        auto db = QSqlDatabase::addDatabase("QSQLITE", name);
+        db.setDatabaseName(path);
+        EXPECT_TRUE(db.open());
+        QSqlQuery q(db);
+        q.exec("CREATE TABLE track_locations (id INTEGER PRIMARY KEY, location TEXT, fs_deleted INTEGER)");
+        q.exec("CREATE TABLE library (id INTEGER PRIMARY KEY, artist TEXT, title TEXT, bpm REAL, key_id INTEGER, location INTEGER, mixxx_deleted INTEGER)");
+        db.transaction();
+        QSqlQuery insertLocation(db), insertTrack(db);
+        insertLocation.prepare("INSERT INTO track_locations VALUES (?, ?, 0)");
+        insertTrack.prepare("INSERT INTO library VALUES (?, ?, ?, ?, ?, ?, 0)");
+        for (int i = 1; i <= count; ++i) {
+            const bool compatible = i % 4 == 0;
+            insertLocation.addBindValue(i); insertLocation.addBindValue(QStringLiteral("/music/%1.mp3").arg(i)); insertLocation.exec();
+            insertTrack.addBindValue(i); insertTrack.addBindValue("artist"); insertTrack.addBindValue(QStringLiteral("t%1").arg(i));
+            // Compatible tracks spread over 117.6–122.4 BPM so scores differ.
+            insertTrack.addBindValue(compatible ? 117.6 + (i % 97) * 0.05 : 97.0);
+            insertTrack.addBindValue(compatible ? 1 : 7);
+            insertTrack.addBindValue(i); insertTrack.exec();
+        }
+        db.commit();
+        db.close();
+    }
+    QSqlDatabase::removeDatabase(name);
+    return path;
+}
+vilelabox::RelatedReference cMajorReference(double bpm = 120) {
+    vilelabox::RelatedReference reference;
+    reference.location = QStringLiteral("/music/4.mp3");
+    reference.bpm = bpm;
+    reference.key = mixxx::track::io::key::C_MAJOR;
+    return reference;
+}
+} // namespace
+TEST(RelatedTracksTest, SearchRespectsLimitOrderAndExcludesReference) {
+    QTemporaryDir directory;
+    const auto path = makeLibrary(directory.path(), 400);
+    const auto rows = vilelabox::findRelated(path, directory.path(), cMajorReference(), 25);
+    ASSERT_EQ(25, rows.size());
+    for (int i = 1; i < rows.size(); ++i) EXPECT_GE(rows[i - 1].score.score, rows[i].score.score);
+    for (const auto& row : rows) EXPECT_NE(4, row.id); // the reference itself
+    // Half tempo still matches (60 BPM reference against ~120 BPM tracks).
+    EXPECT_EQ(25, vilelabox::findRelated(path, directory.path(), cMajorReference(60), 25).size());
+    // Nothing compatible at 97 BPM in C major.
+    EXPECT_TRUE(vilelabox::findRelated(path, directory.path(), cMajorReference(150), 25).isEmpty());
+}
+TEST(RelatedTracksTest, OnlyTheLatestSearchIsReported) {
+    QTemporaryDir directory;
+    const auto path = makeLibrary(directory.path(), 20000);
+    vilelabox::RelatedSearch search(path, directory.path());
+    QSignalSpy spy(&search, &vilelabox::RelatedSearch::finished);
+    search.start(cMajorReference(120), 100); // superseded before it finishes
+    search.start(cMajorReference(150), 100); // no compatible tracks
+    ASSERT_TRUE(spy.wait(10000));
+    QTest::qWait(300);
+    ASSERT_EQ(1, spy.count());
+    EXPECT_TRUE(spy.at(0).at(0).value<QVector<vilelabox::RelatedRow>>().isEmpty());
+}
+TEST(RelatedTracksTest, SearchTimesForLibrarySizes) {
+    QTemporaryDir directory;
+    for (int size : {1000, 10000, 50000}) {
+        const auto path = makeLibrary(directory.path(), size);
+        QElapsedTimer timer;
+        timer.start();
+        const auto rows = vilelabox::findRelated(path, directory.path(), cMajorReference(), 100);
+        const auto elapsed = timer.elapsed();
+        qInfo() << "RELATED-TIMING" << size << "tracks:" << elapsed << "ms," << rows.size() << "rows";
+        EXPECT_EQ(100, rows.size());
+        EXPECT_LT(elapsed, 10000);
+    }
+}
+TEST(RelatedTracksTest, EnergyLookupByIdentity) {
+    QTemporaryDir directory;
+    vilelabox::saveEnergy(directory.path(), "/music/a.mp3", 7.5);
+    EXPECT_DOUBLE_EQ(7.5, vilelabox::loadEnergy(directory.path(), "/music/a.mp3").value_or(0));
+    EXPECT_FALSE(vilelabox::loadEnergy(directory.path(), "/music/b.mp3").has_value());
+}
