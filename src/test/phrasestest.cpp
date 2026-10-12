@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 #include <cmath>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
 #include <QFile>
+#include <QFileInfo>
 #include "track/phrases.h"
 #include "analyzer/phraseanalysisstore.h"
 #include "analyzer/analyzerphrases.h"
@@ -215,20 +217,31 @@ TEST_F(AnalyzerPhrasesTest, GridEditsWriteCacheOnceAfterTheySettle) {
     QFile source(directory.filePath("debounce.wav")); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("x"); source.close();
     auto track = Track::newTemporary(source.fileName()); track->trySetBeats(grid());
     const auto cache = PhraseAnalysisStore::cachePath(directory.path(), source.fileName());
+    const auto derived = PhraseAnalysisStore::derivedPath(cache);
     PhraseAnalysisStore::instance().flushPendingSaves(); // leftovers of other tests
     vilelabox::PhraseAnalysis analysis; analysis.features = sequence(); analysis.duration = 176;
+    // The analysis wrote the immutable features once.
+    ASSERT_TRUE(PhraseAnalysisStore::saveFeatures(cache, analysis));
+    QFile featuresFile(cache); ASSERT_TRUE(featuresFile.open(QIODevice::ReadOnly));
+    const QByteArray features = featuresFile.readAll(); featuresFile.close();
+    const auto modified = QFileInfo(cache).lastModified();
     PhraseAnalysisStore::instance().set(track, analysis, cache);
-    EXPECT_FALSE(QFile::exists(cache));
+    EXPECT_FALSE(QFile::exists(derived));
     for (int i = 1; i <= 20; ++i) {
         const auto position = mixxx::audio::FramePos(i * 10);
         track->trySetBeats(mixxx::Beats::fromConstTempo(mixxx::audio::SampleRate(44100), position,
                 mixxx::Bpm(120))->withDownbeat(position));
         QCoreApplication::processEvents();
     }
-    EXPECT_FALSE(QFile::exists(cache));
+    EXPECT_FALSE(QFile::exists(derived));
     EXPECT_EQ(1, PhraseAnalysisStore::instance().pendingSaveCount());
     PhraseAnalysisStore::instance().flushPendingSaves();
     EXPECT_EQ(0, PhraseAnalysisStore::instance().pendingSaveCount());
+    EXPECT_TRUE(QFile::exists(derived));
+    // Grid edits never rewrite the features.
+    ASSERT_TRUE(featuresFile.open(QIODevice::ReadOnly));
+    EXPECT_EQ(features, featuresFile.readAll());
+    EXPECT_EQ(modified, QFileInfo(cache).lastModified());
     vilelabox::PhraseAnalysis loaded;
     ASSERT_TRUE(PhraseAnalysisStore::load(cache, &loaded));
     EXPECT_EQ(88, loaded.features.size());
@@ -321,4 +334,80 @@ TEST(RelatedTracksTest, EnergyLookupByIdentity) {
     vilelabox::saveEnergy(directory.path(), "/music/a.mp3", 7.5);
     EXPECT_DOUBLE_EQ(7.5, vilelabox::loadEnergy(directory.path(), "/music/a.mp3").value_or(0));
     EXPECT_FALSE(vilelabox::loadEnergy(directory.path(), "/music/b.mp3").has_value());
+}
+TEST_F(AnalyzerPhrasesTest, OlderPhraseWriteNeverReplacesNewer) {
+    QTemporaryDir directory;
+    const auto cache = directory.filePath("ordered.json");
+    auto newer = std::make_shared<vilelabox::PhraseAnalysis>(vilelabox::segmentPhrases(sequence(), 176, grid()));
+    auto older = std::make_shared<vilelabox::PhraseAnalysis>(*newer);
+    older->phrases.clear();
+    auto& store = PhraseAnalysisStore::instance();
+    store.writeDerived("ordered-track", cache, newer, grid(), 1000005);
+    store.writeDerived("ordered-track", cache, older, grid(), 1000003); // arrives late
+    QFile file(PhraseAnalysisStore::derivedPath(cache)); ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    const auto object = QJsonDocument::fromJson(file.readAll()).object();
+    EXPECT_EQ(1000005, object.value("sequence").toInteger());
+    EXPECT_EQ(newer->phrases.size(), object.value("phrases").toArray().size());
+}
+TEST_F(AnalyzerPhrasesTest, ReadsSingleFileCachesFromEarlierVersions) {
+    QTemporaryDir directory;
+    const auto cache = directory.filePath("legacy.json");
+    const auto result = vilelabox::segmentPhrases(sequence(), 176, grid());
+    // The first release wrote features, phrases and grid into one file.
+    QJsonArray features;
+    for (const auto& f : result.features) {
+        QJsonArray row{f.start, f.end, f.rms, f.bass, f.flux};
+        for (auto v : f.chroma) row.append(v);
+        for (auto v : f.timbre) row.append(v);
+        features.append(row);
+    }
+    QFile file(cache); ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    file.write(QJsonDocument(QJsonObject{{"version", 1}, {"duration", 176}, {"features", features},
+            {"phrases", QJsonArray{QJsonArray{0, 32, 16, 1, 0.65}}}, {"grid", QJsonObject{}}}).toJson());
+    file.close();
+    vilelabox::PhraseAnalysis loaded;
+    ASSERT_TRUE(PhraseAnalysisStore::load(cache, &loaded));
+    EXPECT_EQ(88, loaded.features.size());
+}
+TEST_F(AnalyzerPhrasesTest, MemoryKeepsTracksInUseAndTheMostRecent) {
+    auto& store = PhraseAnalysisStore::instance();
+    QVector<TrackPointer> tracks;
+    vilelabox::PhraseAnalysis small; small.features = sequence().mid(0, 8); small.duration = 16;
+    // The first track is "loaded in a deck": something holds its result.
+    tracks.push_back(Track::newTemporary(QStringLiteral("/tmp/vilelabox-memory-deck.wav")));
+    store.set(tracks.back(), small, {});
+    const auto inUse = store.get(PhraseAnalysisStore::trackKey(tracks.back()));
+    ASSERT_TRUE(inUse);
+    for (int i = 0; i < 80; ++i) {
+        tracks.push_back(Track::newTemporary(QStringLiteral("/tmp/vilelabox-memory-%1.wav").arg(i)));
+        store.set(tracks.back(), small, {});
+    }
+    EXPECT_LE(store.cachedTrackCount(), PhraseAnalysisStore::kMaxCachedTracks + 1);
+    EXPECT_EQ(inUse, store.get(PhraseAnalysisStore::trackKey(tracks.front()))); // kept
+    EXPECT_FALSE(store.get(PhraseAnalysisStore::trackKey(tracks.at(1)))); // oldest unused: dropped
+    tracks.push_back(Track::newTemporary(QStringLiteral("/tmp/vilelabox-memory-last.wav")));
+    store.set(tracks.back(), small, {});
+    EXPECT_TRUE(store.get(PhraseAnalysisStore::trackKey(tracks.back())));
+    // Measured footprint of the features: about 13 MB per hour of audio.
+    const double bytesPerHour = sizeof(vilelabox::PhraseFeature) * 20.0 * 3600;
+    qInfo() << "PHRASE-MEMORY" << sizeof(vilelabox::PhraseFeature) << "bytes per 50 ms block,"
+            << bytesPerHour / 1e6 << "MB per hour of audio";
+    EXPECT_LT(bytesPerHour, 20e6);
+}
+TEST_F(AnalyzerPhrasesTest, FailedPhraseWriteKeepsTheResultInMemory) {
+    QTemporaryDir directory;
+    QDir(directory.path()).mkdir("locked");
+    const QString locked = directory.filePath("locked");
+    QFile::setPermissions(locked, QFile::ReadOwner | QFile::ExeOwner);
+    auto track = Track::newTemporary(QStringLiteral("/tmp/vilelabox-unwritable.wav"));
+    track->trySetBeats(grid());
+    vilelabox::PhraseAnalysis analysis; analysis.features = sequence(); analysis.duration = 176;
+    const QString cache = QDir(locked).filePath("cache.json");
+    PhraseAnalysisStore::instance().set(track, analysis, cache);
+    track->trySetBeats(grid()->withDownbeat(mixxx::audio::FramePos(22050)));
+    QCoreApplication::processEvents();
+    PhraseAnalysisStore::instance().flushPendingSaves();
+    EXPECT_FALSE(QFile::exists(PhraseAnalysisStore::derivedPath(cache)));
+    EXPECT_TRUE(PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(track)));
+    QFile::setPermissions(locked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
 }

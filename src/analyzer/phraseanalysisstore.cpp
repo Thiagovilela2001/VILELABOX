@@ -20,9 +20,48 @@ PhraseAnalysisStore::PhraseAnalysisStore() {
     m_saveTimer->setSingleShot(true);
     m_saveTimer->setInterval(2000);
     connect(m_saveTimer, &QTimer::timeout, this, [this] { writePendingSaves(true); });
+    m_writer.setMaxThreadCount(1);
 }
 PhraseAnalysisStore::~PhraseAnalysisStore() {
+    // Closing: queued writes finish, pending grid edits are written now.
     writePendingSaves(false);
+    m_writer.waitForDone();
+}
+void PhraseAnalysisStore::waitForWrites() {
+    m_writer.waitForDone();
+}
+int PhraseAnalysisStore::cachedTrackCount() const {
+    QReadLocker lock(&m_lock);
+    return m_results.size();
+}
+void PhraseAnalysisStore::evictLocked() {
+    for (int i = 0; m_results.size() > kMaxCachedTracks && i < m_recent.size();) {
+        const QString location = m_recent.at(i);
+        const auto it = m_results.constFind(location);
+        // use_count() == 1: only the store holds it (not loaded in a deck).
+        if (it != m_results.cend() && it.value().use_count() == 1 && !m_pendingSaves.contains(location)) {
+            m_results.remove(location);
+            m_caches.remove(location);
+            m_recent.removeAt(i);
+        } else {
+            ++i;
+        }
+    }
+}
+void PhraseAnalysisStore::writeDerived(const QString& location, const QString& cache,
+        const std::shared_ptr<const vilelabox::PhraseAnalysis>& analysis,
+        const mixxx::BeatsPointer& beats, qint64 sequence) {
+    {
+        QMutexLocker lock(&m_writtenLock);
+        if (m_written.value(location, -1) >= sequence) return; // a newer one is on disk
+    }
+    if (!saveDerived(derivedPath(cache), *analysis, beats, sequence)) {
+        // The result stays in memory; the next grid edit tries again.
+        qWarning() << "Phrase cache: could not write" << derivedPath(cache);
+        return;
+    }
+    QMutexLocker lock(&m_writtenLock);
+    m_written.insert(location, std::max(m_written.value(location, -1), sequence));
 }
 int PhraseAnalysisStore::pendingSaveCount() const {
     QReadLocker lock(&m_lock);
@@ -36,7 +75,7 @@ void PhraseAnalysisStore::scheduleSave(const QString& location, const mixxx::Bea
         QWriteLocker lock(&m_lock);
         const auto cache = m_caches.value(location);
         if (cache.isEmpty()) return;
-        m_pendingSaves.insert(location, {cache, m_results.value(location), beats});
+        m_pendingSaves.insert(location, {cache, m_results.value(location), beats, ++m_sequence});
     }
     // The timer belongs to the GUI thread; analyzer threads also get here.
     QMetaObject::invokeMethod(m_saveTimer, qOverload<>(&QTimer::start), Qt::AutoConnection);
@@ -47,12 +86,17 @@ void PhraseAnalysisStore::writePendingSaves(bool async) {
         QWriteLocker lock(&m_lock);
         pending.swap(m_pendingSaves);
     }
-    for (const auto& save : std::as_const(pending)) {
+    for (auto it = pending.cbegin(); it != pending.cend(); ++it) {
+        const QString location = it.key();
+        const PendingSave save = it.value();
         if (!save.analysis) continue;
+        // Only the grid-dependent file: the features never change after analysis.
         if (async) {
-            QThreadPool::globalInstance()->start([save] { PhraseAnalysisStore::save(save.cache, *save.analysis, save.beats); });
+            m_writer.start([this, location, save] {
+                writeDerived(location, save.cache, save.analysis, save.beats, save.sequence);
+            });
         } else {
-            PhraseAnalysisStore::save(save.cache, *save.analysis, save.beats);
+            writeDerived(location, save.cache, save.analysis, save.beats, save.sequence);
         }
     }
 }
@@ -100,25 +144,40 @@ bool PhraseAnalysisStore::load(const QString& path, vilelabox::PhraseAnalysis* a
     *analysis = std::move(result);
     return true;
 }
-bool PhraseAnalysisStore::save(const QString& path, const vilelabox::PhraseAnalysis& analysis,
-        const mixxx::BeatsPointer& beats) {
-    QJsonArray features, phrases;
+namespace {
+bool writeJson(const QString& path, const QJsonObject& object) {
+    const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+}
+}
+QString PhraseAnalysisStore::derivedPath(const QString& featuresPath) {
+    QString path = featuresPath;
+    if (path.endsWith(QStringLiteral(".json"))) path.chop(5);
+    return path + QStringLiteral(".phrases.json");
+}
+bool PhraseAnalysisStore::saveFeatures(const QString& path, const vilelabox::PhraseAnalysis& analysis) {
+    QJsonArray features;
     for (const auto& f : analysis.features) {
         QJsonArray row{f.start, f.end, f.rms, f.bass, f.flux};
         for (auto v : f.chroma) row.append(v);
         for (auto v : f.timbre) row.append(v);
         features.append(row);
     }
+    return writeJson(path, QJsonObject{{"version", kVersion}, {"duration", analysis.duration}, {"features", features}});
+}
+bool PhraseAnalysisStore::saveDerived(const QString& path, const vilelabox::PhraseAnalysis& analysis,
+        const mixxx::BeatsPointer& beats, qint64 sequence) {
+    QJsonArray phrases;
     for (const auto& p : analysis.phrases) phrases.append(QJsonArray{p.start, p.end, p.bars, static_cast<int>(p.type), p.confidence});
     QJsonObject grid;
-    if (beats) {
-        grid["serialized"] = QString::fromLatin1(beats->toByteArray().toBase64());
-    }
-    const auto bytes = QJsonDocument(QJsonObject{{"version", kVersion}, {"duration", analysis.duration},
-            {"features", features}, {"phrases", phrases}, {"grid", grid}}).toJson(QJsonDocument::Compact);
-    QDir().mkpath(QFileInfo(path).absolutePath());
-    QSaveFile file(path);
-    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+    if (beats) grid["serialized"] = QString::fromLatin1(beats->toByteArray().toBase64());
+    return writeJson(path, QJsonObject{{"version", kVersion}, {"sequence", sequence}, {"phrases", phrases}, {"grid", grid}});
+}
+bool PhraseAnalysisStore::save(const QString& path, const vilelabox::PhraseAnalysis& analysis,
+        const mixxx::BeatsPointer& beats) {
+    return saveFeatures(path, analysis) && saveDerived(derivedPath(path), analysis, beats);
 }
 void PhraseAnalysisStore::set(TrackPointer track, vilelabox::PhraseAnalysis analysis, const QString& cache,
         bool persist) {
@@ -127,10 +186,13 @@ void PhraseAnalysisStore::set(TrackPointer track, vilelabox::PhraseAnalysis anal
         QWriteLocker lock(&m_lock);
         m_results.insert(location, std::make_shared<const vilelabox::PhraseAnalysis>(std::move(analysis)));
         m_caches.insert(location, cache);
+        m_recent.removeAll(location);
+        m_recent.append(location);
+        evictLocked();
     }
     if (track->getLocation().isEmpty()) {
         connect(track.get(), &QObject::destroyed, this, [this, location] {
-            QWriteLocker lock(&m_lock); m_results.remove(location); m_caches.remove(location);
+            QWriteLocker lock(&m_lock); m_results.remove(location); m_caches.remove(location); m_recent.removeAll(location);
         }, Qt::DirectConnection);
     }
     // Context is the track: automatic disconnect on destruction. A weak pointer
@@ -159,7 +221,9 @@ void PhraseAnalysisStore::recalculate(TrackPointer track, Save save) {
         cache = m_caches.value(location);
     }
     if (save == Save::Now && !cache.isEmpty()) {
-        PhraseAnalysisStore::save(cache, *result, beats);
+        // Fresh analysis, on the analyzer thread: features once, plus results.
+        if (!saveFeatures(cache, *result)) qWarning() << "Phrase cache: could not write" << cache;
+        writeDerived(location, cache, result, beats, ++m_sequence);
     } else if (save == Save::Debounced) {
         scheduleSave(location, beats);
     }

@@ -13,10 +13,28 @@ O hash inclui caminho, tamanho, data do arquivo e versão do algoritmo. O arquiv
 contém também as frases e a serialização do grid, incluindo a referência de
 compasso. Alterações de grid ou SET 1 recalculam a segmentação sem ler o áudio.
 Esse recálculo é agendado na fila da interface, sem escrever cache no callback
-de áudio que recebeu a edição do grid. Uma análise nova grava o cache na hora,
-na thread do analisador. Recálculos por edição de grid gravam uma única vez,
-2 s depois da última edição, numa thread de fundo; ao fechar o programa, o que
-estiver pendente é gravado.
+de áudio que recebeu a edição do grid.
+
+### Cache e memória
+
+- Dois arquivos por faixa em `analysis/phrases/`: `<hash>.json` com as
+  características, gravado uma vez por análise, na thread do analisador; e
+  `<hash>.phrases.json` com frases e grid, regravado depois de edições de grid.
+  Editar o grid nunca regrava as características.
+- Os caches da primeira versão (um arquivo só, com tudo junto) continuam
+  válidos: são lidos como arquivo de características e as frases embutidas são
+  ignoradas, porque sempre são recalculadas a partir do grid atual.
+- Edições de grid gravam uma única vez, 2 s depois da última, numa única thread
+  de escrita, em ordem. Cada escrita tem um número de sequência por faixa, e
+  uma escrita mais antiga nunca substitui uma mais nova.
+- Ao fechar o programa, as escritas na fila terminam e as edições pendentes são
+  gravadas antes de sair.
+- Se a gravação falhar (sem permissão, disco cheio), o resultado continua na
+  memória, um aviso vai para o log e a próxima edição tenta de novo.
+- Memória: as características ocupam 184 bytes por bloco de 50 ms, cerca de
+  13 MB por hora de áudio (1,1 MB por faixa de 5 minutos). Ficam na memória as
+  faixas carregadas nos decks e as 32 analisadas mais recentemente; as outras
+  são liberadas e relidas do disco quando a faixa é carregada.
 A segmentação agrega características por compasso, calcula novidade com um kernel
 Foote local de oito compassos e escolhe limites por programação dinâmica em
 múltiplos de quatro, preferindo oito. A matriz local evita memória quadrática.
