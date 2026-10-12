@@ -15,6 +15,26 @@ compasso. Alterações de grid ou SET 1 recalculam a segmentação sem ler o áu
 Esse recálculo é agendado na fila da interface, sem escrever cache no callback
 de áudio que recebeu a edição do grid.
 
+### Segmentação e rótulos (revisão de 2026-10-12)
+
+- Fronteiras: novidade espectral nos limites de 4 compassos, mais a entrada ou
+  saída de voz sustentada (janelas de 8 compassos, com o detector Demucs).
+  Trechos com mais de 32 compassos e com menos de 8 custam mais, então blocos
+  muito longos são divididos nos limites de 8 compassos.
+- Níveis medidos entre os percentis 10 e 90 da própria faixa (masters altas e
+  planas também têm INTRO e DOWN).
+- CHORUS: trecho alto. INTRO/OUTRO: primeiro/último trecho não alto, com pouca
+  voz (ou até 16 compassos). DOWN: trecho baixo depois de um CHORUS. UP:
+  trecho que sobe antes de um CHORUS (estendido para trás se a subida ocupa
+  mais de uma frase). VERSE: o resto; voz aumenta a confiança.
+- Histerese: uma frase de até 8 compassos perto do limiar herda o rótulo dos
+  dois vizinhos, sem apagar fronteiras.
+
+Conferência em faixas reais com `DISABLED_RealTrackHarness` (ver o teste). Em
+`pulse_na_base`, a primeira versão dava INTRO de 64 compassos com voz desde os
+14 s; agora: VERSE 32 + VERSE 32 + frase baixa de 8 + CHORUS 32. A correção
+musical dos rótulos ainda depende da validação auditiva (VALIDACAO.md).
+
 ### Cache e memória
 
 - Dois arquivos por faixa em `analysis/phrases/`: `<hash>.json` com as

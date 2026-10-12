@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include "track/phrases.h"
 #include "analyzer/phraseanalysisstore.h"
+#include "analyzer/vocalanalysisstore.h"
 #include "analyzer/analyzerphrases.h"
 #include "track/track.h"
 #include "test/mixxxtest.h"
@@ -458,4 +459,85 @@ TEST(MixPointsTest, TriggerLandsIncomingDropOnOutroEnd) {
     EXPECT_DOUBLE_EQ(144, vilelabox::mixTrigger(track, range, 0, 0));  // unknown intro: at the exit
     EXPECT_DOUBLE_EQ(144, vilelabox::mixTrigger(track, range, 24, 130)); // already past: the exit
     EXPECT_DOUBLE_EQ(160, vilelabox::mixTrigger(track, range, 24, 150)); // past the exit: next phrase
+}
+namespace {
+// Bars of 2 s with a given level per section; each section has its own
+// timbre so the segmentation finds its boundaries.
+QVector<vilelabox::PhraseFeature> sections(const QVector<std::tuple<int, double, double>>& parts) {
+    QVector<vilelabox::PhraseFeature> features;
+    int bar = 0, index = 0;
+    for (const auto& [count, rms, bass] : parts) {
+        for (int i = 0; i < count; ++i, ++bar) {
+            vilelabox::PhraseFeature f;
+            f.start = bar * 2; f.end = (bar + 1) * 2;
+            f.rms = rms + (i % 2) * 0.001; f.bass = bass;
+            f.chroma[(index * 5) % 12] = 1; f.timbre[index % 6] = 1;
+            features.push_back(f);
+        }
+        ++index;
+    }
+    return features;
+}
+} // namespace
+TEST(PhrasesTest, LoudFlatMasterStillHasIntroAndBreakdown) {
+    // Everything is above 65% of the loudest bar, which the old rules called
+    // CHORUS from the first bar on.
+    const auto features = sections({{16, 0.82, 0.80}, {32, 1.0, 1.0}, {8, 0.80, 0.55}, {32, 1.0, 1.0}});
+    const auto result = vilelabox::segmentPhrases(features, 176, grid());
+    ASSERT_EQ(4, result.phrases.size());
+    EXPECT_EQ(vilelabox::PhraseType::Intro, result.phrases[0].type);
+    EXPECT_EQ(vilelabox::PhraseType::Chorus, result.phrases[1].type);
+    EXPECT_EQ(vilelabox::PhraseType::Down, result.phrases[2].type);
+    EXPECT_EQ(vilelabox::PhraseType::Chorus, result.phrases[3].type);
+}
+TEST(PhrasesTest, RisingSectionBeforeTheDropIsAnUp) {
+    auto features = sections({{16, 0.2, 0.05}, {8, 0.3, 0.1}, {32, 1.0, 1.0}, {16, 0.2, 0.05}});
+    for (int bar = 16; bar < 24; ++bar) features[bar].rms = 0.2 + (bar - 16) * 0.1; // build-up
+    const auto result = vilelabox::segmentPhrases(features, 144, grid());
+    // The build-up may be one or two phrases; judge by position.
+    for (const auto& phrase : result.phrases) {
+        const auto expected = phrase.start < 32 ? vilelabox::PhraseType::Intro
+                : phrase.start < 48 ? vilelabox::PhraseType::Up
+                : phrase.start < 112 ? vilelabox::PhraseType::Chorus : vilelabox::PhraseType::Outro;
+        EXPECT_EQ(expected, phrase.type) << phrase.start;
+    }
+    EXPECT_GE(result.phrases.size(), 4);
+}
+#include <QProcessEnvironment>
+// Manual check on a real track (not run by default):
+//   HARNESS_RAW=track.f32 (stereo, 44.1 kHz) HARNESS_BPM HARNESS_FIRST (frame)
+//   HARNESS_DOWNBEAT (beat index) [HARNESS_VOCALS=detector.json]
+//   mixxx-test --gtest_also_run_disabled_tests --gtest_filter='*RealTrackHarness*'
+TEST_F(AnalyzerPhrasesTest, DISABLED_RealTrackHarness) {
+    const auto env = QProcessEnvironment::systemEnvironment();
+    QFile raw(env.value("HARNESS_RAW"));
+    ASSERT_TRUE(raw.open(QIODevice::ReadOnly));
+    const double bpm = env.value("HARNESS_BPM").toDouble();
+    const double first = env.value("HARNESS_FIRST").toDouble();
+    const int downbeat = env.value("HARNESS_DOWNBEAT", "0").toInt();
+    auto beats = mixxx::Beats::fromConstTempo(mixxx::audio::SampleRate(44100), mixxx::audio::FramePos(first), mixxx::Bpm(bpm));
+    beats = beats->withDownbeat(mixxx::audio::FramePos(first + downbeat * 44100 * 60 / bpm));
+    QTemporaryDir directory;
+    auto track = Track::newTemporary(directory.filePath("harness.wav"));
+    track->trySetBeats(beats);
+    if (env.contains("HARNESS_VOCALS")) {
+        QFile json(env.value("HARNESS_VOCALS"));
+        ASSERT_TRUE(json.open(QIODevice::ReadOnly));
+        VocalAnalysisStore::instance().set(track->getLocation(), VocalAnalysis::fromJson(QJsonDocument::fromJson(json.readAll()).object()));
+    }
+    config()->setValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), true);
+    AnalyzerPhrases analyzer(config());
+    const qint64 frames = raw.size() / 8;
+    ASSERT_TRUE(analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), frames * 2));
+    while (!raw.atEnd()) {
+        const QByteArray chunk = raw.read(4096 * 8);
+        ASSERT_TRUE(analyzer.processSamples(reinterpret_cast<const CSAMPLE*>(chunk.constData()), chunk.size() / 4));
+    }
+    analyzer.storeResults(track);
+    analyzer.cleanup();
+    static const char* names[]{"?", "INTRO", "UP", "CHORUS", "DOWN", "VERSE", "OUTRO"};
+    for (const auto& p : PhraseAnalysisStore::instance().get(track->getLocation())->phrases) {
+        qInfo().noquote() << QString("PHRASE %1-%2 s  %3 bars  %4  %5").arg(p.start, 6, 'f', 1).arg(p.end, 6, 'f', 1)
+                .arg(p.bars, 3).arg(names[static_cast<int>(p.type)], -7).arg(p.confidence, 0, 'f', 2);
+    }
 }
