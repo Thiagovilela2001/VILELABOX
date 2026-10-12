@@ -541,3 +541,31 @@ TEST_F(AnalyzerPhrasesTest, DISABLED_RealTrackHarness) {
                 .arg(p.bars, 3).arg(names[static_cast<int>(p.type)], -7).arg(p.confidence, 0, 'f', 2);
     }
 }
+#include "track/tempooctave.h"
+namespace {
+QVector<mixxx::audio::FramePos> constantBeats(double bpm, int count, double first = 1000) {
+    QVector<mixxx::audio::FramePos> beats;
+    for (int i = 0; i < count; ++i) beats.push_back(mixxx::audio::FramePos(first + i * 44100 * 60 / bpm));
+    return beats;
+}
+double bpmOf(const QVector<mixxx::audio::FramePos>& beats) {
+    return 60.0 * 44100 / ((beats.last() - beats.first()) / (beats.size() - 1));
+}
+} // namespace
+TEST(TempoOctaveTest, MovesDetectedTempoIntoPreferredRange) {
+    const mixxx::audio::SampleRate rate(44100);
+    const auto half = vilelabox::normalizeTempoOctave(constantBeats(70, 64), rate, 78, 155);
+    EXPECT_NEAR(140, bpmOf(half), 0.01); // grime detected at half tempo
+    EXPECT_EQ(127, half.size());
+    const auto same = vilelabox::normalizeTempoOctave(constantBeats(124, 64), rate, 78, 155);
+    EXPECT_EQ(64, same.size());
+    EXPECT_NEAR(153, bpmOf(vilelabox::normalizeTempoOctave(constantBeats(76.5, 64), rate, 78, 155)), 0.01);
+}
+TEST(TempoOctaveTest, HalvingKeepsTheBarOneBeat) {
+    const mixxx::audio::SampleRate rate(44100);
+    const auto beats = constantBeats(170, 64);
+    const auto downbeat = beats[5]; // an odd beat
+    const auto halved = vilelabox::normalizeTempoOctave(beats, rate, 78, 155, downbeat);
+    EXPECT_NEAR(85, bpmOf(halved), 0.01);
+    EXPECT_TRUE(halved.contains(downbeat));
+}

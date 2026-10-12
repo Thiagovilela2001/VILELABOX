@@ -55,6 +55,20 @@ automatically shows a beat-grid for them, and allows you to synchronize tracks u
     </layout>
    </item>
    <item row="8" column="0">
+    <layout class="QHBoxLayout" name="layoutBpmRange">
+     <item>
+      <widget class="QLabel" name="labelBpmRange">
+       <property name="text"><string>Faixa de BPM preferida:</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="comboBoxBpmRange">
+       <property name="toolTip"><string>Como no rekordbox: um BPM detectado fora da faixa é dobrado ou reduzido à metade (ex.: grime em 70 vira 140). Vale para novas análises.</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="9" column="0">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

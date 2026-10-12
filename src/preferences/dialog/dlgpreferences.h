@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QEvent>
 #include <QRect>
+#include <QHash>
 #include <QStringList>
 #include <memory>
 
@@ -20,6 +21,9 @@ class EffectsManager;
 class Library;
 class VinylControlManager;
 class DlgPrefControllers;
+class QLineEdit;
+class QLabel;
+class QTabBar;
 
 namespace mixxx {
 class ScreensaverManager;
@@ -56,7 +60,8 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
 
     void addPageWidget(PreferencesPage page,
             const QString& pageTitle,
-            const QString& iconFile);
+            const QString& iconFile,
+            const QString& category = QString());
     void removePageWidget(DlgPreferencePage* pWidget);
     void expandTreeItem(QTreeWidgetItem* pItem);
     void switchToPage(const QString& pageTitle, DlgPreferencePage* pPage);
@@ -88,6 +93,14 @@ class DlgPreferences : public QDialog, public Ui::DlgPreferencesDlg {
   private:
     DlgPreferencePage* currentPage();
     void fixSliderStyle();
+    void setupSettingsInterface();
+    void filterPages(const QString& query);
+    void updateSectionTabs(QTreeWidgetItem* item);
+    QHash<QString, QTreeWidgetItem*> m_categories;
+    QLineEdit* m_search = nullptr;
+    QLabel* m_pageHeading = nullptr;
+    QTabBar* m_sectionTabs = nullptr;
+    QList<QTreeWidgetItem*> m_tabItems;
     QList<PreferencesPage> m_allPages;
     void onShow();
     void onHide();

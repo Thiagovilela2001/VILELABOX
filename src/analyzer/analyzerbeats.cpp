@@ -1,5 +1,7 @@
 #include "analyzer/analyzerbeats.h"
 
+#include "track/tempooctave.h"
+
 #include <QHash>
 #include <QString>
 #include <QVector>
@@ -32,6 +34,7 @@ mixxx::AnalyzerPluginInfo AnalyzerBeats::defaultPlugin() {
 
 AnalyzerBeats::AnalyzerBeats(UserSettingsPointer pConfig, bool enforceBpmDetection)
         : m_bpmSettings(pConfig),
+          m_pConfig(pConfig),
           m_enforceBpmDetection(enforceBpmDetection),
           m_bPreferencesReanalyzeOldBpm(false),
           m_bPreferencesReanalyzeImported(false),
@@ -227,6 +230,14 @@ void AnalyzerBeats::storeResults(TrackPointer pTrack) {
     mixxx::BeatsPointer pBeats;
     if (m_pPlugin->supportsBeatTracking()) {
         QVector<mixxx::audio::FramePos> beats = m_pPlugin->getBeats();
+        // VILELABOX: preferred BPM range, like rekordbox's analysis range
+        // (default 78-155): 70 BPM grime becomes 140; 0 disables.
+        const double minBpm = m_pConfig->getValue(ConfigKey("[Vilelabox]", "BpmRangeMin"), 78.0);
+        const double maxBpm = m_pConfig->getValue(ConfigKey("[Vilelabox]", "BpmRangeMax"), 155.0);
+        if (minBpm > 0) {
+            beats = vilelabox::normalizeTempoOctave(beats, m_sampleRate, minBpm, maxBpm,
+                    m_pPlugin->getFirstDownbeat());
+        }
         QHash<QString, QString> extraVersionInfo = getExtraVersionInfo(
                 m_pluginId, m_bPreferencesFastAnalysis);
         pBeats = BeatFactory::makePreferredBeats(

@@ -20,6 +20,16 @@ DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
     checkBoxAnalyzePhrases->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), false));
     checkBoxAutoPhraseCues->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), false));
     checkBoxRelatedEnergy->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), false));
+    // Preferred BPM range (rekordbox's analysis ranges).
+    static const QList<QPair<int, int>> ranges{{0, 0}, {58, 115}, {78, 155}, {98, 195}, {118, 235}};
+    for (const auto& range : ranges) {
+        comboBoxBpmRange->addItem(range.first ? QStringLiteral("%1 – %2").arg(range.first).arg(range.second)
+                                              : tr("Desligada"), QVariant::fromValue(range.first * 1000 + range.second));
+    }
+    const int currentMin = pConfig->getValue(ConfigKey("[Vilelabox]", "BpmRangeMin"), 78);
+    const int currentMax = pConfig->getValue(ConfigKey("[Vilelabox]", "BpmRangeMax"), 155);
+    const int currentIndex = comboBoxBpmRange->findData(currentMin * 1000 + currentMax);
+    comboBoxBpmRange->setCurrentIndex(currentIndex >= 0 ? currentIndex : 2);
     lineEditVocalPython->setText(pConfig->getValueString(ConfigKey("[Vilelabox]", "VocalPython")));
     lineEditVocalPython->setPlaceholderText(AnalyzerVocals::resolvePython(pConfig));
     m_availablePlugins = AnalyzerBeats::availablePlugins();
@@ -210,6 +220,9 @@ void DlgPrefBeats::fastAnalysisEnabled(int i) {
 void DlgPrefBeats::slotApply() {
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), checkBoxRelatedEnergy->isChecked());
     m_phraseConfig->set(ConfigKey("[Vilelabox]", "VocalPython"), ConfigValue(lineEditVocalPython->text().trimmed()));
+    const int range = comboBoxBpmRange->currentData().toInt();
+    m_phraseConfig->setValue(ConfigKey("[Vilelabox]", "BpmRangeMin"), range / 1000);
+    m_phraseConfig->setValue(ConfigKey("[Vilelabox]", "BpmRangeMax"), range % 1000);
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), checkBoxAutoPhraseCues->isChecked());
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), checkBoxAnalyzePhrases->isChecked());
     m_bpmSettings.setBeatPluginId(m_selectedAnalyzerId);

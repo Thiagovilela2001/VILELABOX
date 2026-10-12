@@ -17,6 +17,16 @@ Na biblioteca, use o menu da faixa → análise → reanalisar. O modo oposto ao
 
 A análise rápida foi desativada para analisar a faixa inteira. Os grids anteriores não são substituídos automaticamente. O detector Queen Mary original e SoundTouch seguem disponíveis nas preferências.
 
+### Faixa de BPM preferida
+
+Como a faixa de análise do rekordbox: em Preferências → Detecção de BPM,
+**Faixa de BPM preferida** (58–115, 78–155, 98–195, 118–235 ou desligada; padrão
+78–155). Um BPM detectado abaixo da faixa é dobrado (uma batida no meio de cada
+par) e acima dela é reduzido à metade, mantendo a metade que contém o compasso 1.
+Exemplo da biblioteca: `Syredu - la na treta` estava em 70 BPM; com 78–155, uma
+nova análise dá 140. Vale para análises novas: reanalise a faixa para aplicar.
+Chaves: `[Vilelabox],BpmRangeMin` e `BpmRangeMax`.
+
 ## Referência do rekordbox e limites
 
 Observação local estática, sem execução do rekordbox:
