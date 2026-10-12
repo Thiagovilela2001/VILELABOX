@@ -30,7 +30,7 @@ class PhraseAnalysisStore : public QObject {
     static bool saveFeatures(const QString& path, const vilelabox::PhraseAnalysis& analysis);
     /// Grid-dependent results (phrases, grid); rewritten after grid edits.
     static bool saveDerived(const QString& path, const vilelabox::PhraseAnalysis& analysis,
-            const mixxx::BeatsPointer& beats, qint64 sequence = 0);
+            const mixxx::BeatsPointer& beats, qint64 sequence = 0, const QString& location = {});
     static QString derivedPath(const QString& featuresPath);
     /// Writes the derived file unless a write with a higher sequence for the
     /// same track already reached the disk. Used by the writer thread.

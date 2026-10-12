@@ -55,7 +55,7 @@ void PhraseAnalysisStore::writeDerived(const QString& location, const QString& c
         QMutexLocker lock(&m_writtenLock);
         if (m_written.value(location, -1) >= sequence) return; // a newer one is on disk
     }
-    if (!saveDerived(derivedPath(cache), *analysis, beats, sequence)) {
+    if (!saveDerived(derivedPath(cache), *analysis, beats, sequence, location)) {
         // The result stays in memory; the next grid edit tries again.
         qWarning() << "Phrase cache: could not write" << derivedPath(cache);
         return;
@@ -168,12 +168,14 @@ bool PhraseAnalysisStore::saveFeatures(const QString& path, const vilelabox::Phr
     return writeJson(path, QJsonObject{{"version", kVersion}, {"duration", analysis.duration}, {"features", features}});
 }
 bool PhraseAnalysisStore::saveDerived(const QString& path, const vilelabox::PhraseAnalysis& analysis,
-        const mixxx::BeatsPointer& beats, qint64 sequence) {
+        const mixxx::BeatsPointer& beats, qint64 sequence, const QString& location) {
     QJsonArray phrases;
     for (const auto& p : analysis.phrases) phrases.append(QJsonArray{p.start, p.end, p.bars, static_cast<int>(p.type), p.confidence});
     QJsonObject grid;
     if (beats) grid["serialized"] = QString::fromLatin1(beats->toByteArray().toBase64());
-    return writeJson(path, QJsonObject{{"version", kVersion}, {"sequence", sequence}, {"phrases", phrases}, {"grid", grid}});
+    // The track location lets tools (tools/phrases/export_csv.py) name the file.
+    return writeJson(path, QJsonObject{{"version", kVersion}, {"sequence", sequence}, {"location", location},
+            {"duration", analysis.duration}, {"phrases", phrases}, {"grid", grid}});
 }
 bool PhraseAnalysisStore::save(const QString& path, const vilelabox::PhraseAnalysis& analysis,
         const mixxx::BeatsPointer& beats) {

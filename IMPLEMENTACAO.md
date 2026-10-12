@@ -63,3 +63,21 @@ As skins instaladas e o bridge foram atualizados com backup em
 as mudanças. Abra PADS no deck para os novos modos; habilite as análises opcionais
 nas preferências de BPM, ou use Análise → Reanalisar frases no menu da faixa.
 Stems permanecem adiados e `res/controllers/` não foi alterado.
+
+## Plano 3 — consolidação (2026-10-12)
+
+Branch `vilelabox-publico`. Remotos: `origin` é o Mixxx oficial (nunca enviar);
+`vilelabox` é https://github.com/Thiagovilela2001/VILELABOX. O hook local
+`pre-push` roda `tools/check-third-party-assets.sh`; a existência do remoto não
+substitui essa verificação.
+
+| Fase | Commit | Evidência |
+| --- | --- | --- |
+| 1. Frases fora do callback | `f955b9b` | `BarSyncTest.PhraseStateIgnoresLateUpdatesForPreviousTrack`, `RapidTrackSwapsPublishOnlyTheFinalTrack`; trackLoaded sem alocação, lock ou fila (revisão do código). Validação com buffers pequenos no dispositivo real: pendente (sem acesso ao áudio). |
+| 2. Relacionadas assíncronas | `38c6ec6` | `RelatedTracksTest.*`; busca medida: 1.000 faixas 26 ms, 10.000 faixas 201 ms, 50.000 faixas 982 ms (biblioteca sintética, 25% compatíveis). Biblioteca real: 11 faixas. |
+| 3. Verificação unificada | `0b2dc72` | `tools/verify-mod.sh`; build do zero desse commit em diretório separado e verificação completa: OK. Workflow `.github/workflows/vilelabox.yml` escrito, não executado no GitHub. |
+| 4. Vocal cancelável | `d2cb713` | `AnalyzerVocalsTest.DiagnosesEachFailure`, `TimeoutKillsTheDetector`, `CancellingStopsTheDetectorWithoutWaitingForTimeout` (cancelamento em ~300 ms). |
+| 5. Cache e memória | `8a6505d` | `AnalyzerPhrasesTest.GridEditsWriteCacheOnceAfterTheySettle`, `OlderPhraseWriteNeverReplacesNewer`, `ReadsSingleFileCachesFromEarlierVersions`, `MemoryKeepsTracksInUseAndTheMostRecent`, `FailedPhraseWriteKeepsTheResultInMemory`; 184 bytes por bloco de 50 ms (~13 MB/h de áudio). |
+| 6. Validação real | — | Preparada: `VALIDACAO.md` e `tools/phrases/export_csv.py`. Sessão com o usuário pendente. |
+| 7. Correção manual de frases | — | Aguarda a decisão de ancoragem (tempo, posição musical ou híbrido). |
+

@@ -2,6 +2,15 @@
 
 # Plano 2 — correções e publicação no GitHub
 
+> **Situação atual (2026-10-12): plano encerrado; o texto abaixo é registro
+> histórico.** A (limpeza do histórico) e C (publicação) foram feitas em
+> 2026-10-09: a branch publicada é `vilelabox-publico`, enviada para
+> `vilelabox/main` (https://github.com/Thiagovilela2001/VILELABOX); a branch
+> `blackmesa` ficou congelada e contém arquivos do instalador no histórico, não
+> deve ser enviada. B1–B5 concluídas. D (validação em sessão real) passou para
+> o PLANO-3, fase 6 ([VALIDACAO.md](VALIDACAO.md)). As menções a "B5 aguarda
+> decisão" e "antes de publicar" abaixo descrevem o momento em que foram escritas.
+
 Ponto de partida: branch `blackmesa` em `4de552c` (fases 0–5 do PLANO.md
 commitadas, fase 6 adiada). Este plano cobre três coisas, nesta ordem:
 
