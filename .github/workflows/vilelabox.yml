@@ -1,0 +1,66 @@
+# Verificação dos módulos próprios do VILELABOX (tools/verify-mod.sh).
+# Só Ubuntu: compila com a mesma configuração usada localmente (sem QML e sem
+# Engine Prime) e roda os testes do mod, a ponte XML, o detector de vocal e os
+# verificadores das skins. A checagem de arquivos de terceiros precisa do
+# instalador extraído e é pulada aqui (roda no hook pre-push local).
+name: VILELABOX
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      BUILDENV_BASEPATH: /home/runner/buildenv
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up build environment
+        run: tools/debian_buildenv.sh setup
+
+      - name: Set up GitHub cache for ccache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: vilelabox-ccache-${{ github.sha }}
+          restore-keys: vilelabox-ccache-
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DQT6=ON -DQML=OFF -DENGINEPRIME=OFF -DBUILD_TESTING=ON
+          -DINSTALL_USER_UDEV_RULES=OFF
+
+      - name: Build
+        run: cmake --build build --parallel 4
+
+      - name: Python for the vocal detector
+        run: |
+          python3 -m venv /home/runner/vocal-venv
+          /home/runner/vocal-venv/bin/pip install numpy scipy
+
+      - name: Verify the mod
+        run: tools/verify-mod.sh --no-build
+        env:
+          VILELABOX_VOCAL_PYTHON: /home/runner/vocal-venv/bin/python
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vilelabox-tests
+          path: |
+            build/vilelabox-tests.xml
+            build/vilelabox-tests.log

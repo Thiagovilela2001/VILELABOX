@@ -130,12 +130,21 @@ bash run-bars.sh        # abre com um perfil de teste separado (~/.mixxx/bars-pr
 - Nada é instalado no sistema.
 - Escolha a skin em **Preferências → Interface**: `RbxOriginal` ou `RbxFlowBars`.
 
-Testes dos módulos novos:
+Verificação de todos os módulos próprios (testes C++ por módulo, ponte XML,
+detector de vocal, skins e arquivos de terceiros), com resumo e código de saída
+diferente de zero se algo obrigatório falhar:
 
 ```bash
-QT_QPA_PLATFORM=offscreen build/mixxx-test --resource-path "$PWD/res" \
-  --gtest_filter='Phrase*:*Phrase*:BarSync*:BarJumpLoop*:*GridPanel*:AutoDownbeat*:RelatedTracks*:VocalAnalysis*:AnalyzerVocals*'
+tools/verify-mod.sh              # compila e verifica
+tools/verify-mod.sh --no-build   # usa o build/ existente
+tools/verify-mod.sh --full       # também a suíte inteira do Mixxx
 ```
+
+As falhas conhecidas da base Mixxx 2.5.6 ficam em
+[tools/verify/known-failures.txt](tools/verify/known-failures.txt), com a
+evidência, e rodam à parte no modo `--full`. O workflow
+[.github/workflows/vilelabox.yml](.github/workflows/vilelabox.yml) roda a mesma
+verificação no GitHub.
 
 O detector de vocal usa um Python com NumPy e SciPy (padrão
 `~/.venv/bin/python`, ou a variável `VILELABOX_VOCAL_PYTHON`).

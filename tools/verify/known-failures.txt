@@ -1,0 +1,5 @@
+# Falhas da base Mixxx 2.5.6 conhecidas antes do mod, executadas à parte por
+# tools/verify-mod.sh --full. Uma linha por filtro gtest; texto após "  #" é
+# a evidência. Não acrescente aqui um teste que o mod pode ter afetado.
+ControllerScriptEngineLegacyTimerTest.*  # 4 falhas em timers singleShot (bind/arrow/classes); o mod não altera src/controllers nem src/control (git diff 2.5.6 vazio); observado desde a verificação inicial (IMPLEMENTACAO.md)
+ControlObjectAliasTest.PlayerManager  # trava ao inicializar o dispositivo de áudio sem servidor de áudio; ambiente headless
