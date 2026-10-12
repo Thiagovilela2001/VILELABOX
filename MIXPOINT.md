@@ -1,8 +1,26 @@
 # Mix Point Link
 
-Abra PADS no deck parado e use LINK. A saída do deck que toca vem do início do
-cue Outro, ou do início da última frase. A entrada do deck parado vem do cue
-Intro ou do CUE principal. Sem pontos válidos, o Link não arma.
+Abra PADS no deck parado e use LINK. Sem pontos válidos, o Link não arma.
+
+### Pontos automáticos
+
+- **Entrada** (deck parado): cue Intro; senão o compasso 1 (SET 1), onde a
+  música começa; senão o CUE principal. Sempre no início de um compasso.
+- **Introdução**: compassos da entrada até o primeiro drop (frase CHORUS ou UP)
+  ou até a primeira voz, o que vier antes, em múltiplos de 4 (4 a 64).
+- **Saída** (deck tocando), do início ao fim da passagem: cue Outro até o fim;
+  senão a frase OUTRO; senão o primeiro limite de frase de 8 compassos **depois
+  da última voz**, para as vozes não se sobreporem (com pelo menos 8 compassos
+  até o fim); senão 32 compassos antes do fim.
+- **Disparo**: o deck parado começa de modo que o drop dele caia no fim da saída
+  do outro deck (fim − introdução), no máximo 32 compassos antes do início da
+  saída. Sem introdução conhecida, dispara no início da saída. Se esse ponto já
+  passou, usa o início da saída ou o próximo limite de frase.
+- Uma saída escolhida à mão (`mix_point_select_next/prev` com o deck tocando)
+  dispara exatamente nela, como no rekordbox.
+
+Indicadores novos: `mix_point_out_end_position`, `mix_point_out_manual` e
+`mix_point_intro_bars`. Testes: `MixPointsTest.*`.
 
 O BPM efetivo dos dois decks deve coincidir (tolerância 0,05 BPM). Use SYNC ou
 ajuste os tempos antes de armar. O Link não ajusta BPM, volume nem crossfader

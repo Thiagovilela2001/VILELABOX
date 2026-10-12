@@ -8,6 +8,8 @@
 #include "engine/controls/phrasecontrol.h"
 #include "track/track.h"
 #include "track/cue.h"
+#include "track/mixpoints.h"
+#include "analyzer/vocalanalysisstore.h"
 #include "moc_mixpointcontrol.cpp"
 
 MixPointControl::MixPointControl(const QString& group, UserSettingsPointer config) : EngineControl(group, config) {
@@ -24,8 +26,14 @@ MixPointControl::MixPointControl(const QString& group, UserSettingsPointer confi
     m_error = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_error"));
     m_in = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_in_position"));
     m_out = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_out_position"));
-    for (auto* control : {m_armed.get(), m_left.get(), m_error.get(), m_in.get(), m_out.get()}) control->setReadOnly();
-    m_in->forceSet(-1); m_out->forceSet(-1);
+    m_outEnd = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_out_end_position"));
+    m_outManual = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_out_manual"));
+    m_introBars = std::make_unique<ControlObject>(ConfigKey(group, "mix_point_intro_bars"));
+    for (auto* control : {m_armed.get(), m_left.get(), m_error.get(), m_in.get(), m_out.get(),
+                 m_outEnd.get(), m_outManual.get(), m_introBars.get()}) {
+        control->setReadOnly();
+    }
+    m_in->forceSet(-1); m_out->forceSet(-1); m_outEnd->forceSet(-1);
     connect(m_link.get(), &ControlObject::valueChanged, this, [this](double v) { if (v > 0) arm(false); }, Qt::DirectConnection);
     connect(m_silent.get(), &ControlObject::valueChanged, this, [this](double v) { if (v > 0) arm(true); }, Qt::DirectConnection);
     connect(m_exit.get(), &ControlObject::valueChanged, this, [this](double v) { if (v > 0) cancel(); }, Qt::DirectConnection);
@@ -43,7 +51,8 @@ void MixPointControl::cancel(int error) {
 void MixPointControl::trackLoaded(TrackPointer track) {
     // Audio callback: no allocation, locks or queued calls here.
     Q_UNUSED(track);
-    cancel(); m_in->forceSet(-1); m_out->forceSet(-1);
+    cancel(); m_in->forceSet(-1); m_out->forceSet(-1); m_outEnd->forceSet(-1);
+    m_outManual->forceSet(0); m_introBars->forceSet(0);
     m_inSelected = false; m_outSelected = false;
 }
 void MixPointControl::trackLoadedOnGuiThread() {
@@ -60,19 +69,34 @@ void MixPointControl::trackLoadedOnGuiThread() {
 }
 void MixPointControl::refreshPoints() {
     const auto track = getEngineBuffer()->getLoadedTrack();
-    if (!track) return;
+    if (!track || !track->getSampleRate().isValid()) return;
+    const double rate = track->getSampleRate();
     const auto phrases = getEngineBuffer()->phraseControl()->analysis();
+    vilelabox::MixTrack mix;
+    mix.phrases = phrases.get();
+    mix.beats = track->getBeats();
+    mix.duration = track->getDuration();
+    const auto vocals = VocalAnalysisStore::instance().get(track->getLocation());
+    if (vocals && vocals->status == VocalAnalysis::Status::Ready) mix.vocals = vocals->segments;
+    const auto seconds = [rate](mixxx::audio::FramePos position) {
+        return position.isValid() ? std::optional<double>(position.value() / rate) : std::nullopt;
+    };
+    if (auto cue = track->findCueByType(mixxx::CueType::Intro)) mix.introCue = seconds(cue->getPosition());
+    if (auto cue = track->findCueByType(mixxx::CueType::Outro)) mix.outroCue = seconds(cue->getPosition());
+    mix.mainCue = seconds(track->getMainCuePosition());
+    const auto toEngine = [rate](double seconds) { return seconds * rate * 2; };
     if (!m_inSelected) {
-        auto cue = track->findCueByType(mixxx::CueType::Intro);
-        auto position = cue ? cue->getPosition() : track->getMainCuePosition();
-        m_in->forceSet(position.isValid() ? position.toEngineSamplePos() : -1);
+        const auto in = vilelabox::mixInPoint(mix);
+        if (!in && mix.mainCue) m_in->forceSet(toEngine(*mix.mainCue)); // no grid yet
+        else m_in->forceSet(in ? toEngine(*in) : -1);
     }
+    if (m_in->get() >= 0) m_introBars->forceSet(vilelabox::introBars(mix, m_in->get() / (2 * rate)));
     if (!m_outSelected) {
-        auto cue = track->findCueByType(mixxx::CueType::Outro);
-        auto position = cue ? cue->getPosition() : mixxx::audio::kInvalidFramePos;
-        if (!position.isValid() && phrases && !phrases->phrases.isEmpty()) position = mixxx::audio::FramePos(phrases->phrases.last().start * track->getSampleRate());
-        m_out->forceSet(position.isValid() ? position.toEngineSamplePos() : -1);
+        const auto out = vilelabox::mixOutRange(mix);
+        m_out->forceSet(out ? toEngine(out->start) : -1);
+        m_outEnd->forceSet(out ? toEngine(out->end) : -1);
     }
+    m_outManual->forceSet(m_outSelected ? 1 : 0);
 }
 void MixPointControl::select(int direction) {
     cancel(); refreshPoints();
@@ -112,6 +136,20 @@ void MixPointControl::arm(bool silent) {
             auto phrases = source->phraseControl()->analysis();
             if (phrases && !phrases->phrases.isEmpty()) trigger = mixxx::audio::FramePos(phrases->phrases.last().start * sourceTrack->getSampleRate());
         }
+    }
+    // Automatic exit: start early enough that this track's drop lands where the
+    // outgoing outro ends. A hand-picked exit triggers exactly there.
+    const auto outEnd = mixxx::audio::FramePos::fromEngineSamplePosMaybeInvalid(
+            ControlObject::get(ConfigKey(source->getGroup(), "mix_point_out_end_position")));
+    const bool manualExit = ControlObject::get(ConfigKey(source->getGroup(), "mix_point_out_manual")) > 0;
+    if (trigger.isValid() && outEnd.isValid() && !manualExit && sourceBeats->getSampleRate().isValid()) {
+        const double sourceRate = sourceBeats->getSampleRate();
+        vilelabox::MixTrack outgoing;
+        outgoing.beats = sourceBeats;
+        const vilelabox::MixOutRange range{trigger.value() / sourceRate, outEnd.value() / sourceRate};
+        const double now = source->getExactPlayPos().value() / sourceRate;
+        trigger = mixxx::audio::FramePos(vilelabox::mixTrigger(outgoing, range,
+                static_cast<int>(m_introBars->get()), now) * sourceRate);
     }
     if (!trigger.isValid() || trigger <= source->getExactPlayPos()) { cancel(2); return; }
     m_sourceSeekGeneration = source->seekGeneration();

@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 MODULES = [
     ("Compassos e grid", ("BeatsTest", "BeatGridTest", "BeatMapTest", "BpmControlTest", "BeatsTranslateTest",
                           "BarJumpLoopTest", "AutoDownbeatTest", "AnalyzerGridTest", "GridPanelTest")),
-    ("Sync, Mix Point e pads", ("BarSyncTest",)),
+    ("Sync, Mix Point e pads", ("BarSyncTest", "MixPointsTest")),
     ("Frases e cues", ("PhrasesTest", "AnalyzerPhrasesTest")),
     ("Relacionadas e energia", ("RelatedTracksTest",)),
     ("Vocal", ("VocalAnalysisTest", "AnalyzerVocalsTest")),

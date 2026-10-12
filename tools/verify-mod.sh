@@ -28,7 +28,7 @@ RESULTS=(); FAILED=0
 record() { RESULTS+=("$(printf '%-6s %s' "$1" "$2")"); [[ $1 == FALHA ]] && FAILED=1; return 0; }
 step() { echo; echo "=== $1"; }
 
-MOD_TESTS='BeatsTest.*:BeatGridTest.*:BeatMapTest.*:BpmControlTest.*:BeatsTranslateTest.*:BarSyncTest.*:BarJumpLoopTest.*:*GridPanelTest*:AutoDownbeatTest.*:AnalyzerGridTest.*:PhrasesTest.*:AnalyzerPhrasesTest.*:RelatedTracksTest.*:VocalAnalysisTest.*:AnalyzerVocalsTest.*:KeyUtilsTest.*:EngineBufferTest.*'
+MOD_TESTS='BeatsTest.*:BeatGridTest.*:BeatMapTest.*:BpmControlTest.*:BeatsTranslateTest.*:BarSyncTest.*:BarJumpLoopTest.*:*GridPanelTest*:AutoDownbeatTest.*:AnalyzerGridTest.*:PhrasesTest.*:AnalyzerPhrasesTest.*:RelatedTracksTest.*:MixPointsTest.*:VocalAnalysisTest.*:AnalyzerVocalsTest.*:KeyUtilsTest.*:EngineBufferTest.*:VilelaboxPreferencesTest.*'
 TEST_ENV=(env QT_QPA_PLATFORM=offscreen)
 
 if (( BUILD )); then

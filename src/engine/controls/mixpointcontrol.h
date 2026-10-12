@@ -25,6 +25,9 @@ class MixPointControl : public EngineControl {
     void refreshPoints();
     std::unique_ptr<ControlPushButton> m_link, m_silent, m_exit, m_next, m_previous;
     std::unique_ptr<ControlObject> m_armed, m_left, m_error, m_in, m_out;
+    // End of the outgoing outro, whether the exit was picked by hand, and the
+    // bars from the entry to this track's first drop or vocal.
+    std::unique_ptr<ControlObject> m_outEnd, m_outManual, m_introBars;
     std::unique_ptr<ControlProxy> m_play, m_bpm, m_volume;
     // Proxies of each source deck, created in arm() and never destroyed while
     // this control exists, so process() can never read a deleted proxy.

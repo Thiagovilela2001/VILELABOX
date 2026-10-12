@@ -411,3 +411,51 @@ TEST_F(AnalyzerPhrasesTest, FailedPhraseWriteKeepsTheResultInMemory) {
     EXPECT_TRUE(PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(track)));
     QFile::setPermissions(locked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
 }
+#include "track/mixpoints.h"
+namespace {
+vilelabox::MixTrack mixTrack(const vilelabox::PhraseAnalysis& phrases) {
+    vilelabox::MixTrack track;
+    track.phrases = &phrases;
+    track.beats = grid(); // 120 BPM, bar 1 at 0 s: one bar every 2 s
+    track.duration = 176;
+    return track;
+}
+} // namespace
+TEST(MixPointsTest, EntryIsIntroCueElseBarOne) {
+    const auto phrases = vilelabox::segmentPhrases(sequence(), 176, grid());
+    auto track = mixTrack(phrases);
+    EXPECT_DOUBLE_EQ(0, vilelabox::mixInPoint(track).value());
+    track.introCue = 10.3;
+    EXPECT_DOUBLE_EQ(10, vilelabox::mixInPoint(track).value()); // snapped to the bar
+}
+TEST(MixPointsTest, IntroLengthEndsAtFirstDropOrVocal) {
+    const auto phrases = vilelabox::segmentPhrases(sequence(), 176, grid());
+    auto track = mixTrack(phrases);
+    EXPECT_EQ(16, vilelabox::introBars(track, 0)); // first CHORUS at 32 s
+    track.vocals = {{20.0, 30.0}};
+    EXPECT_EQ(8, vilelabox::introBars(track, 0)); // vocal at bar 11 -> 8 bars
+    track.phrases = nullptr; track.vocals.clear();
+    EXPECT_EQ(0, vilelabox::introBars(track, 0)); // unknown
+}
+TEST(MixPointsTest, ExitAfterTheLastVocalOrOutroCue) {
+    const auto phrases = vilelabox::segmentPhrases(sequence(), 176, grid());
+    auto track = mixTrack(phrases);
+    auto range = vilelabox::mixOutRange(track).value();
+    EXPECT_DOUBLE_EQ(112, range.start); // no OUTRO, no vocals: 32 bars before the end
+    EXPECT_DOUBLE_EQ(176, range.end);
+    track.vocals = {{40.0, 130.0}};
+    range = vilelabox::mixOutRange(track).value();
+    EXPECT_DOUBLE_EQ(144, range.start); // first 8-bar boundary after the vocals (bar 73)
+    track.outroCue = 150.4;
+    EXPECT_DOUBLE_EQ(150, vilelabox::mixOutRange(track)->start);
+}
+TEST(MixPointsTest, TriggerLandsIncomingDropOnOutroEnd) {
+    const auto phrases = vilelabox::segmentPhrases(sequence(), 176, grid());
+    const auto track = mixTrack(phrases);
+    const vilelabox::MixOutRange range{144, 176};
+    EXPECT_DOUBLE_EQ(144, vilelabox::mixTrigger(track, range, 16, 0)); // 32 s of intro = outro
+    EXPECT_DOUBLE_EQ(128, vilelabox::mixTrigger(track, range, 24, 0)); // longer intro starts earlier
+    EXPECT_DOUBLE_EQ(144, vilelabox::mixTrigger(track, range, 0, 0));  // unknown intro: at the exit
+    EXPECT_DOUBLE_EQ(144, vilelabox::mixTrigger(track, range, 24, 130)); // already past: the exit
+    EXPECT_DOUBLE_EQ(160, vilelabox::mixTrigger(track, range, 24, 150)); // past the exit: next phrase
+}

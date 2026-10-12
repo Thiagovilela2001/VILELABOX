@@ -732,6 +732,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/analyzer/phraseanalysisstore.cpp
   src/track/phrases.cpp
   src/track/autophrasecues.cpp
+  src/track/mixpoints.cpp
   src/engine/controls/phrasecontrol.cpp
   src/engine/controls/mixpointcontrol.cpp
   src/engine/controls/padcontrol.cpp
@@ -1103,6 +1104,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/preferences/dialog/dlgprefeffectsdlg.ui
   src/preferences/dialog/dlgpreferencepage.cpp
   src/preferences/dialog/dlgpreferences.cpp
+  src/preferences/dialog/dlgprefvilelabox.cpp
   src/preferences/dialog/dlgpreferencesdlg.ui
   src/preferences/dialog/dlgprefinterface.cpp
   src/preferences/dialog/dlgprefinterfacedlg.ui
@@ -2140,6 +2142,7 @@ if(BUILD_TESTING)
     src/test/analyserwaveformtest.cpp
     src/test/analyzersilence_test.cpp
     src/test/phrasestest.cpp
+    src/test/preferencesvilelabox_test.cpp
     src/test/analyzergrid_test.cpp
     src/test/audiotaperpot_test.cpp
     src/test/autodjprocessor_test.cpp
