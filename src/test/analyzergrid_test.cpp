@@ -216,3 +216,88 @@ TEST_F(AnalyzerVocalsTest, VocalIndicatorTracksAnalysisAndEject) {
     indicator.setTrack(TrackPointer());
     EXPECT_EQ(indicator.text(), QStringLiteral("—"));
 }
+
+#include <QElapsedTimer>
+#include <csignal>
+namespace {
+// A stand-in interpreter: a shell script that receives the detector's
+// arguments (script --raw <audio> --sample-rate <rate>).
+QString fakePython(const QTemporaryDir& directory, const QString& name, const QString& body) {
+    const QString path = directory.filePath(name);
+    QFile file(path);
+    EXPECT_TRUE(file.open(QIODevice::WriteOnly));
+    file.write(("#!/bin/sh\n" + body + "\n").toUtf8());
+    file.close();
+    file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+    return path;
+}
+std::shared_ptr<const VocalAnalysis> runVocals(const UserSettingsPointer& config, const QString& audio,
+        std::function<bool()> stopping = {}) {
+    const auto track = Track::newTemporary(audio);
+    AnalyzerVocals analyzer(config, std::move(stopping));
+    if (analyzer.initialize(AnalyzerTrack(track), mixxx::audio::SampleRate(44100), 88200)) {
+        std::vector<CSAMPLE> silence(44100 * 2, 0);
+        analyzer.processSamples(silence.data(), silence.size());
+        analyzer.storeResults(track);
+    }
+    analyzer.cleanup();
+    return VocalAnalysisStore::instance().get(track->getLocation());
+}
+} // namespace
+TEST_F(AnalyzerVocalsTest, DiagnosesEachFailure) {
+    QTemporaryDir directory;
+    const QString audio = directory.filePath("source.wav");
+    QFile source(audio); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("x"); source.close();
+    const ConfigKey python("[Vilelabox]", "VocalPython");
+    struct Case { QString body; VocalAnalysis::Error error; QString detail; };
+    const QList<Case> cases{
+            {"echo \"ModuleNotFoundError: No module named 'numpy'\" >&2; exit 1", VocalAnalysis::Error::DependenciesMissing, "numpy"},
+            {"echo boom >&2; exit 3", VocalAnalysis::Error::DetectorFailed, "boom"},
+            {"echo not-json; exit 0", VocalAnalysis::Error::InvalidResult, ""},
+    };
+    int index = 0;
+    for (const auto& c : cases) {
+        config()->set(python, ConfigValue(fakePython(directory, QString("py%1").arg(index++), c.body)));
+        const auto result = runVocals(config(), audio);
+        ASSERT_TRUE(result);
+        EXPECT_EQ(VocalAnalysis::Status::Failed, result->status);
+        EXPECT_EQ(c.error, result->error) << c.body.toStdString();
+        if (!c.detail.isEmpty()) EXPECT_TRUE(result->detail.contains(c.detail)) << result->detail.toStdString();
+        EXPECT_FALSE(result->describe().isEmpty());
+    }
+    config()->set(python, ConfigValue(directory.filePath("no-such-python")));
+    const auto missing = runVocals(config(), audio);
+    ASSERT_TRUE(missing);
+    EXPECT_EQ(VocalAnalysis::Error::PythonMissing, missing->error);
+}
+TEST_F(AnalyzerVocalsTest, TimeoutKillsTheDetector) {
+    QTemporaryDir directory;
+    const QString audio = directory.filePath("source.wav");
+    QFile source(audio); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("x"); source.close();
+    config()->set(ConfigKey("[Vilelabox]", "VocalPython"), ConfigValue(fakePython(directory, "slow", "exec sleep 30")));
+    config()->setValue(ConfigKey("[Vilelabox]", "VocalTimeoutSeconds"), 1);
+    QElapsedTimer timer; timer.start();
+    const auto result = runVocals(config(), audio);
+    EXPECT_LT(timer.elapsed(), 5000);
+    ASSERT_TRUE(result);
+    EXPECT_EQ(VocalAnalysis::Error::Timeout, result->error);
+}
+TEST_F(AnalyzerVocalsTest, CancellingStopsTheDetectorWithoutWaitingForTimeout) {
+    QTemporaryDir directory;
+    const QString audio = directory.filePath("source.wav");
+    QFile source(audio); ASSERT_TRUE(source.open(QIODevice::WriteOnly)); source.write("x"); source.close();
+    const QString pidFile = directory.filePath("pid"), rawFile = directory.filePath("raw");
+    config()->set(ConfigKey("[Vilelabox]", "VocalPython"), ConfigValue(fakePython(directory, "hang",
+            QString("echo $$ > '%1'; echo \"$3\" > '%2'; exec sleep 60").arg(pidFile, rawFile))));
+    QElapsedTimer timer; timer.start();
+    const auto result = runVocals(config(), audio, [&timer] { return timer.elapsed() > 300; });
+    EXPECT_LT(timer.elapsed(), 3000); // the default timeout is 120 s
+    ASSERT_TRUE(result);
+    EXPECT_EQ(VocalAnalysis::Error::Cancelled, result->error);
+    QFile pid(pidFile); ASSERT_TRUE(pid.open(QIODevice::ReadOnly));
+    const int processId = pid.readAll().trimmed().toInt();
+    ASSERT_GT(processId, 0);
+    EXPECT_NE(0, ::kill(processId, 0)); // the detector process is gone
+    QFile raw(rawFile); ASSERT_TRUE(raw.open(QIODevice::ReadOnly));
+    EXPECT_FALSE(QFile::exists(QString::fromUtf8(raw.readAll().trimmed()))); // temporary audio removed
+}

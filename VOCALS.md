@@ -4,7 +4,8 @@ O blackmesa/VILELABOX analisa a presença provável de voz em segundo plano ao
 carregar uma faixa. A skin RbxOriginal mostra uma faixa rosa na waveform completa
 e na waveform que acompanha a reprodução. O indicador abaixo da tonalidade mostra
 `VOZ…` durante a análise, `VOCAL` em um trecho detectado, `SEM VOZ` fora dele e
-`VOZ ?` se o analisador estiver indisponível. Silêncio não é marcado como vocal.
+`VOZ ?` se o analisador estiver indisponível (passe o mouse para ver o motivo e
+como resolver) e `VOZ –` se a análise foi cancelada. Silêncio não é marcado como vocal.
 Reabra o aplicativo depois da atualização para carregar o novo executável e a skin.
 
 É uma implementação própria inspirada na função do rekordbox. O modelo
@@ -27,8 +28,25 @@ resultado antigo. Na próxima carga de uma faixa já analisada, o cache é usado
 A análise não modifica os arquivos de música. Falha do helper produz estado de
 indisponibilidade, separado de um resultado instrumental.
 
-O ambiente atual usa `/home/thiago/.venv/bin/python` com NumPy e SciPy. É possível
-selecionar outro Python compatível pela variável `VILELABOX_VOCAL_PYTHON`.
+### Interpretador, diagnóstico e cancelamento
+
+O Python do detector vem, nesta ordem: do campo **Python do detector de vocal**
+em Preferências → Detecção de BPM (`[Vilelabox],VocalPython`), da variável
+`VILELABOX_VOCAL_PYTHON`, de `~/.venv/bin/python` ou do `python3` do sistema.
+Ele precisa de NumPy e SciPy.
+
+Cada falha tem um diagnóstico próprio, mostrado no tooltip do indicador:
+Python não encontrado, arquivos do detector ausentes, dependência ausente
+(com o nome do módulo e o comando de instalação), tempo esgotado, falha do
+detector (última linha do erro), resultado inválido e análise cancelada.
+
+O detector tem até 120 s por faixa (`[Vilelabox],VocalTimeoutSeconds`). A espera
+é feita em fatias de 100 ms e consulta o pedido de parada da thread de análise:
+cancelar a análise ou fechar o aplicativo encerra o processo em cerca de
+100 ms, sem esperar o tempo-limite, e apaga o áudio temporário. No Linux, o
+processo auxiliar também é encerrado se o Mixxx cair (`PR_SET_PDEATHSIG`).
+O detector roda na fila de análise, depois dos outros analisadores da faixa;
+uma fila própria não foi necessária até aqui e não foi medida.
 Recursos: `res/vocals/vocal_detector.py` e `res/vocals/model.json`.
 
 ## Limites e validação

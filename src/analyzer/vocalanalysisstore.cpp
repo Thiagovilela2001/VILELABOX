@@ -41,6 +41,29 @@ std::shared_ptr<const VocalAnalysis> VocalAnalysis::fromJson(const QJsonObject& 
     return result;
 }
 
+QString VocalAnalysis::describe() const {
+    switch (error) {
+    case Error::None:
+        return QObject::tr("Detector de vocal indisponível.");
+    case Error::PythonMissing:
+        return QObject::tr("Python não encontrado (%1). Configure o interpretador em "
+                           "Preferências → Detecção de BPM → Python do detector de vocal.").arg(detail);
+    case Error::ResourcesMissing:
+        return QObject::tr("Arquivos do detector ausentes (%1). Reinstale ou recompile o VILELABOX.").arg(detail);
+    case Error::DependenciesMissing:
+        return QObject::tr("Falta uma dependência do detector (%1). Instale com: <python> -m pip install numpy scipy").arg(detail);
+    case Error::Timeout:
+        return QObject::tr("O detector demorou mais que %1 s e foi interrompido. Reanalise a faixa.").arg(detail);
+    case Error::DetectorFailed:
+        return QObject::tr("O detector falhou: %1").arg(detail);
+    case Error::InvalidResult:
+        return QObject::tr("O detector devolveu um resultado inválido; nada foi salvo.");
+    case Error::Cancelled:
+        return QObject::tr("Análise de vocal cancelada. Carregue a faixa de novo para analisar.");
+    }
+    return {};
+}
+
 VocalAnalysisStore& VocalAnalysisStore::instance() {
     static VocalAnalysisStore store;
     return store;

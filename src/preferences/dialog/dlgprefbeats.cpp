@@ -1,5 +1,7 @@
 #include "preferences/dialog/dlgprefbeats.h"
 
+#include "analyzer/analyzervocals.h"
+
 #include "analyzer/analyzerbeats.h"
 #include "defs_urls.h"
 #include "moc_dlgprefbeats.cpp"
@@ -18,6 +20,8 @@ DlgPrefBeats::DlgPrefBeats(QWidget* parent, UserSettingsPointer pConfig)
     checkBoxAnalyzePhrases->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), false));
     checkBoxAutoPhraseCues->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), false));
     checkBoxRelatedEnergy->setChecked(pConfig->getValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), false));
+    lineEditVocalPython->setText(pConfig->getValueString(ConfigKey("[Vilelabox]", "VocalPython")));
+    lineEditVocalPython->setPlaceholderText(AnalyzerVocals::resolvePython(pConfig));
     m_availablePlugins = AnalyzerBeats::availablePlugins();
     for (const auto& info : std::as_const(m_availablePlugins)) {
         comboBoxBeatPlugin->addItem(info.name(), info.id());
@@ -205,6 +209,7 @@ void DlgPrefBeats::fastAnalysisEnabled(int i) {
 
 void DlgPrefBeats::slotApply() {
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AnalyzeRelatedTracks"), checkBoxRelatedEnergy->isChecked());
+    m_phraseConfig->set(ConfigKey("[Vilelabox]", "VocalPython"), ConfigValue(lineEditVocalPython->text().trimmed()));
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AutoPhraseCues"), checkBoxAutoPhraseCues->isChecked());
     m_phraseConfig->setValue(ConfigKey("[Analyzer]", "AnalyzePhrases"), checkBoxAnalyzePhrases->isChecked());
     m_bpmSettings.setBeatPluginId(m_selectedAnalyzerId);

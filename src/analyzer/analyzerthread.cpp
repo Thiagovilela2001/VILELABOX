@@ -118,7 +118,7 @@ void AnalyzerThread::doRun() {
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerBeats>(m_pConfig, enforceBpmDetection)));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerKey>(m_pConfig)));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerSilence>(m_pConfig)));
-    m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerVocals>(m_pConfig)));
+    m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerVocals>(m_pConfig, [this] { return isStopping(); })));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerPhrases>(m_pConfig)));
     m_analyzers.push_back(AnalyzerWithState(std::make_unique<AnalyzerEnergy>(m_pConfig)));
     DEBUG_ASSERT(!m_analyzers.empty());

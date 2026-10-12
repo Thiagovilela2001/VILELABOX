@@ -9,11 +9,18 @@
 
 struct VocalAnalysis {
     enum class Status { Pending, Ready, Failed };
+    /// Why a Failed analysis failed; shown to the user with a fix.
+    enum class Error { None, PythonMissing, ResourcesMissing, DependenciesMissing,
+        Timeout, DetectorFailed, InvalidResult, Cancelled };
     Status status = Status::Pending;
+    Error error = Error::None;
+    QString detail;
     double duration = 0;
     QVector<QPair<double, double>> segments;
     bool hasVocal(double seconds) const;
     static std::shared_ptr<const VocalAnalysis> fromJson(const QJsonObject& object);
+    /// Actionable description of `error` for the interface.
+    QString describe() const;
 };
 
 class VocalAnalysisStore : public QObject {

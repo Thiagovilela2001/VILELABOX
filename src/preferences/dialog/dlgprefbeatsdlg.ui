@@ -41,6 +41,20 @@ automatically shows a beat-grid for them, and allows you to synchronize tracks u
     </widget>
    </item>
    <item row="7" column="0">
+    <layout class="QHBoxLayout" name="layoutVocalPython">
+     <item>
+      <widget class="QLabel" name="labelVocalPython">
+       <property name="text"><string>Python do detector de vocal:</string></property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="lineEditVocalPython">
+       <property name="toolTip"><string>Interpretador com NumPy e SciPy. Vazio: variável VILELABOX_VOCAL_PYTHON, ~/.venv/bin/python ou python3 do sistema, nessa ordem.</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="8" column="0">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>

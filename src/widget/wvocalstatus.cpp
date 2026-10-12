@@ -34,7 +34,9 @@ void WVocalStatus::refresh() {
     QString text;
     if (!m_track) text = QStringLiteral("—");
     else if (!analysis || analysis->status == VocalAnalysis::Status::Pending) text = tr("VOZ…");
-    else if (analysis->status == VocalAnalysis::Status::Failed) text = tr("VOZ ?");
+    else if (analysis->status == VocalAnalysis::Status::Failed) {
+        text = analysis->error == VocalAnalysis::Error::Cancelled ? tr("VOZ –") : tr("VOZ ?");
+    }
     else {
         vocal = analysis->hasVocal(m_position.get() * analysis->duration);
         text = vocal ? tr("VOCAL") : tr("SEM VOZ");
@@ -45,4 +47,6 @@ void WVocalStatus::refresh() {
         style()->polish(this);
     }
     setText(text);
+    // The reason and the fix for an unavailable detector.
+    setToolTip(analysis && analysis->status == VocalAnalysis::Status::Failed ? analysis->describe() : QString());
 }
