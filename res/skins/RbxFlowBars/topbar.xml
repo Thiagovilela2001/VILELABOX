@@ -219,10 +219,10 @@
 
       <!-- skin settings menu -->
       <PushButton>
-        <TooltipId>skin_settings</TooltipId>
+        <Tooltip>Configurações completas do VILELABOX</Tooltip>
         <ObjectName>SkinSettingsToggle</ObjectName>
         <Size>72f,22f</Size>
-        <NumberStates>2</NumberStates>
+        <NumberStates>1</NumberStates>
         <RightClickIsPushButton>false</RightClickIsPushButton>
         <State>
           <Number>0</Number>
@@ -231,15 +231,8 @@
           <Unpressed scalemode="STRETCH">skin:bases/btn_blank.svg</Unpressed>
           <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
         </State>
-        <State>
-          <Number>1</Number>
-          <Text>SETTINGS</Text>
-          <Alignment>center</Alignment>
-          <Unpressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Unpressed>
-          <Pressed scalemode="STRETCH">skin:bases/btn_blank_active.svg</Pressed>
-        </State>
         <Connection>
-          <ConfigKey>[RbxFlow],show_settings</ConfigKey>
+          <ConfigKey>[App],show_preferences</ConfigKey>
           <ButtonState>LeftButton</ButtonState>
         </Connection>
       </PushButton>

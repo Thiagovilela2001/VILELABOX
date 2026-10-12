@@ -84,7 +84,7 @@ void DlgPrefVilelabox::slotUpdate() {
         toggle.widget->setChecked(value);
     }
     m_relatedLimit->setValue(m_config->getValue(ConfigKey("[Vilelabox]", "RelatedLimit"), 100));
-    m_vocalTimeout->setValue(m_config->getValue(ConfigKey("[Vilelabox]", "VocalTimeoutSeconds"), 120));
+    m_vocalTimeout->setValue(m_config->getValue(ConfigKey("[Vilelabox]", "VocalTimeoutSeconds"), 900));
 }
 
 void DlgPrefVilelabox::slotApply() {
@@ -100,5 +100,5 @@ void DlgPrefVilelabox::slotApply() {
 void DlgPrefVilelabox::slotResetToDefaults() {
     for (const auto& toggle : std::as_const(m_toggles)) toggle.widget->setChecked(toggle.defaultValue);
     m_relatedLimit->setValue(100);
-    m_vocalTimeout->setValue(120);
+    m_vocalTimeout->setValue(900);
 }

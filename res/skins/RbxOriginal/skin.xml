@@ -42,7 +42,6 @@
       <attribute persist="true" config_key="[RbxOriginal],show_mixer">1</attribute>
       <attribute persist="true" config_key="[RbxOriginal],show_library">1</attribute>
       <attribute persist="true" config_key="[RbxOriginal],show_big_library">0</attribute>
-      <attribute persist="true" config_key="[RbxOriginal],show_settings">0</attribute>
       <attribute persist="true" config_key="[RbxOriginal],show_hotcues">1</attribute>
       <attribute persist="true" config_key="[RbxOriginal],show_8_hotcues">1</attribute>
       <attribute persist="true" config_key="[RbxOriginal],show_loop_controls">1</attribute>
@@ -257,7 +256,7 @@
         </WidgetStack>
 
         <!-- ================= SETTINGS PANEL ================= -->
-        <Template src="skin:skin_settings.xml"/>
+        <!-- Settings are available in the native preferences window. -->
 
               </Children>
             </WidgetGroup>

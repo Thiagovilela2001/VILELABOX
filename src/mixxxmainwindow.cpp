@@ -33,6 +33,7 @@
 #include "broadcast/broadcastmanager.h"
 #endif
 #include "control/controlindicatortimer.h"
+#include "control/controlpushbutton.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
 #ifdef __ENGINEPRIME__
@@ -302,6 +303,15 @@ void MixxxMainWindow::initialize() {
             m_pCoreServices->getLibrary());
     m_pPrefDlg->setWindowIcon(QIcon(QStringLiteral(":/images/icons/scalable/apps/blackmesa.svg")));
     m_pPrefDlg->setHidden(true);
+    m_pShowPreferences = std::make_unique<ControlPushButton>(
+            ConfigKey("[App]", "show_preferences"));
+    connect(m_pShowPreferences.get(), &ControlObject::valueChanged,
+            this, [this](double value) {
+                if (value > 0) {
+                    slotOptionsPreferences();
+                    m_pShowPreferences->set(0);
+                }
+            }, Qt::QueuedConnection);
     connect(m_pPrefDlg,
             &DlgPreferences::tooltipModeChanged,
             this,

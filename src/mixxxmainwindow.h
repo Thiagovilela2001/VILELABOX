@@ -10,6 +10,7 @@
 #include "util/parented_ptr.h"
 
 class ControlObject;
+class ControlPushButton;
 class DlgDeveloperTools;
 class DlgPreferences;
 class DlgKeywheel;
@@ -147,6 +148,7 @@ class MixxxMainWindow : public QMainWindow {
     DlgDeveloperTools* m_pDeveloperToolsDlg;
 
     DlgPreferences* m_pPrefDlg;
+    std::unique_ptr<ControlPushButton> m_pShowPreferences;
     parented_ptr<DlgKeywheel> m_pKeywheel;
 
 #ifdef __ENGINEPRIME__

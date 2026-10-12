@@ -11,6 +11,7 @@ MODULES = [
     ("Relacionadas e energia", ("RelatedTracksTest",)),
     ("Vocal", ("VocalAnalysisTest", "AnalyzerVocalsTest")),
     ("Tonalidade e motor", ("KeyUtilsTest", "EngineBufferTest")),
+    ("Configurações", ("VilelaboxPreferencesTest",)),
 ]
 
 def module_of(suite, name):

@@ -30,6 +30,7 @@ Cada recurso tem um documento próprio, com controles, uso, limites e testes.
 | **Faixas relacionadas** | Seção na biblioteca que sugere faixas por tom compatível (Camelot), BPM (±6%, com metade e dobro) e uma nota de energia própria | [RELACIONADAS.md](RELACIONADAS.md) |
 | **Pads na tela** | Slicer, KeyShift, Keyboard e Release FX (BREAK, ECHO, SPIN), em painel opcional na skin | [PADS.md](PADS.md) |
 | **Skins** | `RbxOriginal` (layout de dois decks no estilo do modo Performance) e `RbxFlowBars` (gráficos gerados por scripts próprios) com todos os controles do mod | [res/skins/](res/skins/) |
+| **Configurações** | Janela completa com categorias, abas, busca, painéis das skins e opções do mod, acessível pela engrenagem ou SETTINGS | [CONFIGURACOES.md](CONFIGURACOES.md) |
 | **Ponte XML** | Exporta e importa faixas, hot cues, loops, grid e playlists em `rekordbox.xml` | [tools/rekordbox/sync.py](tools/rekordbox/sync.py) |
 
 ### Compatibilidade com o Mixxx original
