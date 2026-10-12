@@ -131,6 +131,7 @@ TEST_F(AnalyzerPhrasesTest, AutomaticCuesPreserveUserSlotsLockAndUndoEdits) {
     auto track = Track::newTemporary(QStringLiteral("auto-phrase-cues.wav"));
     track->setAudioProperties(mixxx::audio::ChannelCount(2), mixxx::audio::SampleRate(44100),
             mixxx::audio::Bitrate(1411), mixxx::Duration::fromSeconds(176));
+    track->trySetBeats(grid());
     auto user = track->createAndAddCue(mixxx::CueType::HotCue, 0, mixxx::audio::FramePos(100), mixxx::audio::kInvalidFramePos);
     user->setLabel("User");
     AutoPhraseCues generator;
@@ -141,9 +142,15 @@ TEST_F(AnalyzerPhrasesTest, AutomaticCuesPreserveUserSlotsLockAndUndoEdits) {
     generator.apply(result, Track::newTemporary(QStringLiteral("another-track.wav")));
     EXPECT_EQ(1, track->getCuePoints().size());
     generator.apply(result);
-    ASSERT_EQ(5, track->getCuePoints().size());
+    // DROP (32 s), BREAK (96 s), DROP 2 (112 s) and the Intro/Outro ranges.
+    // MIX IN (0 s) would sit on the user's cue and MIX OUT (112 s) on DROP 2:
+    // neither is duplicated.
+    ASSERT_EQ(6, track->getCuePoints().size());
+    QStringList labels;
+    for (const auto& cue : track->getCuePoints()) if (cue->getType() == mixxx::CueType::HotCue) labels << cue->getLabel();
+    EXPECT_EQ((QStringList{"User", "DROP", "BREAK", "DROP 2"}), labels);
     EXPECT_EQ("User", user->getLabel()); EXPECT_EQ(mixxx::audio::FramePos(100), user->getPosition());
-    generator.apply(result); EXPECT_EQ(5, track->getCuePoints().size());
+    generator.apply(result); EXPECT_EQ(6, track->getCuePoints().size());
     auto intro = track->findCueByType(mixxx::CueType::Intro); ASSERT_TRUE(intro); intro->setLabel("My Intro");
     generator.undo(); EXPECT_EQ(2, track->getCuePoints().size());
     EXPECT_TRUE(track->getCuePoints().contains(user)); EXPECT_TRUE(track->getCuePoints().contains(intro));

@@ -1,6 +1,9 @@
 #include "track/autophrasecues.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include "analyzer/vocalanalysisstore.h"
+#include "track/mixpoints.h"
 #include "track/track.h"
 
 void AutoPhraseCues::setTrack(TrackPointer track) {
@@ -13,43 +16,84 @@ bool AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPoint
     auto track = m_track.lock();
     if (!track || (expectedTrack && expectedTrack != track) || track->isBpmLocked() || analysis.lowConfidence || analysis.phrases.isEmpty() ||
             !track->getSampleRate().isValid()) return false;
-    std::array<bool, 8> occupied{};
-    const auto cues = track->getCuePoints();
-    for (const auto& cue : cues) if (cue->getHotCue() >= 0 && cue->getHotCue() < 8) occupied[cue->getHotCue()] = true;
     const double rate = track->getSampleRate();
+    const auto beats = track->getBeats();
+    if (!beats) return false;
+
+    // The same points Mix Point Link uses, plus the drops and the break.
+    vilelabox::MixTrack mix;
+    mix.phrases = &analysis;
+    mix.beats = beats;
+    mix.duration = analysis.duration > 0 ? analysis.duration : track->getDuration();
+    const auto vocals = VocalAnalysisStore::instance().get(track->getLocation());
+    if (vocals && vocals->status == VocalAnalysis::Status::Ready) mix.vocals = vocals->segments;
+    const auto seconds = [rate](const CuePointer& cue) {
+        return cue && cue->getPosition().isValid() ? std::optional<double>(cue->getPosition().value() / rate) : std::nullopt;
+    };
+    mix.introCue = seconds(track->findCueByType(mixxx::CueType::Intro));
+    mix.outroCue = seconds(track->findCueByType(mixxx::CueType::Outro));
+    if (track->getMainCuePosition().isValid()) mix.mainCue = track->getMainCuePosition().value() / rate;
+
+    const auto confident = [](const vilelabox::Phrase& p) { return p.confidence >= 0.5; };
+    std::optional<double> drop, breakdown, secondDrop;
     for (const auto& phrase : analysis.phrases) {
-        if (phrase.confidence < 0.5) continue;
-        auto type = mixxx::CueType::Invalid;
-        int slot = Cue::kNoHotCue;
-        QString label;
-        mixxx::RgbColor color(0xffd447);
-        if (phrase.type == vilelabox::PhraseType::Intro) { type = mixxx::CueType::Intro; label = "Intro"; }
-        else if (phrase.type == vilelabox::PhraseType::Outro) { type = mixxx::CueType::Outro; label = "Outro"; }
-        else if (phrase.type == vilelabox::PhraseType::Chorus || phrase.type == vilelabox::PhraseType::Down || phrase.type == vilelabox::PhraseType::Up) {
-            type = mixxx::CueType::HotCue;
-            for (int i = 0; i < 8; ++i) if (!occupied[i]) { slot = i; occupied[i] = true; break; }
-            if (slot < 0) continue;
-            if (phrase.type == vilelabox::PhraseType::Chorus) { label = "Chorus"; color = mixxx::RgbColor(0xff4545); }
-            else if (phrase.type == vilelabox::PhraseType::Down) { label = "Down"; color = mixxx::RgbColor(0x498dff); }
-            else label = "Up";
-            // Grid edits move phrase boundaries slightly; a cue with the same
-            // label within one beat counts as the same boundary.
-            const auto position = mixxx::audio::FramePos(phrase.start * rate);
-            const auto beats = track->getBeats();
-            const double tolerance = beats ? beats->iteratorFrom(position).beatLengthFrames() : rate * 0.5;
-            bool exists = false;
-            for (const auto& cue : track->getCuePoints()) if (cue->getType() == type && cue->getLabel() == label &&
-                    std::abs(cue->getPosition() - position) <= tolerance) { exists = true; break; }
-            if (exists) { occupied[slot] = false; continue; }
+        if (!confident(phrase)) continue;
+        if (phrase.type == vilelabox::PhraseType::Chorus) {
+            if (!drop) drop = phrase.start;
+            else if (breakdown && !secondDrop && phrase.start > *breakdown) secondDrop = phrase.start;
+        } else if (phrase.type == vilelabox::PhraseType::Down && drop && !breakdown) {
+            breakdown = phrase.start;
         }
-        if (type == mixxx::CueType::Invalid || (type != mixxx::CueType::HotCue && track->findCueByType(type))) continue;
-        const auto start = mixxx::audio::FramePos(phrase.start * rate);
-        const auto end = type == mixxx::CueType::HotCue ? mixxx::audio::kInvalidFramePos :
-                mixxx::audio::FramePos((type == mixxx::CueType::Outro ? analysis.duration : phrase.end) * rate);
-        auto cue = track->createAndAddCue(type, slot, start, end, color);
-        cue->setLabel(label);
-        m_created.push_back({cue, cue->getStartAndEndPosition(), label, color});
     }
+    const auto mixIn = vilelabox::mixInPoint(mix);
+    const auto mixOut = vilelabox::mixOutRange(mix);
+
+    struct Point { std::optional<double> at; const char* label; quint32 color; };
+    const Point points[]{
+            {mixIn, "MIX IN", 0x2dd728},
+            {drop, "DROP", 0xff4545},
+            {breakdown, "BREAK", 0x498dff},
+            {secondDrop, "DROP 2", 0xff4545},
+            {mixOut ? std::optional<double>(mixOut->start) : std::nullopt, "MIX OUT", 0xf8a030},
+    };
+    std::array<bool, 8> occupied{};
+    for (const auto& cue : track->getCuePoints()) {
+        if (cue->getHotCue() >= 0 && cue->getHotCue() < 8) occupied[cue->getHotCue()] = true;
+    }
+    // One beat of tolerance: grid edits move points slightly, and two points
+    // on the same beat would be the same hot cue.
+    const auto near = [&beats](mixxx::audio::FramePos a, mixxx::audio::FramePos b) {
+        return std::abs(a - b) <= beats->iteratorFrom(a).beatLengthFrames();
+    };
+    QList<mixxx::audio::FramePos> hotCuePositions;
+    for (const auto& cue : track->getCuePoints()) {
+        if (cue->getType() == mixxx::CueType::HotCue) hotCuePositions.push_back(cue->getPosition());
+    }
+    for (const auto& point : points) {
+        if (!point.at || *point.at < 0) continue;
+        const auto position = mixxx::audio::FramePos(*point.at * rate);
+        if (std::any_of(hotCuePositions.cbegin(), hotCuePositions.cend(),
+                    [&](auto other) { return near(position, other); })) continue;
+        int slot = -1;
+        for (int i = 0; i < 8; ++i) if (!occupied[i]) { slot = i; occupied[i] = true; break; }
+        if (slot < 0) break;
+        const mixxx::RgbColor color(point.color);
+        auto cue = track->createAndAddCue(mixxx::CueType::HotCue, slot, position, mixxx::audio::kInvalidFramePos, color);
+        cue->setLabel(QString::fromLatin1(point.label));
+        m_created.push_back({cue, cue->getStartAndEndPosition(), cue->getLabel(), color});
+        hotCuePositions.push_back(position);
+    }
+    // Range cues for the intro (mix in -> drop) and outro (mix out -> end).
+    const auto addRange = [&](mixxx::CueType type, double from, double to, const char* label) {
+        if (track->findCueByType(type) || to <= from) return;
+        const mixxx::RgbColor color(0xffd447);
+        auto cue = track->createAndAddCue(type, Cue::kNoHotCue,
+                mixxx::audio::FramePos(from * rate), mixxx::audio::FramePos(to * rate), color);
+        cue->setLabel(QString::fromLatin1(label));
+        m_created.push_back({cue, cue->getStartAndEndPosition(), cue->getLabel(), color});
+    };
+    if (mixIn && drop) addRange(mixxx::CueType::Intro, *mixIn, *drop, "Intro");
+    if (mixOut) addRange(mixxx::CueType::Outro, mixOut->start, mixOut->end, "Outro");
     return true;
 }
 void AutoPhraseCues::undo() {

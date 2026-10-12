@@ -4,9 +4,19 @@ Em cada deck, abra PADS e habilite AUTO CUES (`auto_phrase_cues`, persistente,
 padrão 0). A preferência de análise oferece o padrão para decks que ainda não
 possuem valor salvo; mudanças exigem reabrir o aplicativo para esses defaults.
 
-Uma análise confiável pode criar Intro e Outro se esses tipos ainda não existem,
-e hot cues Up (amarelo), Chorus (vermelho) e Down (azul) nos oito primeiros slots
-vazios. Cues existentes não são alterados; LOCK impede geração e desfazer.
+Uma análise confiável cria, em slots vazios e em ordem de tempo:
+
+| Hot cue | Onde | Cor |
+| --- | --- | --- |
+| MIX IN | ponto de entrada do Mix Point (cue Intro, compasso 1 ou CUE) | verde |
+| DROP | primeiro CHORUS | vermelho |
+| BREAK | primeiro DOWN depois do drop | azul |
+| DROP 2 | primeiro CHORUS depois do break | vermelho |
+| MIX OUT | ponto de saída do Mix Point (cue Outro, frase OUTRO, fim da voz…) | laranja |
+
+e os cues de faixa Intro (MIX IN → DROP) e Outro (MIX OUT → fim), se ainda não
+existem. Um ponto a até uma batida de outro hot cue (seu ou automático) não é
+criado de novo. Cues existentes não são alterados; LOCK impede geração e desfazer.
 Os cues são gerados no máximo uma vez por carregamento, quando a primeira análise
 confiável fica disponível. Editar o grid recalcula as frases, mas não gera cues de
 novo. Ao recarregar a faixa, um hot cue com o mesmo rótulo a até uma batida de
