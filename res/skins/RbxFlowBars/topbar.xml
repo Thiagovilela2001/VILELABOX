@@ -70,6 +70,19 @@
             <SetVariable name="ConfigKey">[RbxFlow],show_waveform_band</SetVariable>
           </Template>
 
+          <PushButton>
+            <ObjectName>ToggleWaveformRgb</ObjectName>
+            <Tooltip>Onda em RGB, como no rekordbox: graves em vermelho, médios em verde, agudos em azul. Desligado: 3 bandas com degradê.</Tooltip>
+            <Size>50f,22f</Size>
+            <NumberStates>2</NumberStates>
+            <State><Number>0</Number><Text>RGB</Text><Alignment>center</Alignment></State>
+            <State><Number>1</Number><Text>RGB</Text><Alignment>center</Alignment></State>
+            <Connection>
+              <ConfigKey persist="true">[Vilelabox],waveform_rgb</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+
           <Template src="skin:controls/btn_2state.xml">
             <SetVariable name="TooltipId">show_mixer</SetVariable>
             <SetVariable name="ObjectName">ToggleMixer</SetVariable>

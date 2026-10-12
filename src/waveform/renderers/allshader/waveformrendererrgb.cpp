@@ -3,6 +3,7 @@
 #include <QDomElement>
 #include <QVector3D>
 
+#include "control/controlproxy.h"
 #include "track/track.h"
 #include "util/math.h"
 #include "waveform/renderers/allshader/matrixforwidgetgeometry.h"
@@ -86,22 +87,31 @@ void WaveformRendererRGB::paintGL() {
 
     const float heightFactor = allGain * halfBreadth / m_maxValue;
 
-    const float low_r = static_cast<float>(m_rgbLowColor_r);
-    const float mid_r = static_cast<float>(m_rgbMidColor_r);
-    const float high_r = static_cast<float>(m_rgbHighColor_r);
-    const float low_g = static_cast<float>(m_rgbLowColor_g);
-    const float mid_g = static_cast<float>(m_rgbMidColor_g);
-    const float high_g = static_cast<float>(m_rgbHighColor_g);
-    const float low_b = static_cast<float>(m_rgbLowColor_b);
-    const float mid_b = static_cast<float>(m_rgbMidColor_b);
-    const float high_b = static_cast<float>(m_rgbHighColor_b);
+    // The control is created by the skin; until then the skin colours apply.
+    // Retried every 120 frames, so skins without it do not allocate per frame.
+    if ((!m_rgbMode || !m_rgbMode->valid()) && m_rgbModeRetry++ % 120 == 0) {
+        m_rgbMode = std::make_unique<ControlProxy>(
+                QStringLiteral("[Vilelabox]"), QStringLiteral("waveform_rgb"), nullptr,
+                ControlFlag::NoAssertIfMissing | ControlFlag::NoWarnIfMissing);
+    }
+    const bool rgb = m_rgbMode && m_rgbMode->valid() && m_rgbMode->toBool();
+    const bool gradient = m_gradient && !rgb;
+    const float low_r = rgb ? 1.f : static_cast<float>(m_rgbLowColor_r);
+    const float mid_r = rgb ? 0.f : static_cast<float>(m_rgbMidColor_r);
+    const float high_r = rgb ? 0.f : static_cast<float>(m_rgbHighColor_r);
+    const float low_g = rgb ? 0.f : static_cast<float>(m_rgbLowColor_g);
+    const float mid_g = rgb ? 1.f : static_cast<float>(m_rgbMidColor_g);
+    const float high_g = rgb ? 0.f : static_cast<float>(m_rgbHighColor_g);
+    const float low_b = rgb ? 0.f : static_cast<float>(m_rgbLowColor_b);
+    const float mid_b = rgb ? 0.f : static_cast<float>(m_rgbMidColor_b);
+    const float high_b = rgb ? 1.f : static_cast<float>(m_rgbHighColor_b);
 
     // Effective visual frame for x
     double xVisualFrame = qRound(firstVisualFrame / visualIncrementPerPixel) *
             visualIncrementPerPixel;
 
     // 2 triangles; the gradient uses 4 bands per half column.
-    const int numVerticesPerLine = m_gradient ? 6 * 4 * 2 : 6;
+    const int numVerticesPerLine = gradient ? 6 * 4 * 2 : 6;
 
     const int reserved = numVerticesPerLine * length + 6;
 
@@ -200,7 +210,7 @@ void WaveformRendererRGB::paintGL() {
             blue *= normFactor;
         }
 
-        if (m_gradient) {
+        if (gradient) {
             // Each half column, from the axis outwards: solid low, low -> mid,
             // mid -> high, solid high. Band heights follow the band energies.
             const float bands = maxLow + maxMid + maxHigh;

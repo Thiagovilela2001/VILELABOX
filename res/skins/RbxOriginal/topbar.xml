@@ -81,6 +81,7 @@
         <SetVariable name="Text">BROWSE</SetVariable>
         <SetVariable name="ConfigKey">[RbxOriginal],show_big_library</SetVariable>
       </Template>
+      <Template src="skin:controls/btn_check.xml"><SetVariable name="Tooltip">Onda em RGB, como no rekordbox: graves em vermelho, médios em verde, agudos em azul. Desligado: 3 bandas com degradê.</SetVariable><SetVariable name="Width">48</SetVariable><SetVariable name="Text">RGB</SetVariable><SetVariable name="ConfigKey">[Vilelabox],waveform_rgb</SetVariable></Template>
 
       <WidgetGroup><Size>0me,1min</Size></WidgetGroup>
 

@@ -35,6 +35,7 @@
 
       <!-- ============ skin toggles (all editable in the SETTINGS panel) === -->
       <attribute persist="true" config_key="[RbxFlow],show_waveform_band">1</attribute>
+      <attribute persist="true" config_key="[Vilelabox],waveform_rgb">0</attribute>
       <attribute persist="true" config_key="[RbxFlow],show_mixer">1</attribute>
       <attribute persist="true" config_key="[RbxFlow],show_library">1</attribute>
       <attribute persist="true" config_key="[RbxFlow],show_big_library">0</attribute>
