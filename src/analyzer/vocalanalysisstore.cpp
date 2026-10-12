@@ -53,7 +53,8 @@ QString VocalAnalysis::describe() const {
     case Error::DependenciesMissing:
         return QObject::tr("Falta uma dependência do detector (%1). Instale com: <python> -m pip install numpy scipy").arg(detail);
     case Error::Timeout:
-        return QObject::tr("O detector demorou mais que %1 s e foi interrompido. Reanalise a faixa.").arg(detail);
+        return QObject::tr("O detector demorou mais que %1 s e foi interrompido. Aumente "
+                           "[Vilelabox],VocalTimeoutSeconds ou reanalise a faixa.").arg(detail);
     case Error::DetectorFailed:
         return QObject::tr("O detector falhou: %1").arg(detail);
     case Error::InvalidResult:

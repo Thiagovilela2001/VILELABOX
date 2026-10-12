@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'res/vocals'))
 from vocal_detector import analyze, features, predict, segments
+import vocal_detector
 ROOT = Path(__file__).resolve().parents[2]
 
 class DetectorTests(unittest.TestCase):
@@ -31,5 +32,29 @@ class DetectorTests(unittest.TestCase):
         model = json.loads((ROOT/'res/vocals/model.json').read_text())
         np.testing.assert_allclose(predict(data['X'], model), data['p'], atol=3e-6)
         self.assertTrue(np.isfinite(features(np.zeros(16384))).all())
+
+class DemucsEngineTests(unittest.TestCase):
+    def test_frames_merge_word_gaps_and_drop_blips(self):
+        frame = vocal_detector.FRAME
+        active = [False] * 200
+        for i in list(range(20, 60)) + list(range(70, 110)):  # 0.5 s pause between
+            active[i] = True
+        active[150] = True  # a single 50 ms blip
+        result = vocal_detector.frames_to_segments(active, 200 * frame)
+        self.assertEqual(result, [[round(20 * frame, 4), round(110 * frame, 4)]])
+
+    @unittest.skipUnless(vocal_detector.demucs_available(), 'demucs not installed')
+    def test_no_vocals_in_silence_or_a_steady_tone(self):
+        rate = 44100
+        t = np.arange(rate * 8) / rate
+        signal = np.zeros_like(t)
+        signal[rate * 4:] = 0.3 * np.sin(2 * np.pi * 110 * t[rate * 4:])  # bass-like tone
+        with tempfile.NamedTemporaryFile(suffix='.f32') as raw:
+            signal.astype('<f4').tofile(raw.name)
+            result = vocal_detector.analyze_demucs(raw.name, rate)
+        self.assertEqual(result['engine'], 'demucs')
+        self.assertAlmostEqual(result['duration'], 8.0, places=3)
+        self.assertEqual(result['segments'], [])
+
 
 if __name__ == '__main__': unittest.main()

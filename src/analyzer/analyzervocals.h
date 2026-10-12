@@ -15,6 +15,9 @@ class AnalyzerVocals : public Analyzer {
     explicit AnalyzerVocals(UserSettingsPointer config, std::function<bool()> isStopping = {});
     /// Interpreter: preference, VILELABOX_VOCAL_PYTHON, ~/.venv/bin/python, python3.
     static QString resolvePython(const UserSettingsPointer& config);
+    /// "demucs" if the interpreter can separate vocals with Demucs, else
+    /// "classifier". Cached per interpreter for the session.
+    static QString probeEngine(const QString& python, const QString& script);
     bool initialize(const AnalyzerTrack& track, mixxx::audio::SampleRate rate, SINT length) override;
     bool processSamples(const CSAMPLE* samples, SINT count) override;
     void storeResults(TrackPointer track) override;

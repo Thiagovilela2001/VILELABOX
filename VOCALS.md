@@ -16,11 +16,41 @@ Não há alegação de equivalência com a precisão ou o algoritmo do rekordbox
 ## Funcionamento
 
 O analisador nativo aproveita a decodificação de áudio existente, mistura os dois
-canais para mono e escreve um arquivo temporário. Um processo Python local extrai
-características espectrais em janelas de aproximadamente um segundo, com passos
-de 256 ms, e executa uma rede neural pequena. Suavização, histerese e união de
-intervalos próximos produzem as marcações. Não usa o microfone nem envia áudio
-para serviços externos. O temporário é removido ao concluir ou cancelar a análise.
+canais para mono e escreve um arquivo temporário, que um processo Python local
+analisa. Não usa o microfone nem envia áudio para serviços externos. O
+temporário é removido ao concluir ou cancelar a análise.
+
+### Motor Demucs (preferido)
+
+Com o pacote `demucs` instalado no Python do detector, a voz é **separada** do
+resto da música pelo modelo aberto Demucs (`htdemucs`, licença MIT, roda local na
+CPU) e a marcação vem da energia da voz isolada, em quadros de 50 ms: é voz
+quando a voz isolada passa de −42 dBFS e não está mais de 24 dB abaixo da
+mistura. Uma votação de 250 ms tira oscilações, pausas de até 0,8 s entre
+palavras ficam no mesmo trecho e trechos menores que 0,4 s são descartados. A
+faixa é separada em blocos de 30 s (com 2 s de contexto) para limitar a memória.
+Usa metade dos núcleos da CPU (`VILELABOX_VOCAL_THREADS` muda) e leva cerca de
+um terço da duração da faixa num desktop; por isso o tempo-limite padrão é 900 s.
+
+Medido nas faixas do usuário (2026-10-12):
+
+| Faixa | Classificador antigo | Demucs |
+| --- | --- | --- |
+| `pulse_na_base_beat` (instrumental) | 93% marcado como voz | 0% |
+| `pulse_na_base` (mesmo beat com voz) | — | 51%, em 9 trechos nos versos |
+| `sophierefix` | 59% | 17%, um trecho no início |
+
+Instalação usada: `~/.venv/bin/python -m pip install --index-url
+https://download.pytorch.org/whl/cpu torch torchaudio` e depois `pip install
+demucs`. Os pesos do modelo são baixados uma vez e ficam no cache local.
+
+### Classificador (reserva)
+
+Sem o Demucs, roda a rede pequena de `res/vocals/model.json` sobre
+características espectrais em janelas de cerca de um segundo. Ela erra muito em
+música mixada (marca beats instrumentais densos como voz) e fica só como reserva.
+O motor usado entra na identidade do cache: ao instalar o Demucs, as faixas
+analisadas pelo classificador são reanalisadas na próxima carga.
 
 Resultados ficam em `~/.mixxx/analysis/vocals/*.json`. O identificador incorpora
 caminho, tamanho, data do áudio, modelo e código Python; alterações invalidam o

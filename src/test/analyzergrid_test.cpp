@@ -226,7 +226,8 @@ QString fakePython(const QTemporaryDir& directory, const QString& name, const QS
     const QString path = directory.filePath(name);
     QFile file(path);
     EXPECT_TRUE(file.open(QIODevice::WriteOnly));
-    file.write(("#!/bin/sh\n" + body + "\n").toUtf8());
+    // Engine probe (script --probe) answers at once, like a real interpreter.
+    file.write(("#!/bin/sh\n[ \"$2\" = \"--probe\" ] && { echo classifier; exit 0; }\n" + body + "\n").toUtf8());
     file.close();
     file.setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     return path;

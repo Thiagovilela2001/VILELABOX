@@ -10,6 +10,8 @@
 #include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QElapsedTimer>
+#include <QHash>
+#include <QMutex>
 #include <QSaveFile>
 #include <QStandardPaths>
 #ifdef Q_OS_LINUX
@@ -27,6 +29,29 @@ const ConfigKey kTimeoutKey("[Vilelabox]", "VocalTimeoutSeconds");
 
 AnalyzerVocals::AnalyzerVocals(UserSettingsPointer config, std::function<bool()> isStopping)
         : m_config(std::move(config)), m_isStopping(std::move(isStopping)) {
+}
+
+QString AnalyzerVocals::probeEngine(const QString& python, const QString& script) {
+    // One short process per interpreter and session; it only checks whether
+    // the demucs package can be imported, without loading it.
+    static QMutex mutex;
+    static QHash<QString, QString> engines;
+    const QString key = python + QChar('\n') + script;
+    QMutexLocker lock(&mutex);
+    const auto it = engines.constFind(key);
+    if (it != engines.cend()) return it.value();
+    QProcess process;
+    process.start(python, {script, "--probe"});
+    QString engine = QStringLiteral("classifier");
+    if (process.waitForStarted(5000) && process.waitForFinished(5000) && process.exitCode() == 0) {
+        const QString output = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+        if (output == QStringLiteral("demucs")) engine = output;
+    } else {
+        process.kill();
+        process.waitForFinished(1000);
+    }
+    engines.insert(key, engine);
+    return engine;
 }
 
 QString AnalyzerVocals::resolvePython(const UserSettingsPointer& config) {
@@ -60,8 +85,11 @@ bool AnalyzerVocals::initialize(const AnalyzerTrack& track, mixxx::audio::Sample
         return false;
     }
     const QFileInfo source(m_location);
+    // The engine (demucs or classifier) is part of the identity: installing
+    // Demucs later makes tracks analysed by the classifier run again.
     QByteArray identity = m_location.toUtf8() + QByteArray::number(source.size()) +
-            QByteArray::number(source.lastModified().toMSecsSinceEpoch()) + model.readAll() + script.readAll();
+            QByteArray::number(source.lastModified().toMSecsSinceEpoch()) + model.readAll() + script.readAll() +
+            probeEngine(m_python, m_script).toUtf8();
     const auto hash = QCryptographicHash::hash(identity, QCryptographicHash::Sha256).toHex();
     QDir cache(m_config->getSettingsPath() + "/analysis/vocals");
     cache.mkpath(".");
@@ -120,7 +148,9 @@ void AnalyzerVocals::storeResults(TrackPointer track) {
         fail(VocalAnalysis::Error::PythonMissing, m_python);
         return;
     }
-    const int timeoutSeconds = std::max(1, m_config->getValue(kTimeoutKey, 120));
+    // Demucs separates the whole track on the CPU (about a third of real time
+    // on a desktop), hence the generous default.
+    const int timeoutSeconds = std::max(1, m_config->getValue(kTimeoutKey, 900));
     QElapsedTimer elapsed;
     elapsed.start();
     // Short slices: a stop request is honoured within ~100 ms.
