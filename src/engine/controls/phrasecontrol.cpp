@@ -1,5 +1,6 @@
 #include "engine/controls/phrasecontrol.h"
-#include <atomic>
+#include <QThread>
+#include <algorithm>
 #include <cmath>
 #include "analyzer/phraseanalysisstore.h"
 #include "control/controlobject.h"
@@ -27,47 +28,75 @@ PhraseControl::PhraseControl(const QString& group, UserSettingsPointer config)
 }
 PhraseControl::~PhraseControl() { QObject::disconnect(m_connection); }
 void PhraseControl::trackLoaded(TrackPointer track) {
-    // Called from the audio callback: no cue creation or locking here.
-    QObject::disconnect(m_connection);
-    m_cuesApplied = false;
-    std::shared_ptr<const State> state;
-    if (track) state = std::make_shared<const State>(State{PhraseAnalysisStore::trackKey(track), track->getBeats(), PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(track))});
-    std::atomic_store(&m_state, state);
-    const TrackWeakPointer weak(track);
-    if (track) {
-        m_connection = connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated, this,
-                [this, weak](const QString& location) {
-                    auto old = std::atomic_load(&m_state);
-                    if (!old || old->location != location) return;
-                    auto track = weak.lock();
-                    if (!track) return;
-                    std::shared_ptr<const State> updated = std::make_shared<const State>(State{
-                            location, track->getBeats(), PhraseAnalysisStore::instance().get(location)});
-                    if (std::atomic_compare_exchange_strong(&m_state, &old, updated) && updated->analysis) {
-                        QMetaObject::invokeMethod(this, [this, weak] { applyAutoCues(weak); }, Qt::QueuedConnection);
-                    }
-                }, Qt::DirectConnection);
-    }
-    QMetaObject::invokeMethod(this, [this, weak] {
-        m_cueGenerator.setTrack(weak.lock());
-        applyAutoCues(weak);
-    }, Qt::QueuedConnection);
+    // Audio callback: no allocation, no locks, no queued calls. The GUI thread
+    // prepares the phrase state (trackLoadedOnGuiThread / store updates).
+    m_audioTrack.store(track.get());
     m_type->forceSet(0); m_index->forceSet(-1); m_bars->forceSet(0); m_valid->forceSet(0);
 }
-void PhraseControl::applyAutoCues(const TrackWeakPointer& weak) {
-    const auto track = weak.lock();
-    if (!track || m_cuesApplied || !m_autoCues->toBool() || track != getEngineBuffer()->getLoadedTrack()) return;
-    const auto state = std::atomic_load(&m_state);
-    if (state && state->analysis && m_cueGenerator.apply(*state->analysis, track)) m_cuesApplied = true;
+void PhraseControl::trackLoadedOnGuiThread() {
+    if (!m_connection) {
+        // Late results of a previous track are filtered in rebuild() by
+        // comparing locations with the track that is loaded now.
+        m_connection = connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated,
+                this, [this](const QString&) { rebuild(); });
+    }
+    rebuild();
+}
+void PhraseControl::rebuild() {
+    const auto track = getEngineBuffer()->getLoadedTrack();
+    if (track.get() != m_cueTrack) {
+        // A different track: new cue history, cues not generated yet.
+        m_cueTrack = track.get();
+        m_cuesApplied = false;
+        m_cueGenerator.setTrack(track);
+    }
+    if (!track) {
+        publish(nullptr);
+        return;
+    }
+    auto state = std::make_unique<State>();
+    state->track = track.get();
+    state->location = PhraseAnalysisStore::trackKey(track);
+    state->beats = track->getBeats();
+    state->analysis = PhraseAnalysisStore::instance().get(state->location);
+    const bool hasAnalysis = state->analysis != nullptr;
+    publish(std::move(state));
+    if (hasAnalysis) applyAutoCues(track);
+}
+void PhraseControl::publish(std::unique_ptr<const State> state) {
+    m_current.store(state.get());
+    if (m_owned) m_retired.push_back(std::move(m_owned));
+    m_owned = std::move(state);
+    // Free old states the audio thread is not reading. A state stays retired
+    // while it is the audio thread's hazard pointer.
+    const State* inUse = m_hazard.load();
+    m_retired.erase(std::remove_if(m_retired.begin(), m_retired.end(),
+                            [inUse](const auto& old) { return old.get() != inUse; }),
+            m_retired.end());
+}
+const PhraseControl::State* PhraseControl::acquireForAudio() const {
+    const State* state;
+    do {
+        state = m_current.load();
+        m_hazard.store(state);
+    } while (state != m_current.load());
+    return state && state->track == m_audioTrack.load() ? state : nullptr;
+}
+void PhraseControl::applyAutoCues(const TrackPointer& track) {
+    if (m_cuesApplied || !m_autoCues->toBool() || !m_owned || !m_owned->analysis) return;
+    if (m_cueGenerator.apply(*m_owned->analysis, track)) m_cuesApplied = true;
 }
 std::shared_ptr<const vilelabox::PhraseAnalysis> PhraseControl::analysis() const {
-    const auto state = std::atomic_load(&m_state);
-    return state ? state->analysis : nullptr;
+    return m_owned ? m_owned->analysis : nullptr;
+}
+const vilelabox::PhraseAnalysis* PhraseControl::analysisForAudio() const {
+    const State* state = acquireForAudio();
+    return state ? state->analysis.get() : nullptr;
 }
 void PhraseControl::process(double rate, mixxx::audio::FramePos position, int bufferSize) {
     Q_UNUSED(rate); Q_UNUSED(bufferSize);
-    const auto state = std::atomic_load(&m_state);
-    const auto result = state ? state->analysis : nullptr;
+    const State* state = acquireForAudio();
+    const vilelabox::PhraseAnalysis* result = state ? state->analysis.get() : nullptr;
     const auto info = frameInfo();
     int index = result && info.sampleRate.isValid() ? result->indexAt(position.value() / info.sampleRate) : -1;
     m_valid->forceSet(result && !result->phrases.isEmpty());
@@ -85,6 +114,11 @@ void PhraseControl::process(double rate, mixxx::audio::FramePos position, int bu
     m_bars->forceSet(std::max(0.0, left));
 }
 void PhraseControl::jump(bool next) {
+    // Controllers set the control from their own thread; the state is GUI-owned.
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, next] { jump(next); }, Qt::QueuedConnection);
+        return;
+    }
     const auto result = analysis();
     const auto info = frameInfo();
     if (!result || result->phrases.isEmpty() || !info.sampleRate.isValid()) return;

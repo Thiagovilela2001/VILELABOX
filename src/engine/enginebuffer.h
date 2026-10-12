@@ -38,6 +38,7 @@ class VinylControlControl;
 class LoopingControl;
 class ClockControl;
 class PhraseControl;
+class MixPointControl;
 class PadControl;
 class CueControl;
 class ReadAheadManager;
@@ -146,6 +147,9 @@ class EngineBuffer : public EngineObject {
     bool isTrackLoaded() const;
     TrackPointer getLoadedTrack() const;
     PhraseControl* phraseControl() const { return m_pPhraseControl; }
+    /// GUI thread: lets the mod's controls prepare state for the loaded track
+    /// outside the audio callback (called by BaseTrackPlayerImpl).
+    void trackLoadedOnGuiThread();
     PadControl* padControl() const { return m_pPadControl; }
     int seekGeneration() const { return m_seekGeneration.loadAcquire(); }
     void ejectTrack();
@@ -326,6 +330,7 @@ class EngineBuffer : public EngineObject {
     QAtomicInt m_seekGeneration{0};
     PadControl* m_pPadControl = nullptr;
     PhraseControl* m_pPhraseControl = nullptr;
+    MixPointControl* m_pMixPointControl = nullptr;
     ClockControl* m_pClockControl;
     FRIEND_TEST(CueControlTest, SeekOnSetCueCDJ);
     FRIEND_TEST(CueControlTest, SeekOnSetCuePlay);

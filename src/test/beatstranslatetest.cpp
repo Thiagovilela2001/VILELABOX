@@ -804,3 +804,49 @@ TEST_F(BarSyncTest, ReleaseWithoutStopFadesTheDeckBackIn) {
     EXPECT_LT(audio[rate + rate / 4], 0.35f);
     EXPECT_FLOAT_EQ(0.5f, audio.back());
 }
+#include "engine/controls/phrasecontrol.h"
+TEST_F(BarSyncTest, PhraseStateIgnoresLateUpdatesForPreviousTrack) {
+    QCoreApplication::processEvents();
+    PhraseAnalysisStore::instance().set(m_pTrack2, introChorusOutro(), {});
+    ProcessBuffer();
+    ASSERT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "phrase_valid")));
+    auto other = Track::newTemporary(getTestDir().filePath(QStringLiteral("id3-test-data/cover-test.wav")));
+    loadTrack(m_pMixerDeck2, other);
+    ASSERT_TRUE(other->trySetBeats(barGrid(other)));
+    // The engine has the new track before the GUI thread rebuilt the state:
+    // the previous track's phrases must not be shown for it.
+    ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "phrase_valid")));
+    QCoreApplication::processEvents();
+    // A late result for the previous track does not reach the new one.
+    PhraseAnalysisStore::instance().set(m_pTrack2, introChorusOutro(), {});
+    QCoreApplication::processEvents();
+    ProcessBuffer();
+    EXPECT_DOUBLE_EQ(0, ControlObject::get(ConfigKey(m_sGroup2, "phrase_valid")));
+    EXPECT_EQ(nullptr, m_pChannel2->getEngineBuffer()->phraseControl()->analysis());
+    // Its own analysis does.
+    PhraseAnalysisStore::instance().set(other, introChorusOutro(), {});
+    QCoreApplication::processEvents();
+    ProcessBuffer();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "phrase_valid")));
+}
+TEST_F(BarSyncTest, RapidTrackSwapsPublishOnlyTheFinalTrack) {
+    QCoreApplication::processEvents();
+    auto first = Track::newTemporary(getTestDir().filePath(QStringLiteral("id3-test-data/cover-test.wav")));
+    auto last = Track::newTemporary(getTestDir().filePath(QStringLiteral("sine-30.wav")));
+    loadTrack(m_pMixerDeck2, first);
+    QCoreApplication::processEvents();
+    ASSERT_TRUE(first->trySetBeats(barGrid(first)));
+    loadTrack(m_pMixerDeck2, last);
+    ASSERT_TRUE(last->trySetBeats(barGrid(last)));
+    PhraseAnalysisStore::instance().set(last, introChorusOutro(), {});
+    // The previous track's analysis finishes after the swap, before the GUI
+    // thread hears about the new track.
+    PhraseAnalysisStore::instance().set(first, introChorusOutro(), {});
+    ProcessBuffer();
+    QCoreApplication::processEvents();
+    ProcessBuffer();
+    EXPECT_DOUBLE_EQ(1, ControlObject::get(ConfigKey(m_sGroup2, "phrase_valid")));
+    EXPECT_EQ(PhraseAnalysisStore::instance().get(PhraseAnalysisStore::trackKey(last)),
+            m_pChannel2->getEngineBuffer()->phraseControl()->analysis());
+}

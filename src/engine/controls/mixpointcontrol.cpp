@@ -41,21 +41,22 @@ void MixPointControl::cancel(int error) {
     m_armed->forceSet(0); m_left->forceSet(0); m_error->forceSet(error);
 }
 void MixPointControl::trackLoaded(TrackPointer track) {
-    // Called from the audio callback: points are computed on the GUI thread.
+    // Audio callback: no allocation, locks or queued calls here.
+    Q_UNUSED(track);
     cancel(); m_in->forceSet(-1); m_out->forceSet(-1);
     m_inSelected = false; m_outSelected = false;
-    m_ownBeats = track ? track->getBeats() : nullptr;
-    const TrackWeakPointer weak(track);
-    QMetaObject::invokeMethod(this, [this, weak] {
-        QObject::disconnect(m_cuesConnection);
-        QObject::disconnect(m_phrasesConnection);
-        const auto track = weak.lock();
-        if (!track || track != getEngineBuffer()->getLoadedTrack()) return;
+}
+void MixPointControl::trackLoadedOnGuiThread() {
+    QObject::disconnect(m_cuesConnection);
+    const auto track = getEngineBuffer()->getLoadedTrack();
+    if (track) {
         m_cuesConnection = connect(track.get(), &Track::cuesUpdated, this, [this] { refreshPoints(); }, Qt::QueuedConnection);
+    }
+    if (!m_phrasesConnection) {
         m_phrasesConnection = connect(&PhraseAnalysisStore::instance(), &PhraseAnalysisStore::updated,
                 this, [this] { refreshPoints(); }, Qt::QueuedConnection);
-        refreshPoints();
-    }, Qt::QueuedConnection);
+    }
+    refreshPoints();
 }
 void MixPointControl::refreshPoints() {
     const auto track = getEngineBuffer()->getLoadedTrack();

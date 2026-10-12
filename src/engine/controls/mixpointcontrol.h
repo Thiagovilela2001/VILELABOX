@@ -11,8 +11,10 @@ class MixPointControl : public EngineControl {
   public:
     MixPointControl(const QString& group, UserSettingsPointer config);
     ~MixPointControl() override;
+    // Audio callback: cancels and resets; points are computed on the GUI thread.
     void trackLoaded(TrackPointer track) override;
-    void trackBeatsUpdated(mixxx::BeatsPointer beats) override { m_ownBeats = beats; }
+    /// GUI thread, after the engine loaded or ejected a track.
+    void trackLoadedOnGuiThread();
     void process(double rate, mixxx::audio::FramePos position, int bufferSize) override;
     void notifySeek(mixxx::audio::FramePos position) override;
   private:
@@ -35,6 +37,7 @@ class MixPointControl : public EngineControl {
     // Written last in arm() (release) and read first in process() (acquire).
     std::atomic<EngineBuffer*> m_source{nullptr};
     TrackWeakPointer m_sourceTrack;
+    // Captured in arm() (GUI thread) before m_source is published.
     mixxx::BeatsPointer m_sourceBeats, m_ownBeats;
     QMetaObject::Connection m_cuesConnection, m_phrasesConnection;
     mixxx::audio::FramePos m_previousPosition, m_trigger, m_entry;

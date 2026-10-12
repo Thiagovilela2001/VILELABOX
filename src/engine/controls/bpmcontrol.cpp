@@ -1066,8 +1066,9 @@ mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
     if (matchBars && pOtherEngineBuffer != getEngineBuffer()) {
         bool matchedPhrase = false;
         if (m_pPhraseSync->toBool() && m_pBeats->hasDownbeat() && otherBeats->hasDownbeat()) {
-            const auto own = getEngineBuffer()->phraseControl()->analysis();
-            const auto other = pOtherEngineBuffer->phraseControl()->analysis();
+            // Engine thread (processSeek): hazard-protected, no ownership taken.
+            const auto* own = getEngineBuffer()->phraseControl()->analysisForAudio();
+            const auto* other = pOtherEngineBuffer->phraseControl()->analysisForAudio();
             const int ownIndex = own ? own->indexAt(newPlayPosition.value() / thisSampleRate) : -1;
             const int otherIndex = other ? other->indexAt(otherPosition.value() / otherBeats->getSampleRate()) : -1;
             if (ownIndex >= 0 && otherIndex >= 0) {

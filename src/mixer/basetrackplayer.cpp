@@ -677,6 +677,10 @@ void BaseTrackPlayerImpl::slotTrackLoaded(TrackPointer pNewTrack,
     // Update the PlayerInfo class that is used in EngineBroadcast to replace
     // the metadata of a stream
     PlayerInfo::instance().setTrackInfo(getGroup(), m_pLoadedTrack);
+
+    // VILELABOX: phrase and mix point state is built here, on the GUI thread,
+    // instead of in the audio callback that loaded the track.
+    m_pChannel->getEngineBuffer()->trackLoadedOnGuiThread();
 }
 
 TrackPointer BaseTrackPlayerImpl::getLoadedTrack() const {

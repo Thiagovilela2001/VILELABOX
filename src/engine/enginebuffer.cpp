@@ -232,7 +232,8 @@ EngineBuffer::EngineBuffer(const QString& group,
     // Create the clock controller
     m_pPhraseControl = new PhraseControl(group, pConfig);
     addControl(m_pPhraseControl);
-    addControl(new MixPointControl(group, pConfig));
+    m_pMixPointControl = new MixPointControl(group, pConfig);
+    addControl(m_pMixPointControl);
     m_pPadControl = new PadControl(group, pConfig);
     addControl(m_pPadControl);
     m_pClockControl = new ClockControl(group, pConfig);
@@ -1570,6 +1571,11 @@ bool EngineBuffer::isTrackLoaded() const {
         return true;
     }
     return false;
+}
+
+void EngineBuffer::trackLoadedOnGuiThread() {
+    m_pPhraseControl->trackLoadedOnGuiThread();
+    m_pMixPointControl->trackLoadedOnGuiThread();
 }
 
 TrackPointer EngineBuffer::getLoadedTrack() const {
