@@ -43,6 +43,8 @@
         <SignalRGBLowColor><Variable name="SignalRGBLowColor"/></SignalRGBLowColor>
         <BeatColor><Variable name="BeatColor"/></BeatColor>
         <ShowBarMarkers>true</ShowBarMarkers>
+        <ShowBeatNumbers>true</ShowBeatNumbers>
+        <RgbGradient>true</RgbGradient>
         <BarMarkerColor>#ff8c1a</BarMarkerColor>
         <ShowPhraseMarkers>true</ShowPhraseMarkers>
         <PhraseBars>8</PhraseBars>

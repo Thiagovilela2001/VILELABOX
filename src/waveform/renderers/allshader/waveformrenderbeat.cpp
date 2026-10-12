@@ -22,6 +22,8 @@ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidget,
 void WaveformRenderBeat::initializeGL() {
     WaveformRenderer::initializeGL();
     m_shader.init();
+    m_beatDigits.init();
+    m_downbeatDigits.init();
 }
 
 void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context) {
@@ -45,6 +47,7 @@ void WaveformRenderBeat::setup(const QDomNode& node, const SkinContext& context)
         m_phraseColor = QColor("#ff3b30");
     }
     m_phraseColor = WSkinColor::getCorrectColor(m_phraseColor).toRgb();
+    m_showBeatNumbers = context.selectBool(node, "ShowBeatNumbers", false);
 }
 
 void WaveformRenderBeat::paintGL() {
@@ -162,6 +165,9 @@ void WaveformRenderBeat::paintGL() {
     m_barVertices.reserve(reserved);
     m_phraseVertices.clear();
     m_phraseVertices.reserve(reserved);
+    m_beatNumbers.clear();
+    // Numbers need a bar reference (SET 1) and are not drawn on the slip lane.
+    const bool numbers = m_showBeatNumbers && !m_isSlipRenderer && trackBeats->hasDownbeat();
 
     for (auto it = trackBeats->iteratorFrom(startPosition);
             it != trackBeats->cend() && *it <= endPosition;
@@ -184,6 +190,11 @@ void WaveformRenderBeat::paintGL() {
                 0.f,
                 x2,
                 m_isSlipRenderer ? rendererBreadth / 2 : rendererBreadth);
+        if (numbers) {
+            if (const auto bar = trackBeats->barPosition(*it)) {
+                m_beatNumbers.push_back({x2, bar->beat});
+            }
+        }
     }
 
     DEBUG_ASSERT(reserved ==
@@ -220,6 +231,32 @@ void WaveformRenderBeat::paintGL() {
 
     m_shader.disableAttributeArray(positionLocation);
     m_shader.release();
+
+    if (m_beatNumbers.size() > 1) {
+        drawBeatNumbers(matrix, devicePixelRatio);
+    }
+}
+
+void WaveformRenderBeat::drawBeatNumbers(const QMatrix4x4& matrix, float devicePixelRatio) {
+    const float breadth = m_waveformRenderer->getBreadth();
+    m_beatDigits.updateTexture(8.f, breadth * 0.25f, devicePixelRatio);
+    m_downbeatDigits.updateTexture(11.f, breadth * 0.35f, devicePixelRatio);
+    // Zoomed out, the digits would overlap: show only 1 when beats are tight,
+    // and nothing when even bars are.
+    const float spacing = m_beatNumbers[1].x - m_beatNumbers[0].x;
+    const float digitWidth = m_beatDigits.height() * 0.8f;
+    const bool everyBeat = spacing > digitWidth * 2.5f;
+    const bool onlyDownbeats = !everyBeat && spacing * 4 > digitWidth * 3.f;
+    if (!everyBeat && !onlyDownbeats) {
+        return;
+    }
+    for (const auto& number : std::as_const(m_beatNumbers)) {
+        if (number.beat == 1) {
+            m_downbeatDigits.draw(matrix, number.x + 2.f, 1.f, QStringLiteral("1"));
+        } else if (everyBeat) {
+            m_beatDigits.draw(matrix, number.x + 2.f, 1.f, QString::number(number.beat));
+        }
+    }
 }
 
 } // namespace allshader

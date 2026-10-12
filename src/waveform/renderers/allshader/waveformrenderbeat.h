@@ -3,6 +3,7 @@
 #include <QColor>
 
 #include "shaders/unicolorshader.h"
+#include "waveform/renderers/allshader/digitsrenderer.h"
 #include "util/class.h"
 #include "waveform/renderers/allshader/vertexdata.h"
 #include "waveform/renderers/allshader/waveformrenderer.h"
@@ -25,6 +26,9 @@ class allshader::WaveformRenderBeat final : public allshader::WaveformRenderer {
     void initializeGL() override;
 
   private:
+    void drawBeatNumbers(const QMatrix4x4& matrix, float devicePixelRatio);
+
+  private:
     mixxx::UnicolorShader m_shader;
     QColor m_color;
     QColor m_barColor;
@@ -38,6 +42,16 @@ class allshader::WaveformRenderBeat final : public allshader::WaveformRenderer {
     int m_phraseBars = 8;
     VertexData m_phraseVertices;
     VertexData m_vertices;
+    // VILELABOX: <ShowBeatNumbers>true</ShowBeatNumbers> writes the beat in
+    // the bar (1-4) at each beat line; beat 1 uses the larger digits.
+    bool m_showBeatNumbers = false;
+    DigitsRenderer m_beatDigits;
+    DigitsRenderer m_downbeatDigits;
+    struct BeatNumber {
+        float x;
+        int beat;
+    };
+    QVector<BeatNumber> m_beatNumbers;
 
     bool m_isSlipRenderer;
 

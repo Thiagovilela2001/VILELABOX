@@ -41,6 +41,8 @@
         <SignalRGBLowColor><Variable name="SignalRGBLowColor"/></SignalRGBLowColor>
         <BeatColor><Variable name="BeatColor"/></BeatColor>
         <ShowBarMarkers>true</ShowBarMarkers>
+        <ShowBeatNumbers>true</ShowBeatNumbers>
+        <RgbGradient>true</RgbGradient>
         <BarMarkerColor>#ff8c1a</BarMarkerColor>
         <ShowPhraseRegions>true</ShowPhraseRegions>
         <ShowPhraseMarkers>true</ShowPhraseMarkers>

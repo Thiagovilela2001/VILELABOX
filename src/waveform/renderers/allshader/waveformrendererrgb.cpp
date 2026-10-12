@@ -1,5 +1,8 @@
 #include "waveform/renderers/allshader/waveformrendererrgb.h"
 
+#include <QDomElement>
+#include <QVector3D>
+
 #include "track/track.h"
 #include "util/math.h"
 #include "waveform/renderers/allshader/matrixforwidgetgeometry.h"
@@ -21,7 +24,8 @@ WaveformRendererRGB::WaveformRendererRGB(WaveformWidgetRenderer* waveformWidget,
 }
 
 void WaveformRendererRGB::onSetup(const QDomNode& node) {
-    Q_UNUSED(node);
+    m_gradient = node.firstChildElement(QStringLiteral("RgbGradient")).text().trimmed() ==
+            QStringLiteral("true");
 }
 
 void WaveformRendererRGB::initializeGL() {
@@ -96,9 +100,10 @@ void WaveformRendererRGB::paintGL() {
     double xVisualFrame = qRound(firstVisualFrame / visualIncrementPerPixel) *
             visualIncrementPerPixel;
 
-    const int numVerticesPerLine = 6; // 2 triangles
+    // 2 triangles; the gradient uses 4 bands per half column.
+    const int numVerticesPerLine = m_gradient ? 6 * 4 * 2 : 6;
 
-    const int reserved = numVerticesPerLine * (length + 1);
+    const int reserved = numVerticesPerLine * length + 6;
 
     m_vertices.clear();
     m_vertices.reserve(reserved);
@@ -193,6 +198,31 @@ void WaveformRendererRGB::paintGL() {
             red *= normFactor;
             green *= normFactor;
             blue *= normFactor;
+        }
+
+        if (m_gradient) {
+            // Each half column, from the axis outwards: solid low, low -> mid,
+            // mid -> high, solid high. Band heights follow the band energies.
+            const float bands = maxLow + maxMid + maxHigh;
+            const QVector3D low(low_r, low_g, low_b), mid(mid_r, mid_g, mid_b), high(high_r, high_g, high_b);
+            const float fLow = bands > 0.f ? maxLow / bands : 1.f;
+            const float fMid = bands > 0.f ? maxMid / bands : 0.f;
+            const float fHigh = bands > 0.f ? maxHigh / bands : 0.f;
+            const float stops[5]{0.f, fLow * 0.5f, fLow + fMid * 0.5f, fLow + fMid + fHigh * 0.5f, 1.f};
+            const QVector3D colors[5]{low, low, mid, high, high};
+            const int halves = m_isSlipRenderer ? 1 : 2;
+            for (int half = 0; half < 2; ++half) {
+                const float amplitude = half < halves ? heightFactor * maxAllChn[half] : 0.f;
+                const float direction = half == 0 ? -1.f : 1.f;
+                for (int band = 0; band < 4; ++band) {
+                    const float y1 = halfBreadth + direction * amplitude * stops[band];
+                    const float y2 = halfBreadth + direction * amplitude * stops[band + 1];
+                    m_vertices.addRectangle(fpos - 0.5f, y1, fpos + 0.5f, y2);
+                    m_colors.addForGradientRectangle(colors[band], colors[band + 1]);
+                }
+            }
+            xVisualFrame += visualIncrementPerPixel;
+            continue;
         }
 
         // Lines are thin rectangles

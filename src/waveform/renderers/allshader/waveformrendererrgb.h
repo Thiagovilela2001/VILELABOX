@@ -28,6 +28,9 @@ class allshader::WaveformRendererRGB final : public allshader::WaveformRendererS
     RGBData m_colors;
 
     bool m_isSlipRenderer;
+    // VILELABOX: <RgbGradient>true</RgbGradient> in the skin draws each column
+    // as a low (centre) -> mid -> high (tip) colour gradient.
+    bool m_gradient = false;
 
     DISALLOW_COPY_AND_ASSIGN(WaveformRendererRGB);
 };
