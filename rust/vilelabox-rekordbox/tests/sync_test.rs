@@ -237,3 +237,196 @@ fn test_roundtrip_export_import() {
         assert_eq!(pl_count, 1);
     }
 }
+
+#[test]
+fn test_memory_cues_matching_by_position() {
+    let dir = tempdir().unwrap();
+    let db = dir.path().join("mixxxdb.sqlite");
+    setup_minimal_mixxx_db(&db);
+
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute(
+            "INSERT INTO track_locations (id, location, fs_deleted) VALUES (1, '/music/track1.mp3', 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO library (id, artist, title, bpm, duration, samplerate, location)
+             VALUES (1, 'Artist', 'Track 1', 120.0, 180.0, 44100, 1)",
+            [],
+        )
+        .unwrap();
+        // Dois memory cues preexistentes
+        conn.execute(
+            "INSERT INTO cues (id, track_id, type, position, length, hotcue, label, color)
+             VALUES (1, 1, 1, 882000, 0, -1, 'Mem 1', 16711680)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO cues (id, track_id, type, position, length, hotcue, label, color)
+             VALUES (2, 1, 1, 1764000, 0, -1, 'Mem 2', 65280)",
+            [],
+        )
+        .unwrap();
+    }
+
+    let xml_content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<DJ_PLAYLISTS Version="1.0.0">
+  <PRODUCT Name="rekordbox" Version="6.8.5" Company="AlphaTheta"/>
+  <COLLECTION Entries="1">
+    <TRACK TrackID="1" Name="Track 1" Location="file://localhost/music/track1.mp3">
+      <POSITION_MARK Name="Mem 1 Updated" Type="0" Start="10.000" Num="-1" Red="255" Green="0" Blue="0"/>
+      <POSITION_MARK Name="Mem 2 Updated" Type="0" Start="20.000" Num="-1" Red="0" Green="255" Blue="0"/>
+      <POSITION_MARK Name="Mem 3 New" Type="0" Start="30.000" Num="-1" Red="0" Green="0" Blue="255"/>
+    </TRACK>
+  </COLLECTION>
+</DJ_PLAYLISTS>"#;
+
+    let xml_path = dir.path().join("test.xml");
+    fs::write(&xml_path, xml_content).unwrap();
+
+    let (cues_synced, _) = import_rekordbox_xml_to_mixxx(&xml_path, &db).unwrap();
+    assert_eq!(cues_synced, 3);
+
+    let conn = Connection::open(&db).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT position, label, hotcue FROM cues WHERE track_id = 1 ORDER BY position")
+        .unwrap();
+    let cues: Vec<(f64, String, i64)> = stmt
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+    assert_eq!(cues.len(), 3);
+    assert_eq!(cues[0].1, "Mem 1 Updated");
+    assert_eq!(cues[0].2, -1);
+    assert_eq!(cues[1].1, "Mem 2 Updated");
+    assert_eq!(cues[1].2, -1);
+    assert_eq!(cues[2].1, "Mem 3 New");
+    assert_eq!(cues[2].2, -1);
+}
+
+#[test]
+fn test_playlist_folder_hierarchy() {
+    let dir = tempdir().unwrap();
+    let db = dir.path().join("mixxxdb.sqlite");
+    setup_minimal_mixxx_db(&db);
+
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute(
+            "INSERT INTO track_locations (id, location, fs_deleted) VALUES (1, '/music/track1.mp3', 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO library (id, artist, title, bpm, duration, samplerate, location)
+             VALUES (1, 'Artist', 'Track 1', 120.0, 180.0, 44100, 1)",
+            [],
+        )
+        .unwrap();
+    }
+
+    let xml_content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<DJ_PLAYLISTS Version="1.0.0">
+  <PRODUCT Name="rekordbox" Version="6.8.5" Company="AlphaTheta"/>
+  <COLLECTION Entries="1">
+    <TRACK TrackID="1" Name="Track 1" Location="file://localhost/music/track1.mp3"/>
+  </COLLECTION>
+  <PLAYLISTS>
+    <NODE Type="0" Name="ROOT">
+      <NODE Type="0" Name="House">
+        <NODE Type="1" Name="Set">
+          <TRACK Key="1"/>
+        </NODE>
+      </NODE>
+      <NODE Type="0" Name="Techno">
+        <NODE Type="1" Name="Set">
+          <TRACK Key="1"/>
+        </NODE>
+      </NODE>
+    </NODE>
+  </PLAYLISTS>
+</DJ_PLAYLISTS>"#;
+
+    let xml_path = dir.path().join("folders.xml");
+    fs::write(&xml_path, xml_content).unwrap();
+
+    let (_, pls_synced) = import_rekordbox_xml_to_mixxx(&xml_path, &db).unwrap();
+    assert_eq!(pls_synced, 2);
+
+    let conn = Connection::open(&db).unwrap();
+    let mut stmt = conn
+        .prepare("SELECT name FROM Playlists ORDER BY name ASC")
+        .unwrap();
+    let names: Vec<String> = stmt
+        .query_map([], |r| r.get(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+    assert_eq!(names, vec!["House/Set", "Techno/Set"]);
+}
+
+#[test]
+fn test_playlist_entries_counts_only_exported_tracks() {
+    let dir = tempdir().unwrap();
+    let db = dir.path().join("mixxxdb.sqlite");
+    setup_minimal_mixxx_db(&db);
+
+    {
+        let conn = Connection::open(&db).unwrap();
+        conn.execute(
+            "INSERT INTO track_locations VALUES (1, '/music/t1.mp3', 0), (2, '/music/deleted.mp3', 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO library VALUES (1, 'A', 'T1', '', '', 120.0, 180.0, '', 0, 320, 44100, '', 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO library VALUES (2, 'B', 'Deleted', '', '', 120.0, 180.0, '', 0, 320, 44100, '', 2)",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO Playlists VALUES (1, 'My List', 0, 0)", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO PlaylistTracks VALUES (1, 1, 1, 1), (2, 1, 2, 2)",
+            [],
+        )
+        .unwrap();
+    }
+
+    let xml_path = dir.path().join("out.xml");
+    export_mixxx_to_rekordbox_xml(&db, &xml_path).unwrap();
+
+    let content = fs::read_to_string(&xml_path).unwrap();
+    assert!(content.contains(r#"Entries="1""#));
+    assert!(!content.contains(r#"Entries="2""#));
+}
+
+#[test]
+fn test_backup_retention_keeps_ten_latest() {
+    let dir = tempdir().unwrap();
+    let db = dir.path().join("mixxxdb.sqlite");
+    setup_minimal_mixxx_db(&db);
+
+    for _ in 0..15 {
+        protected_import(&db, |_| Ok(())).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+
+    let backup_dir = dir.path().join("backups-rekordbox");
+    let count = fs::read_dir(backup_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "bak"))
+        .count();
+    assert_eq!(count, 10);
+}

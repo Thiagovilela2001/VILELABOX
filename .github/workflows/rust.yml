@@ -1,0 +1,52 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+        working-directory: rust
+
+      - name: Clippy check
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        working-directory: rust
+
+      - name: Run unit & integration tests
+        run: cargo test --workspace --all-features
+        working-directory: rust
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Rust CLI for equivalence test
+        run: cargo build
+        working-directory: rust
+
+      - name: Run Python equivalence test
+        run: python rust/vilelabox-rekordbox/tests/equivalence.py

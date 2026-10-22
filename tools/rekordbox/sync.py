@@ -14,12 +14,103 @@ Uso:
 import sys
 import os
 import sqlite3
+import struct
 import contextlib
 import urllib.parse
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from datetime import datetime
 from pathlib import Path
+
+def decode_varint(data, offset):
+    res = 0
+    shift = 0
+    while offset < len(data):
+        b = data[offset]
+        offset += 1
+        res |= (b & 0x7F) << shift
+        if not (b & 0x80):
+            return res, offset
+        shift += 7
+    return res, offset
+
+def zigzag_decode(n):
+    return (n >> 1) ^ (-(n & 1))
+
+def parse_beats_blob(blob):
+    if not blob:
+        return None
+    offset = 0
+    bpm_val = None
+    first_beat_frame = None
+    first_downbeat_index = 0
+    beats = []
+    try:
+        while offset < len(blob):
+            tag, offset = decode_varint(blob, offset)
+            field_num = tag >> 3
+            wire_type = tag & 0x07
+            if wire_type == 2:
+                length, offset = decode_varint(blob, offset)
+                field_data = blob[offset:offset+length]
+                offset += length
+                if field_num == 1:
+                    if len(field_data) >= 9 and field_data[0] == 9:
+                        bpm_val = struct.unpack("<d", field_data[1:9])[0]
+                    elif len(field_data) >= 2 and field_data[0] == 8:
+                        b_frame, _ = decode_varint(field_data, 1)
+                        beats.append(b_frame)
+                elif field_num == 2:
+                    if len(field_data) >= 2 and field_data[0] == 8:
+                        first_beat_frame, _ = decode_varint(field_data, 1)
+            elif wire_type == 0:
+                val, offset = decode_varint(blob, offset)
+                if field_num in (2, 3):
+                    first_downbeat_index = zigzag_decode(val)
+            elif wire_type == 1:
+                offset += 8
+            elif wire_type == 5:
+                offset += 4
+            else:
+                break
+    except Exception:
+        pass
+    return {
+        "bpm": bpm_val,
+        "first_beat_frame": first_beat_frame,
+        "first_downbeat_index": first_downbeat_index,
+        "beats": beats,
+    }
+
+def extract_tempos(beats_info, fallback_bpm, samplerate):
+    """Retorna lista de (inizio_sec, bpm, battito)."""
+    if not beats_info:
+        return [(0.0, fallback_bpm, 1)]
+
+    beats = beats_info.get("beats") or []
+    if len(beats) >= 2:
+        downbeat_idx = beats_info.get("first_downbeat_index", 0) or 0
+        tempos = []
+        cur_bpm = None
+        for i in range(len(beats) - 1):
+            delta = (beats[i + 1] - beats[i]) / samplerate
+            if delta <= 0:
+                continue
+            b_bpm = round(60.0 / delta, 2)
+            if cur_bpm is None or abs(b_bpm - cur_bpm) >= 0.05:
+                cur_bpm = b_bpm
+                inizio_sec = max(0.0, beats[i] / samplerate)
+                battito = 1 + (((i - downbeat_idx) % 4 + 4) % 4)
+                tempos.append((inizio_sec, cur_bpm, battito))
+        if tempos:
+            return tempos
+
+    first_frame = beats_info.get("first_beat_frame")
+    bpm = beats_info.get("bpm") or fallback_bpm
+    downbeat_idx = beats_info.get("first_downbeat_index", 0) or 0
+    battito = 1 + (((-downbeat_idx) % 4 + 4) % 4)
+    inizio_sec = max(0.0, (first_frame / samplerate)) if first_frame is not None else 0.0
+    return [(inizio_sec, bpm, battito)]
 
 DEFAULT_MIXXX_DB = os.path.expanduser("~/.mixxx/mixxxdb.sqlite")
 DEFAULT_XML_PATH = os.path.expanduser("~/mixxx-rekordbox/rekordbox.xml")
@@ -73,6 +164,18 @@ def protected_import_connection(db_path):
         # IMMEDIATE bloqueia escritores e permite a conexão de backup em
         # bancos rollback e WAL. A checagem de processo exclui o aplicativo.
         print(f"[*] Backup criado: {backup_path}")
+        # Manter os 10 últimos backups
+        prefix = f"{Path(db_path).name}-"
+        existing_backups = sorted(
+            [f for f in backup_dir.glob(f"{prefix}*.bak") if f.is_file()],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        for old_backup in existing_backups[10:]:
+            try:
+                old_backup.unlink()
+            except OSError:
+                pass
         yield conn
         conn.commit()
     except BaseException:
@@ -122,10 +225,15 @@ def export_mixxx_to_rekordbox_xml(output_xml=DEFAULT_XML_PATH, db_path=DEFAULT_M
     ET.SubElement(root, "PRODUCT", Name="rekordbox", Version="6.8.5", Company="AlphaTheta")
 
     # 1. Carregar faixas ativas
-    query_tracks = """
+    cursor.execute("PRAGMA table_info(library)")
+    lib_cols = {row["name"] for row in cursor.fetchall()}
+    has_beats = "beats" in lib_cols
+    beats_col = ", l.beats" if has_beats else ""
+
+    query_tracks = f"""
         SELECT l.id, l.artist, l.title, l.album, l.genre, l.bpm, l.duration,
                l.key, l.rating, l.bitrate, l.samplerate, l.datetime_added,
-               l.comment, tl.location
+               l.comment, tl.location{beats_col}
         FROM library l
         JOIN track_locations tl ON l.location = tl.id
         WHERE tl.fs_deleted = 0
@@ -162,14 +270,19 @@ def export_mixxx_to_rekordbox_xml(output_xml=DEFAULT_XML_PATH, db_path=DEFAULT_M
             Location=loc_url
         )
 
-        # Adicionar Beatgrid básico / TEMPO
-        ET.SubElement(
-            track_el, "TEMPO",
-            Inizio="0.000",
-            Bpm=bpm_val,
-            Metro="4/4",
-            Battito="1"
-        )
+        # Adicionar Beatgrid / TEMPO
+        beats_blob = t["beats"] if has_beats else None
+        beats_info = parse_beats_blob(beats_blob)
+        fallback_bpm = float(t["bpm"]) if t["bpm"] else 120.0
+        tempos = extract_tempos(beats_info, fallback_bpm, samplerate_val)
+        for (inizio_sec, tempo_bpm, battito) in tempos:
+            ET.SubElement(
+                track_el, "TEMPO",
+                Inizio=f"{inizio_sec:.3f}",
+                Bpm=f"{tempo_bpm:.2f}",
+                Metro="4/4",
+                Battito=str(battito)
+            )
 
         # 2. Carregar Cues e Loops da faixa
         cursor.execute("""
@@ -233,19 +346,18 @@ def export_mixxx_to_rekordbox_xml(output_xml=DEFAULT_XML_PATH, db_path=DEFAULT_M
             ORDER BY position ASC
         """, (pl["id"],))
         pl_tracks = cursor.fetchall()
+        valid_tracks = [pt["track_id"] for pt in pl_tracks if pt["track_id"] in track_id_map]
 
         pl_node = ET.SubElement(
             root_node, "NODE",
             Name=pl["name"],
             Type="1",
             KeyType="0",
-            Entries=str(len(pl_tracks))
+            Entries=str(len(valid_tracks))
         )
 
-        for pt in pl_tracks:
-            tid = pt["track_id"]
-            if tid in track_id_map:
-                ET.SubElement(pl_node, "TRACK", Key=track_id_map[tid])
+        for tid in valid_tracks:
+            ET.SubElement(pl_node, "TRACK", Key=track_id_map[tid])
 
     # Sessões de Histórico do Mixxx (hidden = 2)
     cursor.execute("""
@@ -264,18 +376,17 @@ def export_mixxx_to_rekordbox_xml(output_xml=DEFAULT_XML_PATH, db_path=DEFAULT_M
                 ORDER BY position ASC
             """, (pl["id"],))
             pl_tracks = cursor.fetchall()
-            if pl_tracks:
+            valid_tracks = [pt["track_id"] for pt in pl_tracks if pt["track_id"] in track_id_map]
+            if valid_tracks:
                 pl_node = ET.SubElement(
                     hist_folder, "NODE",
                     Name=pl["name"],
                     Type="1",
                     KeyType="0",
-                    Entries=str(len(pl_tracks))
+                    Entries=str(len(valid_tracks))
                 )
-                for pt in pl_tracks:
-                    tid = pt["track_id"]
-                    if tid in track_id_map:
-                        ET.SubElement(pl_node, "TRACK", Key=track_id_map[tid])
+                for tid in valid_tracks:
+                    ET.SubElement(pl_node, "TRACK", Key=track_id_map[tid])
 
     conn.close()
 
@@ -359,12 +470,24 @@ def import_rekordbox_xml_to_mixxx(xml_path, db_path=DEFAULT_MIXXX_DB):
                         color_int = rgb_to_int(cue["red"], cue["green"], cue["blue"])
                         mixxx_cue_type = 4 if cue["type"] == 1 else 1 # 4 = Loop, 1 = HotCue
     
-                        # Verificar se já existe esse hotcue
-                        cursor.execute("""
-                            SELECT id FROM cues
-                            WHERE track_id = ? AND hotcue = ?
-                        """, (mixxx_id, cue["num"]))
-                        existing_cue = cursor.fetchone()
+                        # Memory cues (hotcue = -1) casam por posição (±1 ms); hotcues por índice
+                        if cue["num"] >= 0:
+                            cursor.execute("""
+                                SELECT id FROM cues
+                                WHERE track_id = ? AND hotcue = ?
+                            """, (mixxx_id, cue["num"]))
+                            existing_cue = cursor.fetchone()
+                        else:
+                            tolerance = samplerate * 2.0 * 0.001
+                            cursor.execute("""
+                                SELECT id, position FROM cues
+                                WHERE track_id = ? AND hotcue = -1
+                            """, (mixxx_id,))
+                            existing_cue = None
+                            for cand in cursor.fetchall():
+                                if abs(cand["position"] - sample_pos) <= tolerance:
+                                    existing_cue = cand
+                                    break
     
                         if existing_cue:
                             cursor.execute("""
@@ -383,21 +506,21 @@ def import_rekordbox_xml_to_mixxx(xml_path, db_path=DEFAULT_MIXXX_DB):
         playlists_synced = 0
         playlists_root = root.find("PLAYLISTS")
         if playlists_root is not None:
-            def process_node(node):
+            def process_node(node, path_prefix=""):
                 nonlocal playlists_synced
                 for child in node.findall("NODE"):
                     node_type = child.get("Type")
-                    name = child.get("Name", "Rekordbox Playlist")
+                    raw_name = child.get("Name", "Rekordbox Playlist")
                     if node_type == "1": # Playlist
-                        # Verificar ou criar Playlist no Mixxx
-                        cursor.execute("SELECT id FROM Playlists WHERE name = ?", (name,))
+                        full_name = f"{path_prefix}/{raw_name}" if path_prefix else raw_name
+                        cursor.execute("SELECT id FROM Playlists WHERE name = ?", (full_name,))
                         pl_row = cursor.fetchone()
                         if pl_row:
                             pl_id = pl_row["id"]
                         else:
-                            cursor.execute("INSERT INTO Playlists (name, position, hidden) VALUES (?, 0, 0)", (name,))
+                            cursor.execute("INSERT INTO Playlists (name, position, hidden) VALUES (?, 0, 0)", (full_name,))
                             pl_id = cursor.lastrowid
-                        
+
                         # Limpar faixas anteriores e reinserir com a ordem do Rekordbox
                         cursor.execute("DELETE FROM PlaylistTracks WHERE playlist_id = ?", (pl_id,))
                         pos = 1
@@ -412,8 +535,11 @@ def import_rekordbox_xml_to_mixxx(xml_path, db_path=DEFAULT_MIXXX_DB):
                                 pos += 1
                         playlists_synced += 1
                     elif node_type == "0": # Folder
-                        process_node(child)
-    
+                        sub_prefix = path_prefix
+                        if raw_name != "ROOT":
+                            sub_prefix = f"{path_prefix}/{raw_name}" if path_prefix else raw_name
+                        process_node(child, sub_prefix)
+
             process_node(playlists_root)
     
 

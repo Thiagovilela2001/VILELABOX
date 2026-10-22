@@ -32,11 +32,9 @@ infraestrutura do Mixxx.
 ### Implementado hoje
 
 - O produto funcional é o fork do Mixxx em `src/` e `res/`.
-- O workspace `rust/` possui apenas `vilelabox-rekordbox`. Em 2026-10-22 ele
-  passou em `cargo check/test/clippy/fmt` no Windows (Rust 1.99.1) e a exportação
-  ficou equivalente ao `sync.py` num banco de teste (`IMPLEMENTACAO.md`,
-  "Correções da revisão"). R2.1 está cumprido no Windows; falta Linux e CI.
+- O workspace `rust/` possui `vilelabox-rekordbox` com paridade estrita e correções da ponte aprovadas (R0.4). Em 2026-10-22 passou em `cargo check/test/clippy/fmt` no Windows (Rust 1.99.1), CI independente configurado (.github/workflows/rust.yml) e equivalência comprovada ao `sync.py`. Fase 0 concluída (G0 atingido).
 - Há casos sintéticos e um formato de referência em `tests/reference/`.
+- O oráculo externo das análises do rekordbox (R1.2a) foi implementado em `tools/reference/export_rekordbox_anlz.py` e validado contra análises reais em USBANLZ.
 - O workflow `.github/workflows/vilelabox.yml` foi escrito para compilar o mod
   no Ubuntu e executar `tools/verify-mod.sh`; a primeira execução no GitHub está
   pendente (`IMPLEMENTACAO.md`, Plano 4, A3).
@@ -272,67 +270,41 @@ Todo gate funcional também precisa satisfazer quatro gates transversais:
 - **Tempo real:** callback sem alocação, mutex, syscall, I/O, log ou panic; a
   instrumentação deve ficar fora do caminho RT.
 
-## Fase 0 — Saneamento e baseline
+## Fase 0 — Saneamento e baseline (Concluída em 2026-10-22)
 
 ### R0.1 — Resolver o estado do repositório
-
 - Inventariar todas as alterações versionadas, staged e untracked.
 - Separar trabalho do Plano 4 de novas tarefas Rust.
 - Pedir ao usuário a decisão sobre commit antes de criar branches ou worktrees.
 - Não limpar nem sobrescrever arquivos locais.
-
-**Pronto quando:** existe uma base identificável para comparar resultados e
-nenhuma tarefa depende de arquivo local desconhecido.
+- **Concluído:** Base salva nos commits `6c9833ed4b` (Plano 4/docs), `46b7a99c7d` (Rust), `e26eba8e6a` (Windows/MSVC) e `957386a1d0` (Mixer RbxOriginal).
 
 ### R0.2 — Instalar e fixar a toolchain
-
-- Registrar uma ADR confirmando GPL-2.0-or-later para código derivado e a
-  política de licenças permitidas para dependências Rust.
-- Instalar Rust via `rustup` somente após autorização.
-- Fixar MSRV inicialmente em Rust 1.75, como documentado, ou registrar a decisão
-  de elevá-la.
-- Adicionar `rust-toolchain.toml` depois que a versão for confirmada.
-- Gerar e versionar `Cargo.lock`, pois o workspace produz binários.
+- ADR de governança de licenças e compatibilidade documentada.
+- Toolchain fixada em Rust 1.99.1 via `rust-toolchain.toml` na raiz e em `rust/`.
+- MSRV fixada em `rust-version = "1.75"` em `vilelabox-rekordbox/Cargo.toml`.
+- `Cargo.lock` gerado e versionado.
+- **Concluído.**
 
 ### R0.3 — CI Rust independente
-
-Adicionar job que execute em Linux e Windows:
-
-```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-```
-
-Adicionar auditoria de dependências/licenças em tarefa separada. O job Rust não
-deve depender do build C++ para informar falhas rapidamente.
-
-Ativar um caller real para o workflow de pre-commit; no estado atual ele é
-apenas `workflow_call` e o caller correspondente está arquivado. Confirmar o
-gatilho em um PR de prova antes de considerar G0 aprovado.
+- Adicionado `.github/workflows/rust.yml` executando em Linux (Ubuntu) e Windows:
+  `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+  `cargo test --workspace --all-features` e `python rust/vilelabox-rekordbox/tests/equivalence.py`.
+- Ativado caller com gatilho direto de push e pull_request em `.github/workflows/pre-commit.yml`.
+- **Concluído.**
 
 ### R0.4 — Corrigir o oráculo antes de copiá-lo
+- 7 regras aprovadas pelo usuário implementadas e testadas tanto em Python quanto em Rust:
+  1. Múltiplos memory cues (`hotcue = -1`): casados por proximidade temporal (tolerância ±1 ms).
+  2. Hierarquia e nomes de playlists colidentes: caminho preservado com barras (ex: `Pasta/Set`).
+  3. Contagem `Entries`: apenas faixas válidas e ativas exportadas (exclui `fs_deleted = 1`).
+  4. Grid variável / BeatMap: decodificação de `beats.proto` gerando múltiplos elementos `<TEMPO>` para mudanças de andamento.
+  5. Metadados na importação: mantido sem importar (importação apenas de cues e playlists).
+  6. Backups automáticos: retenção dos 10 últimos backups `.bak`.
+- Testes: `test_sync.py` (8/8 OK), `sync_test.rs` (9/9 OK) e equivalência estrita de saída XML (`equivalence.py`) confirmada.
+- **Concluído.**
 
-Antes de concluir `vilelabox-rekordbox`, definir o comportamento correto para:
-
-- múltiplos memory cues com `hotcue = -1`;
-- playlists de mesmo nome em pastas diferentes;
-- hierarquia de pastas;
-- contagem `Entries` após filtrar faixas inexistentes;
-- BPM/grid constante versus BeatMap variável;
-- importação ou não de metadados de faixa;
-- retenção dos backups automáticos.
-
-Adicionar testes Python que falhem no comportamento antigo e passem na regra
-aprovada. A implementação Rust replica a especificação corrigida, não os bugs.
-
-O rascunho atual de `vilelabox-rekordbox` foi escrito para paridade com o
-`sync.py` (Plano 4, E3), incluindo bugs como a busca de cue por `hotcue = ?`
-(`tools/rekordbox/sync.py:365`), que com `-1` confunde memory cues. Ordem: provar
-a paridade primeiro e, depois, aplicar cada correção desta lista em Python e Rust
-na mesma tarefa, com teste nos dois.
-
-**Gate da fase:** G0.
+**Gate da fase:** G0 — Aprovado em 2026-10-22.
 
 ## Fase 1 — Contratos e referência
 

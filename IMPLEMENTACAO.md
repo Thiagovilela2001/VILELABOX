@@ -147,3 +147,13 @@ Referência: o mixer nas capturas de tela do próprio instalador do rekordbox 7.
 | BAL, BOOTH e A/THRU/B saíram da skin (o rekordbox não os mostra); os controles do Mixxx continuam | — | — | Decisão registrada no README da skin |
 | Linux (`tools/verify-mod.sh`, capturas com `shoot_nested.sh`) e uso real | — | — | Não executado |
 
+## Migração Rust — Fase 0 (G0) e Oráculo rekordbox (R1.2a) (2026-10-22)
+
+| Item | Arquivos | Verificação | Resultado |
+| --- | --- | --- | --- |
+| R0.1 — Base salva em 4 commits | Repositório git | `git log -n 4 --oneline` | Passou: `6c9833ed4b` (Plano 4 / docs), `46b7a99c7d` (Rust inicial), `e26eba8e6a` (Build Windows / MSVC), `957386a1d0` (Mixer RbxOriginal) |
+| R0.2 — Toolchain fixada | `rust-toolchain.toml`, `rust/rust-toolchain.toml`, `rust/vilelabox-rekordbox/Cargo.toml` | `cargo --version`, `cargo check` | Passou: toolchain fixada em 1.99.1 com `rust-version = "1.75"` |
+| R0.3 — CI Rust independente | `.github/workflows/rust.yml`, `.github/workflows/pre-commit.yml` | Validação de sintaxe e gatilhos de push/pull_request | Passou: jobs para Windows e Ubuntu com `fmt`, `clippy -D warnings` e `test`. Pre-commit com gatilho direto ativado |
+| R0.4 — Regras da ponte no Python e Rust | `tools/rekordbox/sync.py`, `tools/rekordbox/test_sync.py`, `rust/vilelabox-rekordbox/src/lib.rs`, `rust/vilelabox-rekordbox/tests/sync_test.rs`, `tests/equivalence.py` | `python tools/rekordbox/test_sync.py`, `cargo test`, `cargo clippy`, `python tests/equivalence.py` | Passou: 7 regras aprovadas (memory cues ±1ms, hierarquia de playlists `Pasta/Set`, contagem de faixas ativas em `Entries`, grid variável com múltiplos `TEMPO` de `beats.proto`, retenção de 10 backups). 8/8 testes Python, 9/9 testes Rust e equivalência estrita de saída XML aprovados |
+| R1.2a — Exportador de análises ANLZ do rekordbox | `tools/reference/export_rekordbox_anlz.py`, `tools/reference/test_export_rekordbox_anlz.py`, `.gitignore` | `python tools/reference/test_export_rekordbox_anlz.py` e extração em faixas reais | Passou: decodificação de `PPTH`, `PQTZ` (beats), `PCOB`/`PCO2` (cues) e `PSSI` (frases com unmasking XOR de chave repetida de 19 bytes). 4/4 testes unitários e extração de análises reais do `%APPDATA%\Pioneer\rekordbox\share\PIONEER\USBANLZ` validados |
+

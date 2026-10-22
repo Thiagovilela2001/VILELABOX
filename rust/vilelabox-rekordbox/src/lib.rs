@@ -232,6 +232,31 @@ pub fn create_consistent_backup(db_path: &Path) -> Result<PathBuf, SyncError> {
     let backup = rusqlite::backup::Backup::new(&src_conn, &mut dst_conn)?;
     backup.run_to_completion(5, std::time::Duration::from_millis(50), None)?;
 
+    // Manter apenas os 10 últimos backups do mesmo banco
+    let prefix = format!("{}-", db_name);
+    if let Ok(entries) = fs::read_dir(&backup_dir) {
+        let mut backups: Vec<(std::path::PathBuf, std::time::SystemTime)> = entries
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|path| {
+                path.is_file()
+                    && path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|n| n.starts_with(&prefix) && n.ends_with(".bak"))
+                        .unwrap_or(false)
+            })
+            .filter_map(|path| {
+                let mtime = path.metadata().and_then(|m| m.modified()).ok()?;
+                Some((path, mtime))
+            })
+            .collect();
+        backups.sort_by_key(|a| std::cmp::Reverse(a.1));
+        for (old_path, _) in backups.into_iter().skip(10) {
+            let _ = fs::remove_file(old_path);
+        }
+    }
+
     Ok(backup_path)
 }
 
@@ -269,6 +294,159 @@ fn protected_import_checked<T>(
     Ok(result)
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct BeatsInfo {
+    pub bpm: Option<f64>,
+    pub first_beat_frame: Option<i64>,
+    pub first_downbeat_index: i32,
+    pub beats: Vec<i64>,
+}
+
+fn decode_varint_slice(data: &[u8], mut offset: usize) -> Option<(u64, usize)> {
+    let mut res = 0u64;
+    let mut shift = 0;
+    while offset < data.len() {
+        let b = data[offset];
+        offset += 1;
+        res |= ((b & 0x7F) as u64) << shift;
+        if b & 0x80 == 0 {
+            return Some((res, offset));
+        }
+        shift += 7;
+        if shift > 64 {
+            return None;
+        }
+    }
+    None
+}
+
+fn zigzag_decode_i32(n: u64) -> i32 {
+    ((n >> 1) as i32) ^ (-((n & 1) as i32))
+}
+
+pub fn parse_beats_blob(blob: &[u8]) -> Option<BeatsInfo> {
+    if blob.is_empty() {
+        return None;
+    }
+    let mut offset = 0;
+    let mut info = BeatsInfo::default();
+
+    while offset < blob.len() {
+        let (tag, new_offset) = decode_varint_slice(blob, offset)?;
+        offset = new_offset;
+        let field_num = tag >> 3;
+        let wire_type = tag & 0x07;
+
+        match wire_type {
+            0 => {
+                let (val, new_offset) = decode_varint_slice(blob, offset)?;
+                offset = new_offset;
+                if field_num == 2 || field_num == 3 {
+                    info.first_downbeat_index = zigzag_decode_i32(val);
+                }
+            }
+            1 => {
+                offset += 8;
+            }
+            2 => {
+                let (len, new_offset) = decode_varint_slice(blob, offset)?;
+                offset = new_offset;
+                let end = offset + len as usize;
+                if end > blob.len() {
+                    break;
+                }
+                let field_data = &blob[offset..end];
+                offset = end;
+
+                if field_num == 1 {
+                    if field_data.len() >= 9 && field_data[0] == 9 {
+                        let bytes: [u8; 8] = field_data[1..9].try_into().ok()?;
+                        info.bpm = Some(f64::from_le_bytes(bytes));
+                    } else if field_data.len() >= 2 && field_data[0] == 8 {
+                        if let Some((frame, _)) = decode_varint_slice(field_data, 1) {
+                            info.beats.push(frame as i64);
+                        }
+                    }
+                } else if field_num == 2 && field_data.len() >= 2 && field_data[0] == 8 {
+                    if let Some((frame, _)) = decode_varint_slice(field_data, 1) {
+                        info.first_beat_frame = Some(frame as i64);
+                    }
+                }
+            }
+            5 => {
+                offset += 4;
+            }
+            _ => break,
+        }
+    }
+    Some(info)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TempoSection {
+    pub inizio_sec: f64,
+    pub bpm: f64,
+    pub battito: i32,
+}
+
+pub fn extract_tempos(
+    beats_info: Option<&BeatsInfo>,
+    fallback_bpm: f64,
+    samplerate: f64,
+) -> Vec<TempoSection> {
+    if let Some(info) = beats_info {
+        if info.beats.len() >= 2 {
+            let mut tempos = Vec::new();
+            let mut cur_bpm: Option<f64> = None;
+            let downbeat_idx = info.first_downbeat_index;
+
+            for i in 0..info.beats.len() - 1 {
+                let delta = (info.beats[i + 1] - info.beats[i]) as f64 / samplerate;
+                if delta <= 0.0 {
+                    continue;
+                }
+                let b_bpm = (60.0 / delta * 100.0).round() / 100.0;
+                let change = match cur_bpm {
+                    None => true,
+                    Some(prev) => (b_bpm - prev).abs() >= 0.05,
+                };
+                if change {
+                    cur_bpm = Some(b_bpm);
+                    let inizio_sec = (info.beats[i] as f64 / samplerate).max(0.0);
+                    let battito = 1 + ((((i as i32) - downbeat_idx) % 4 + 4) % 4);
+                    tempos.push(TempoSection {
+                        inizio_sec,
+                        bpm: b_bpm,
+                        battito,
+                    });
+                }
+            }
+            if !tempos.is_empty() {
+                return tempos;
+            }
+        }
+
+        let first_frame = info.first_beat_frame;
+        let bpm = info.bpm.unwrap_or(fallback_bpm);
+        let downbeat_idx = info.first_downbeat_index;
+        let battito = 1 + (((-downbeat_idx) % 4 + 4) % 4);
+        let inizio_sec = first_frame
+            .map(|f| (f as f64 / samplerate).max(0.0))
+            .unwrap_or(0.0);
+        return vec![TempoSection {
+            inizio_sec,
+            bpm,
+            battito,
+        }];
+    }
+
+    vec![TempoSection {
+        inizio_sec: 0.0,
+        bpm: fallback_bpm,
+        battito: 1,
+    }]
+}
+
 #[derive(Debug, Clone)]
 pub struct TrackExportData {
     pub id: i64,
@@ -284,6 +462,7 @@ pub struct TrackExportData {
     pub samplerate: i64,
     pub comment: String,
     pub location: String,
+    pub beats: Option<Vec<u8>>,
     pub cues: Vec<CueExportData>,
 }
 
@@ -319,14 +498,36 @@ pub fn export_mixxx_to_rekordbox_xml(
     let conn = Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
 
     // 1. Carrega faixas
-    let mut stmt = conn.prepare(
+    let has_beats: bool = {
+        let mut pragma = conn.prepare("PRAGMA table_info(library)")?;
+        let rows = pragma.query_map([], |row| row.get::<_, String>(1))?;
+        let mut found = false;
+        for r in rows.flatten() {
+            if r == "beats" {
+                found = true;
+                break;
+            }
+        }
+        found
+    };
+
+    let query = if has_beats {
         "SELECT l.id, l.artist, l.title, l.album, l.genre, l.bpm, l.duration,
-                l.key, l.rating, l.bitrate, l.samplerate, l.comment, tl.location
+                l.key, l.rating, l.bitrate, l.samplerate, l.comment, tl.location, l.beats
          FROM library l
          JOIN track_locations tl ON l.location = tl.id
          WHERE tl.fs_deleted = 0
-         ORDER BY l.id ASC",
-    )?;
+         ORDER BY l.id ASC"
+    } else {
+        "SELECT l.id, l.artist, l.title, l.album, l.genre, l.bpm, l.duration,
+                l.key, l.rating, l.bitrate, l.samplerate, l.comment, tl.location, NULL
+         FROM library l
+         JOIN track_locations tl ON l.location = tl.id
+         WHERE tl.fs_deleted = 0
+         ORDER BY l.id ASC"
+    };
+
+    let mut stmt = conn.prepare(query)?;
 
     let track_rows = stmt.query_map([], |row| {
         Ok(TrackExportData {
@@ -350,6 +551,7 @@ pub fn export_mixxx_to_rekordbox_xml(
                 .unwrap_or(44100),
             comment: row.get::<_, Option<String>>(11)?.unwrap_or_default(),
             location: row.get::<_, Option<String>>(12)?.unwrap_or_default(),
+            beats: row.get(13)?,
             cues: Vec::new(),
         })
     })?;
@@ -509,13 +711,21 @@ pub fn export_mixxx_to_rekordbox_xml(
             track_el.push_attribute(("Location", loc_url.as_str()));
             writer.write_event(Event::Start(track_el))?;
 
-            // <TEMPO Inizio="0.000" Bpm="..." Metro="4/4" Battito="1"/>
-            let mut tempo = BytesStart::new("TEMPO");
-            tempo.push_attribute(("Inizio", "0.000"));
-            tempo.push_attribute(("Bpm", bpm_val.as_str()));
-            tempo.push_attribute(("Metro", "4/4"));
-            tempo.push_attribute(("Battito", "1"));
-            writer.write_event(Event::Empty(tempo))?;
+            // Beatgrid / TEMPO
+            let beats_info = t.beats.as_deref().and_then(parse_beats_blob);
+            let fallback_bpm = t.bpm.filter(|b| *b != 0.0).unwrap_or(120.0);
+            let tempos = extract_tempos(beats_info.as_ref(), fallback_bpm, t.samplerate as f64);
+            for ts in tempos {
+                let mut tempo = BytesStart::new("TEMPO");
+                let inizio_str = format!("{:.3}", ts.inizio_sec);
+                let bpm_str = format!("{:.2}", ts.bpm);
+                let battito_str = ts.battito.to_string();
+                tempo.push_attribute(("Inizio", inizio_str.as_str()));
+                tempo.push_attribute(("Bpm", bpm_str.as_str()));
+                tempo.push_attribute(("Metro", "4/4"));
+                tempo.push_attribute(("Battito", battito_str.as_str()));
+                writer.write_event(Event::Empty(tempo))?;
+            }
 
             // Cues / POSITION_MARK
             let sr = t.samplerate as f64;
@@ -582,21 +792,26 @@ pub fn export_mixxx_to_rekordbox_xml(
         writer.write_event(Event::Start(root_node))?;
 
         for pl in &playlists {
+            let valid_ids: Vec<i64> = pl
+                .track_ids
+                .iter()
+                .copied()
+                .filter(|tid| track_id_map.contains_key(tid))
+                .collect();
             let mut pl_node = BytesStart::new("NODE");
-            let entries_str = pl.track_ids.len().to_string();
+            let entries_str = valid_ids.len().to_string();
             pl_node.push_attribute(("Name", pl.name.as_str()));
             pl_node.push_attribute(("Type", "1"));
             pl_node.push_attribute(("KeyType", "0"));
             pl_node.push_attribute(("Entries", entries_str.as_str()));
             writer.write_event(Event::Start(pl_node))?;
 
-            for tid in &pl.track_ids {
-                if let Some(rb_id) = track_id_map.get(tid) {
-                    let mut trk = BytesStart::new("TRACK");
-                    let k_str = rb_id.to_string();
-                    trk.push_attribute(("Key", k_str.as_str()));
-                    writer.write_event(Event::Empty(trk))?;
-                }
+            for tid in &valid_ids {
+                let rb_id = track_id_map[tid];
+                let mut trk = BytesStart::new("TRACK");
+                let k_str = rb_id.to_string();
+                trk.push_attribute(("Key", k_str.as_str()));
+                writer.write_event(Event::Empty(trk))?;
             }
             writer.write_event(Event::End(BytesEnd::new("NODE")))?;
         }
@@ -609,23 +824,30 @@ pub fn export_mixxx_to_rekordbox_xml(
             writer.write_event(Event::Start(hist_folder))?;
 
             for pl in &history_playlists {
-                let mut pl_node = BytesStart::new("NODE");
-                let entries_str = pl.track_ids.len().to_string();
-                pl_node.push_attribute(("Name", pl.name.as_str()));
-                pl_node.push_attribute(("Type", "1"));
-                pl_node.push_attribute(("KeyType", "0"));
-                pl_node.push_attribute(("Entries", entries_str.as_str()));
-                writer.write_event(Event::Start(pl_node))?;
+                let valid_ids: Vec<i64> = pl
+                    .track_ids
+                    .iter()
+                    .copied()
+                    .filter(|tid| track_id_map.contains_key(tid))
+                    .collect();
+                if !valid_ids.is_empty() {
+                    let mut pl_node = BytesStart::new("NODE");
+                    let entries_str = valid_ids.len().to_string();
+                    pl_node.push_attribute(("Name", pl.name.as_str()));
+                    pl_node.push_attribute(("Type", "1"));
+                    pl_node.push_attribute(("KeyType", "0"));
+                    pl_node.push_attribute(("Entries", entries_str.as_str()));
+                    writer.write_event(Event::Start(pl_node))?;
 
-                for tid in &pl.track_ids {
-                    if let Some(rb_id) = track_id_map.get(tid) {
+                    for tid in &valid_ids {
+                        let rb_id = track_id_map[tid];
                         let mut trk = BytesStart::new("TRACK");
                         let k_str = rb_id.to_string();
                         trk.push_attribute(("Key", k_str.as_str()));
                         writer.write_event(Event::Empty(trk))?;
                     }
+                    writer.write_event(Event::End(BytesEnd::new("NODE")))?;
                 }
-                writer.write_event(Event::End(BytesEnd::new("NODE")))?;
             }
             writer.write_event(Event::End(BytesEnd::new("NODE")))?;
         }
@@ -720,24 +942,37 @@ fn parse_position_mark(e: &BytesStart) -> Result<XmlCueData, SyncError> {
     Ok(cue)
 }
 
-/// `Some(nome)` para um `<NODE Type="1">` (playlist); pastas devolvem `None`.
-fn parse_playlist_node(e: &BytesStart) -> Result<Option<XmlPlaylistData>, SyncError> {
-    let mut is_playlist = false;
+#[derive(Debug, Clone)]
+enum NodeKind {
+    Folder(String),
+    Playlist(String),
+}
+
+fn parse_node_kind(e: &BytesStart) -> Result<Option<NodeKind>, SyncError> {
+    let mut node_type: Option<u8> = None;
     let mut name = "Rekordbox Playlist".to_string();
     for attr in e.attributes().flatten() {
         match attr.key.as_ref() {
-            b"Type" => is_playlist = attr.value.as_ref() == b"1",
+            b"Type" => {
+                if attr.value.as_ref() == b"0" {
+                    node_type = Some(0);
+                } else if attr.value.as_ref() == b"1" {
+                    node_type = Some(1);
+                }
+            }
             b"Name" => name = attr_text(&attr)?,
             _ => {}
         }
     }
-    Ok(is_playlist.then(|| XmlPlaylistData {
-        name,
-        track_keys: Vec::new(),
-    }))
+    match node_type {
+        Some(0) => Ok(Some(NodeKind::Folder(name))),
+        Some(1) => Ok(Some(NodeKind::Playlist(name))),
+        _ => Ok(None),
+    }
 }
 
 /// Lê COLLECTION e PLAYLISTS do XML, na ordem do documento.
+/// Preserva a hierarquia de pastas com nomes no formato `Pasta/Set`.
 pub fn parse_rekordbox_xml(
     xml_content: &str,
 ) -> Result<(HashMap<String, XmlTrackData>, Vec<XmlPlaylistData>), SyncError> {
@@ -750,6 +985,9 @@ pub fn parse_rekordbox_xml(
     let mut current_playlist: Option<XmlPlaylistData> = None;
     let mut in_collection = false;
 
+    let mut folder_stack: Vec<String> = Vec::new();
+    let mut open_node_kinds: Vec<NodeKind> = Vec::new();
+
     loop {
         match reader.read_event()? {
             Event::Start(ref e) => match e.name().as_ref() {
@@ -761,14 +999,31 @@ pub fn parse_rekordbox_xml(
                     }
                 }
                 b"NODE" => {
-                    if let Some(pl) = parse_playlist_node(e)? {
-                        current_playlist = Some(pl);
+                    if let Some(kind) = parse_node_kind(e)? {
+                        match &kind {
+                            NodeKind::Folder(fname) => {
+                                if fname != "ROOT" {
+                                    folder_stack.push(fname.clone());
+                                }
+                            }
+                            NodeKind::Playlist(pname) => {
+                                let full_name = if folder_stack.is_empty() {
+                                    pname.clone()
+                                } else {
+                                    format!("{}/{}", folder_stack.join("/"), pname)
+                                };
+                                current_playlist = Some(XmlPlaylistData {
+                                    name: full_name,
+                                    track_keys: Vec::new(),
+                                });
+                            }
+                        }
+                        open_node_kinds.push(kind);
                     }
                 }
                 _ => {}
             },
             Event::Empty(ref e) => match e.name().as_ref() {
-                // Faixa sem cues: <TRACK .../> na COLLECTION.
                 b"TRACK" if in_collection => {
                     let trk = parse_collection_track(e)?;
                     xml_tracks.insert(trk.key.clone(), trk);
@@ -787,10 +1042,17 @@ pub fn parse_rekordbox_xml(
                         trk.cues.push(parse_position_mark(e)?);
                     }
                 }
-                // Playlist vazia: o Python também a cria e esvazia no Mixxx.
                 b"NODE" => {
-                    if let Some(pl) = parse_playlist_node(e)? {
-                        playlists.push(pl);
+                    if let Some(NodeKind::Playlist(pname)) = parse_node_kind(e)? {
+                        let full_name = if folder_stack.is_empty() {
+                            pname
+                        } else {
+                            format!("{}/{}", folder_stack.join("/"), pname)
+                        };
+                        playlists.push(XmlPlaylistData {
+                            name: full_name,
+                            track_keys: Vec::new(),
+                        });
                     }
                 }
                 _ => {}
@@ -803,8 +1065,19 @@ pub fn parse_rekordbox_xml(
                     }
                 }
                 b"NODE" => {
-                    if let Some(pl) = current_playlist.take() {
-                        playlists.push(pl);
+                    if let Some(kind) = open_node_kinds.pop() {
+                        match kind {
+                            NodeKind::Folder(fname) => {
+                                if fname != "ROOT" {
+                                    folder_stack.pop();
+                                }
+                            }
+                            NodeKind::Playlist(_) => {
+                                if let Some(pl) = current_playlist.take() {
+                                    playlists.push(pl);
+                                }
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -875,13 +1148,29 @@ fn write_import(
             let color_int = rgb_to_int(cue.red, cue.green, cue.blue);
             let mixxx_cue_type = if cue.cue_type == 1 { 4 } else { 1 }; // 4 = Loop, 1 = HotCue
 
-            let existing_id: Option<i64> = tx
-                .query_row(
+            let existing_id: Option<i64> = if cue.num >= 0 {
+                tx.query_row(
                     "SELECT id FROM cues WHERE track_id = ? AND hotcue = ?",
                     params![mixxx_id, cue.num],
                     |row| row.get(0),
                 )
-                .optional()?;
+                .optional()?
+            } else {
+                let tolerance = samplerate * 2.0 * 0.001;
+                let mut stmt =
+                    tx.prepare("SELECT id, position FROM cues WHERE track_id = ? AND hotcue = -1")?;
+                let mut rows = stmt.query(params![mixxx_id])?;
+                let mut matched = None;
+                while let Some(r) = rows.next()? {
+                    let cid: i64 = r.get(0)?;
+                    let pos: f64 = r.get(1)?;
+                    if (pos - sample_pos).abs() <= tolerance {
+                        matched = Some(cid);
+                        break;
+                    }
+                }
+                matched
+            };
 
             if let Some(cid) = existing_id {
                 tx.execute(
