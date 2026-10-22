@@ -73,3 +73,7 @@ rust/target/
 
 # Material do rekordbox (AlphaTheta), só local: nunca versionar
 third_party/rekordbox/
+
+# Exportações locais de análises reais (não versionar dados da biblioteca do usuário)
+tests/reference/rekordbox/
+
