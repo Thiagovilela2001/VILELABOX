@@ -141,6 +141,78 @@
       </WidgetGroup>
       <WidgetGroup><Size>16f,1min</Size></WidgetGroup>
 
+      <!-- MASTER: rekordbox keeps the master level in the global bar, a
+           horizontal L/R meter and a level slider next to the clock. -->
+      <WidgetGroup>
+        <ObjectName>RbxMasterBox</ObjectName>
+        <Layout>horizontal</Layout>
+        <SizePolicy>min,min</SizePolicy>
+        <Children>
+          <Label>
+            <ObjectName>RbxCpuLabel</ObjectName>
+            <Size>44f,11f</Size>
+            <Alignment>right</Alignment>
+            <Text>MASTER</Text>
+          </Label>
+          <WidgetGroup><Size>6f,1min</Size></WidgetGroup>
+          <WidgetGroup>
+            <Layout>vertical</Layout>
+            <SizePolicy>min,min</SizePolicy>
+            <Children>
+              <VuMeter>
+                <TooltipId>main_VuMeterL</TooltipId>
+                <ObjectName>MasterVuL</ObjectName>
+                <PathBack>skin:bases/vu_rb_h_bg.png</PathBack>
+                <PathVu>skin:bases/vu_rb_h_active.png</PathVu>
+                <Horizontal>true</Horizontal>
+                <PeakHoldSize>2</PeakHoldSize>
+                <PeakHoldTime>500</PeakHoldTime>
+                <PeakFallTime>50</PeakFallTime>
+                <PeakFallStep>2</PeakFallStep>
+                <Connection>
+                  <ConfigKey>[Main],vu_meter_left</ConfigKey>
+                </Connection>
+              </VuMeter>
+              <WidgetGroup><Size>1min,2f</Size></WidgetGroup>
+              <VuMeter>
+                <TooltipId>main_VuMeterR</TooltipId>
+                <ObjectName>MasterVuR</ObjectName>
+                <PathBack>skin:bases/vu_rb_h_bg.png</PathBack>
+                <PathVu>skin:bases/vu_rb_h_active.png</PathVu>
+                <Horizontal>true</Horizontal>
+                <PeakHoldSize>2</PeakHoldSize>
+                <PeakHoldTime>500</PeakHoldTime>
+                <PeakFallTime>50</PeakFallTime>
+                <PeakFallStep>2</PeakFallStep>
+                <Connection>
+                  <ConfigKey>[Main],vu_meter_right</ConfigKey>
+                </Connection>
+              </VuMeter>
+            </Children>
+          </WidgetGroup>
+          <WidgetGroup><Size>8f,1min</Size></WidgetGroup>
+          <SliderComposed>
+            <TooltipId>main_gain</TooltipId>
+            <ObjectName>MasterGainSlider</ObjectName>
+            <Size>64f,14f</Size>
+            <Slider scalemode="STRETCH">skin:rb/blank.svg</Slider>
+            <Handle scalemode="STRETCH_ASPECT">skin:rb/slider_handle_h.svg</Handle>
+            <Horizontal>true</Horizontal>
+            <BarColor>#1473eb</BarColor>
+            <BarWidth>2</BarWidth>
+            <BarMargins>3,3</BarMargins>
+            <BarBgColor>#3c3c3c</BarBgColor>
+            <BarBgWidth>2</BarBgWidth>
+            <BarAxisPos>7</BarAxisPos>
+            <BarUnipolar>true</BarUnipolar>
+            <Connection>
+              <ConfigKey>[Master],gain</ConfigKey>
+            </Connection>
+          </SliderComposed>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>16f,1min</Size></WidgetGroup>
+
       <WidgetGroup>
         <ObjectName>RbxClock</ObjectName>
         <Layout>horizontal</Layout>

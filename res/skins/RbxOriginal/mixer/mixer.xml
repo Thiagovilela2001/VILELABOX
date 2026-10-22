@@ -1,72 +1,191 @@
 <!DOCTYPE template>
 <!--
-  RbxFlow :: mixer/mixer.xml
-  Central mixer, in the Rekordbox reading order:
-      DECK A  ->  CHANNEL 1  ->  MASTER  ->  CHANNEL 2  ->  DECK B
+  RbxOriginal :: mixer/mixer.xml
+  rekordbox Performance mixer: two narrow channel strips side by side and no
+  master strip between them; rekordbox keeps the master level in the global
+  bar (topbar.xml). Reference: the mixer in the rekordbox installer's own
+  tutorial screenshots (tutorial/12_17.png, tutorial/DDJ200/mix_10.png).
 
-  Sizing: `0max,0max` means "minimum 0, policy Maximum on both axes", i.e. the
-  mixer takes exactly its own size hint and never claims the row's spare width
-  or height. The decks either side are `me` and take the slack.
+      TRIM | TRIM      knob over its label; the EQ labels are kill buttons
+      HIGH | HIGH
+      MID  | MID
+      LOW  | LOW
+      CFX  | CFX
+      [ COLOR FX  ]    one selector for both channels
+      CUE  | CUE
+      fader| fader     hairline track, blue level line, line handle; meter
+      (headphones) MIX LEVEL SPLIT
+      crossfader
 
-  The crossfader is a full-width row under the three strips. It used to sit
-  inside the master strip, where it could never be wider than that strip.
+  The crossfader stays inside this column, so it is always centred under the
+  strips whatever width the decks take. 171 px = 5 + 80 + 1 + 80 + 5.
 -->
 <Template>
   <WidgetGroup>
     <ObjectName>RbxMixer</ObjectName>
     <Layout>vertical</Layout>
-    <Size>0max,0me</Size>
+    <Size>171f,0me</Size>
     <Children>
-      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
 
+      <!-- knobs -->
       <WidgetGroup>
         <Layout>horizontal</Layout>
-        <SizePolicy>me,me</SizePolicy>
+        <Size>171f,0max</Size>
         <Children>
-          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
-
-          <!-- CH 1 -->
-          <Template src="skin:mixer/channel.xml">
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+          <Template src="skin:mixer/channel_knobs.xml">
             <SetVariable name="ChanNum">1</SetVariable>
           </Template>
-
-          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
-
-          <!-- MASTER -->
-          <Template src="skin:mixer/master.xml"/>
-
-          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
-
-          <!-- CH 2 -->
-          <Template src="skin:mixer/channel.xml">
+          <WidgetGroup><ObjectName>RbxMixerDivider</ObjectName><Size>1f,0me</Size></WidgetGroup>
+          <Template src="skin:mixer/channel_knobs.xml">
             <SetVariable name="ChanNum">2</SetVariable>
           </Template>
-          <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
-
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
         </Children>
       </WidgetGroup>
 
-      <!-- full-width crossfader, spanning all three strips -->
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+      <!-- COLOR FX: the same QuickEffect preset on both channels; each CFX
+           knob then plays it on its own channel. -->
+      <WidgetGroup>
+        <ObjectName>RbxColorFx</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>171f,20f</Size>
+        <Children>
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Size>48f,20f</Size>
+            <Alignment>center</Alignment>
+            <Text>COLOR FX</Text>
+          </Label>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <EffectChainPresetSelector>
+            <ObjectName>CentralColorFxSelector</ObjectName>
+            <EffectUnitGroup>[QuickEffectRack1_[Channel1]]</EffectUnitGroup>
+            <TargetEffectUnitGroup>[QuickEffectRack1_[Channel2]]</TargetEffectUnitGroup>
+            <Tooltip>Escolha o COLOR FX para os dois canais. Os knobs CFX ajustam cada canal separadamente.</Tooltip>
+            <Size>109f,20f</Size>
+          </EffectChainPresetSelector>
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+      <!-- CUE + fader: this row takes the spare height, so the faders reach
+           the bottom of the decks as in rekordbox. -->
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>171f,0me</Size>
+        <Children>
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+          <Template src="skin:mixer/channel_fader.xml">
+            <SetVariable name="ChanNum">1</SetVariable>
+          </Template>
+          <WidgetGroup><ObjectName>RbxMixerDivider</ObjectName><Size>1f,0me</Size></WidgetGroup>
+          <Template src="skin:mixer/channel_fader.xml">
+            <SetVariable name="ChanNum">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
+
+      <!-- headphones, as in rekordbox's bottom bar: icon, MIX, LEVEL -->
+      <WidgetGroup>
+        <ObjectName>RbxHeadphone</ObjectName>
+        <Layout>horizontal</Layout>
+        <Size>171f,24f</Size>
+        <Children>
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+          <WidgetGroup>
+            <ObjectName>RbxHeadphoneIcon</ObjectName>
+            <Size>14f,14f</Size>
+            <BackPath>skin:rb/headphones.svg</BackPath>
+          </WidgetGroup>
+          <WidgetGroup><Size>5f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[Master]</SetVariable>
+            <SetVariable name="Control">headMix</SetVariable>
+            <SetVariable name="TooltipId">headMix</SetVariable>
+            <SetVariable name="Size">22f,22f</SetVariable>
+            <SetVariable name="KnobBg">none</SetVariable>
+            <SetVariable name="KnobColor">rb</SetVariable>
+            <SetVariable name="ArcColor">#1473eb</SetVariable>
+            <SetVariable name="ArcRadius">9</SetVariable>
+            <SetVariable name="ArcThickness">2</SetVariable>
+          </Template>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Size>22f,22f</Size>
+            <Alignment>center</Alignment>
+            <Text>MIX</Text>
+          </Label>
+          <WidgetGroup><Size>4f,0me</Size></WidgetGroup>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[Master]</SetVariable>
+            <SetVariable name="Control">headGain</SetVariable>
+            <SetVariable name="TooltipId">headphone_gain</SetVariable>
+            <SetVariable name="Size">22f,22f</SetVariable>
+            <SetVariable name="KnobBg">none</SetVariable>
+            <SetVariable name="KnobColor">rb</SetVariable>
+            <SetVariable name="ArcColor">#1473eb</SetVariable>
+            <SetVariable name="ArcRadius">9</SetVariable>
+            <SetVariable name="ArcThickness">2</SetVariable>
+            <SetVariable name="ArcUnipolar">true</SetVariable>
+          </Template>
+          <Label>
+            <ObjectName>KnobLabel</ObjectName>
+            <Size>32f,22f</Size>
+            <Alignment>center</Alignment>
+            <Text>LEVEL</Text>
+          </Label>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <PushButton>
+            <TooltipId>headSplit</TooltipId>
+            <ObjectName>HeadSplit</ObjectName>
+            <Size>34f,16f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>false</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text>SPLIT</Text>
+              <Alignment>center</Alignment>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text>SPLIT</Text>
+              <Alignment>center</Alignment>
+            </State>
+            <Connection>
+              <ConfigKey>[Master],headSplit</ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
+          <WidgetGroup><Size>6f,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+
+      <!-- crossfader: hairline with three ticks and a line handle -->
       <WidgetGroup>
         <ObjectName>RbxCrossfaderRow</ObjectName>
         <Layout>horizontal</Layout>
-        <Size>0me,30f</Size>
+        <Size>171f,20f</Size>
         <Children>
           <WidgetGroup><Size>8f,0me</Size></WidgetGroup>
-
           <SliderComposed>
             <TooltipId>crossfader</TooltipId>
             <ObjectName>CrossfaderSlider</ObjectName>
-            <Size>0me,30f</Size>
-            <Handle scalemode="STRETCH_ASPECT">skin:bases/knob_crossfader.svg</Handle>
-            <Slider scalemode="STRETCH">skin:bases/slider_crossfader.svg</Slider>
+            <Size>155f,20f</Size>
+            <Slider>skin:rb/xfader_track.svg</Slider>
+            <Handle scalemode="STRETCH_ASPECT">skin:rb/xfader_handle.svg</Handle>
             <Horizontal>true</Horizontal>
-            <BarColor><Variable name="BarColorCrossfader"/></BarColor>
-            <BarWidth><Variable name="BarWidth"/></BarWidth>
-            <BarMargins><Variable name="BarMarginCrossfader"/></BarMargins>
-            <BarRoundCaps>true</BarRoundCaps>
-            <BarAxisPos>15.0</BarAxisPos>
-            <BarUnipolar>false</BarUnipolar>
             <Connection>
               <ConfigKey>[Master],crossfader</ConfigKey>
             </Connection>
@@ -78,8 +197,13 @@
           <BindProperty>visible</BindProperty>
         </Connection>
       </WidgetGroup>
-      <WidgetGroup><Size>0me,8f</Size></WidgetGroup>
 
+      <WidgetGroup><Size>0me,6f</Size></WidgetGroup>
     </Children>
+    <!-- the MIXER check box in the top bar, as in rekordbox -->
+    <Connection>
+      <ConfigKey persist="true">[RbxOriginal],show_mixer</ConfigKey>
+      <BindProperty>visible</BindProperty>
+    </Connection>
   </WidgetGroup>
 </Template>

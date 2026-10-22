@@ -24,7 +24,11 @@
     <ObjectName>RbxDeck<Variable name="ChanNum"/></ObjectName>
     <Layout>horizontal</Layout>
     <SizePolicy>me,me</SizePolicy>
-    <MinimumSize>520,360</MinimumSize>
+    <!-- 480: the height the deck content really needs (track info, overview,
+         the 150 px controls row, pads). It used to be 360 and the old, tall
+         mixer held the row up; with rekordbox's narrow mixer the deck must
+         hold its own height or the pads cover BAR LOOP. -->
+    <MinimumSize>520,480</MinimumSize>
     <Children>
 
       <WidgetGroup><Size>8f,0me</Size></WidgetGroup>

@@ -1,17 +1,9 @@
 <!DOCTYPE template>
 <!--
-  RbxFlow :: mixer/eq_knob.xml
-  One EQ band: label ABOVE the knob, then the knob.
-
-  The root used to be `Layout horizontal`, which put the band label BESIDE the
-  knob and added 40 px of width to every band. The kill/reset that used to be a
-  26x13 button absolutely positioned at y=37 (i.e. 10 px outside its own 40 px
-  box) is now bound to the knob's RIGHT CLICK - a knob with a <ButtonState>
-  connection handles the press without breaking the drag on left button.
-
-  Mixxx has no dedicated filter knob per channel; the closest equivalent to
-  Rekordbox's FILTER knob is the per-channel QuickEffect meta knob
-  ([QuickEffectRack1_<Channel>],super1).
+  RbxOriginal :: mixer/eq_knob.xml
+  One EQ band as in rekordbox: the knob, and under it the band name, which is
+  the kill button (rekordbox's eqHighOff / eqHighOn: grey plate; killed = blue
+  outline with a diagonal). Right click on the knob kills the band as well.
   Variables: ChanNum, EqParameter (1=low,2=mid,3=high), EqRange, EqLabel
 -->
 <Template>
@@ -22,42 +14,28 @@
   <WidgetGroup>
     <ObjectName>RbxEqKnob<Variable name="ChanNum"/><Variable name="EqRange"/></ObjectName>
     <Layout>vertical</Layout>
-    <!-- 76f = the full channel column (mixer/channel.xml), so the knob is
-         centred under TRIM/CFX; a narrower band sits flush left in the
-         vertical layout and the EQ knobs come out crooked. 0max = height
-         follows the size hint, so the band can never push the fader off. -->
-    <Size>76f,0max</Size>
-    <MinimumSize>76,45</MinimumSize>
+    <!-- 80f = the channel column, so the knob is centred under TRIM/CFX;
+         0max = height follows the content and never pushes the fader off. -->
+    <Size>80f,0max</Size>
     <Children>
-
-      <Label>
-        <ObjectName>EqBandLabel</ObjectName>
-        <Size>76f,10f</Size>
-        <Alignment>center</Alignment>
-        <Elide>none</Elide>
-        <Text><Variable name="EqLabel"/></Text>
-      </Label>
-
-      <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
 
       <WidgetGroup>
         <Layout>horizontal</Layout>
-        <Size>76f,34f</Size>
+        <Size>80f,30f</Size>
         <Children>
           <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
           <EffectParameterKnobComposed>
             <ObjectName>EqKnob</ObjectName>
-            <Size>34f,34f</Size>
+            <Size>30f,30f</Size>
             <TooltipId>filter<Variable name="EqRange"/></TooltipId>
-            <Knob scalemode="STRETCH_ASPECT">skin:bases/knob_indicator_small_grey.svg</Knob>
-            <BackPath scalemode="STRETCH_ASPECT">skin:bases/knob_bg_small.svg</BackPath>
+            <Knob scalemode="STRETCH_ASPECT">skin:bases/knob_indicator_rb.svg</Knob>
             <MinAngle><Variable name="PotiMinAngle"/></MinAngle>
             <MaxAngle><Variable name="PotiMaxAngle"/></MaxAngle>
-            <ArcRadius>14.5</ArcRadius>
+            <ArcRadius>12</ArcRadius>
             <ArcThickness>2</ArcThickness>
-            <ArcColor><Variable name="ArcColorEq"/></ArcColor>
+            <ArcColor>#1473eb</ArcColor>
             <!-- without a non-zero ArcBgThickness the parser never reads
-                 ArcBgColor, so a knob would show a lit arc with no track -->
+                 ArcBgColor, and the ring (rekordbox's whole knob) is gone -->
             <ArcBgColor>#3a3a3a</ArcBgColor>
             <ArcBgThickness>2</ArcBgThickness>
             <ArcRoundCaps><Variable name="ArcRoundCaps"/></ArcRoundCaps>
@@ -68,12 +46,47 @@
             <Connection>
               <ConfigKey><Variable name="EqEffect"/>,parameter<Variable name="EqParameter"/></ConfigKey>
             </Connection>
-            <!-- right click = kill / restore this band -->
             <Connection>
               <ConfigKey><Variable name="EqEffect"/>,button_parameter<Variable name="EqParameter"/></ConfigKey>
               <ButtonState>RightButton</ButtonState>
             </Connection>
           </EffectParameterKnobComposed>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+
+      <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>80f,14f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <PushButton>
+            <Tooltip>Clique para cortar (kill) esta banda do EQ; clique de novo para voltar.</Tooltip>
+            <ObjectName>EqKill</ObjectName>
+            <Size>38f,14f</Size>
+            <NumberStates>2</NumberStates>
+            <RightClickIsPushButton>false</RightClickIsPushButton>
+            <State>
+              <Number>0</Number>
+              <Text><Variable name="EqLabel"/></Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:rb/eq_kill_off.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:rb/eq_kill_on.svg</Pressed>
+            </State>
+            <State>
+              <Number>1</Number>
+              <Text><Variable name="EqLabel"/></Text>
+              <Alignment>center</Alignment>
+              <Unpressed scalemode="STRETCH">skin:rb/eq_kill_on.svg</Unpressed>
+              <Pressed scalemode="STRETCH">skin:rb/eq_kill_on.svg</Pressed>
+            </State>
+            <Connection>
+              <ConfigKey><Variable name="EqEffect"/>,button_parameter<Variable name="EqParameter"/></ConfigKey>
+              <ButtonState>LeftButton</ButtonState>
+            </Connection>
+          </PushButton>
           <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
         </Children>
       </WidgetGroup>

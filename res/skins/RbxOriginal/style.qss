@@ -614,10 +614,27 @@ WTrackProperty#SamplerTitle { background-color: #000000; font-size: 10px; }
 #RbxEffectsPanel { background-color: #191919; }
 WPushButton#PitchRangePreset { font-size: 10px; }
 
-/* FX units in the centre of the mixer */
+/* FX units (fx/unit.xml) */
 WLabel#MixerFxTitle { color: #1473eb; font-size: 10px; font-weight: 700; }
 WEffectSelector#MixerFxSelector1, WEffectSelector#MixerFxSelector2 { font-size: 10px; }
 WPushButton#MixerFxOn1[displayValue="1"], WPushButton#MixerFxOn2[displayValue="1"] { background-color: #1473eb; color: #ffffff; }
+
+/* rekordbox mixer (mixer/*.xml): bare strips, hairline divider, fader ticks.
+   The EQ band labels are kill buttons drawn by rb/eq_kill_*.svg, so the chip
+   background and border of WPushButton are switched off for them. */
+#RbxMixerDivider { background-color: #2e2e2e; }
+#RbxFaderTick { background-color: #4b4b4b; }
+WPushButton#EqKill,
+WPushButton#EqKill:hover,
+WPushButton#EqKill[value="1"] {
+  background-color: transparent;
+  border: none;
+  color: #e6e6e6;
+  font-size: 9px;
+  font-weight: 700;
+}
+WPushButton#EqKill[value="1"] { color: #1473eb; }
+WPushButton#HeadSplit { font-size: 8px; }
 
 WEffectChainPresetSelector#CentralColorFxSelector { background-color: #282828; border: 1px solid #323232; border-radius: 2px; color: #d0d0d0; font-size: 10px; }
 

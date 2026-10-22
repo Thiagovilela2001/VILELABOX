@@ -1,0 +1,111 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: mixer/channel_knobs.xml
+  Upper half of a rekordbox channel strip: every knob sits over its label.
+
+      TRIM   pregain
+      HIGH   EQ high, the label kills the band (mixer/eq_knob.xml)
+      MID
+      LOW
+      CFX    Mixxx QuickEffect super knob, rekordbox's COLOR FX knob
+  Variables: ChanNum
+-->
+<Template>
+  <WidgetGroup>
+    <ObjectName>RbxChannelKnobs<Variable name="ChanNum"/></ObjectName>
+    <Layout>vertical</Layout>
+    <Size>80f,0max</Size>
+    <Children>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>80f,30f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[Channel<Variable name="ChanNum"/>]</SetVariable>
+            <SetVariable name="Control">pregain</SetVariable>
+            <SetVariable name="TooltipId">pregain</SetVariable>
+            <SetVariable name="Size">30f,30f</SetVariable>
+            <SetVariable name="KnobBg">none</SetVariable>
+            <SetVariable name="KnobColor">rb</SetVariable>
+            <SetVariable name="ArcColor">#1473eb</SetVariable>
+            <SetVariable name="ArcRadius">12</SetVariable>
+            <SetVariable name="ArcThickness">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+      <Label>
+        <ObjectName>KnobLabel</ObjectName>
+        <Size>80f,13f</Size>
+        <Alignment>center</Alignment>
+        <Text>TRIM</Text>
+      </Label>
+
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+
+      <WidgetGroup>
+        <ObjectName>RbxEq<Variable name="ChanNum"/></ObjectName>
+        <Layout>vertical</Layout>
+        <Size>80f,0max</Size>
+        <Children>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">3</SetVariable>
+            <SetVariable name="EqRange">High</SetVariable>
+            <SetVariable name="EqLabel">HIGH</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">2</SetVariable>
+            <SetVariable name="EqRange">Mid</SetVariable>
+            <SetVariable name="EqLabel">MID</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+          <Template src="skin:mixer/eq_knob.xml">
+            <SetVariable name="ChanNum"><Variable name="ChanNum"/></SetVariable>
+            <SetVariable name="EqParameter">1</SetVariable>
+            <SetVariable name="EqRange">Low</SetVariable>
+            <SetVariable name="EqLabel">LOW</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+        </Children>
+        <Connection>
+          <ConfigKey persist="true">[RbxOriginal],show_eq</ConfigKey>
+          <BindProperty>visible</BindProperty>
+        </Connection>
+      </WidgetGroup>
+
+      <WidgetGroup>
+        <Layout>horizontal</Layout>
+        <Size>80f,30f</Size>
+        <Children>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+          <Template src="skin:controls/knob.xml">
+            <SetVariable name="Group">[QuickEffectRack1_[Channel<Variable name="ChanNum"/>]]</SetVariable>
+            <SetVariable name="Control">super1</SetVariable>
+            <SetVariable name="TooltipId">QuickEffectRack_super1</SetVariable>
+            <SetVariable name="Size">30f,30f</SetVariable>
+            <SetVariable name="KnobBg">none</SetVariable>
+            <SetVariable name="KnobColor">rb</SetVariable>
+            <SetVariable name="ArcColor">#1473eb</SetVariable>
+            <SetVariable name="ArcRadius">12</SetVariable>
+            <SetVariable name="ArcThickness">2</SetVariable>
+          </Template>
+          <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+        </Children>
+      </WidgetGroup>
+      <WidgetGroup><Size>0me,1f</Size></WidgetGroup>
+      <Label>
+        <ObjectName>KnobLabel</ObjectName>
+        <Size>80f,13f</Size>
+        <Alignment>center</Alignment>
+        <Text>CFX</Text>
+      </Label>
+
+    </Children>
+  </WidgetGroup>
+</Template>

@@ -1,0 +1,22 @@
+<!DOCTYPE template>
+<!--
+  RbxOriginal :: mixer/fader_ticks.xml
+  rekordbox's three fader ticks (top, middle, bottom), on one side of the
+  track. The 4 px end spacers put the ticks on the handle's centre at both
+  ends of its travel (handle 8 px, see mixer/channel_fader.xml).
+-->
+<Template>
+  <WidgetGroup>
+    <Layout>vertical</Layout>
+    <Size>7f,0me</Size>
+    <Children>
+      <WidgetGroup><Size>0me,4f</Size></WidgetGroup>
+      <WidgetGroup><ObjectName>RbxFaderTick</ObjectName><Size>7f,1f</Size></WidgetGroup>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <WidgetGroup><ObjectName>RbxFaderTick</ObjectName><Size>7f,1f</Size></WidgetGroup>
+      <WidgetGroup><Size>0me,0me</Size></WidgetGroup>
+      <WidgetGroup><ObjectName>RbxFaderTick</ObjectName><Size>7f,1f</Size></WidgetGroup>
+      <WidgetGroup><Size>0me,3f</Size></WidgetGroup>
+    </Children>
+  </WidgetGroup>
+</Template>
