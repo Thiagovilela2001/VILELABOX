@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-rekordbox"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Ponte de sincronização bidirecional entre rekordbox.xml e mixxxdb.sqlite"
+
+[dependencies]
+rusqlite = { version = "0.31", features = ["bundled", "backup"] }
+quick-xml = "0.36"
+percent-encoding = "2.3"
+chrono = "0.4"
+
+[dev-dependencies]
+tempfile = "3.10"
