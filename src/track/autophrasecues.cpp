@@ -62,7 +62,7 @@ bool AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPoint
     }
     // One beat of tolerance: grid edits move points slightly, and two points
     // on the same beat would be the same hot cue.
-    const auto near = [&beats](mixxx::audio::FramePos a, mixxx::audio::FramePos b) {
+    const auto isNear = [&beats](mixxx::audio::FramePos a, mixxx::audio::FramePos b) {
         return std::abs(a - b) <= beats->iteratorFrom(a).beatLengthFrames();
     };
     QList<mixxx::audio::FramePos> hotCuePositions;
@@ -73,7 +73,7 @@ bool AutoPhraseCues::apply(const vilelabox::PhraseAnalysis& analysis, TrackPoint
         if (!point.at || *point.at < 0) continue;
         const auto position = mixxx::audio::FramePos(*point.at * rate);
         if (std::any_of(hotCuePositions.cbegin(), hotCuePositions.cend(),
-                    [&](auto other) { return near(position, other); })) continue;
+                    [&](auto other) { return isNear(position, other); })) continue;
         int slot = -1;
         for (int i = 0; i < 8; ++i) if (!occupied[i]) { slot = i; occupied[i] = true; break; }
         if (slot < 0) break;
