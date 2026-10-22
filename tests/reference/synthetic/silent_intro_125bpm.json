@@ -1,0 +1,13 @@
+{
+  "name": "silent_intro_125bpm",
+  "sha256": "b70cc0d18fa570973e204218d5477457854a095f3066cd5dad76e74ee8625b51",
+  "sample_rate": 44100,
+  "duration": 24.0,
+  "bpm": 125.0,
+  "tempo_type": "fixed",
+  "intro_silence_s": 5.0,
+  "first_beat_time_s": 5.0,
+  "first_beat_frame": 220500,
+  "downbeat_index": 0,
+  "has_vocal": false
+}

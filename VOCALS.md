@@ -70,7 +70,8 @@ Python não encontrado, arquivos do detector ausentes, dependência ausente
 (com o nome do módulo e o comando de instalação), tempo esgotado, falha do
 detector (última linha do erro), resultado inválido e análise cancelada.
 
-O detector tem até 120 s por faixa (`[Vilelabox],VocalTimeoutSeconds`). A espera
+O detector tem até 900 s por faixa (padrão em `src/analyzer/analyzervocals.cpp:153`,
+configurável via `[Vilelabox],VocalTimeoutSeconds`). A espera
 é feita em fatias de 100 ms e consulta o pedido de parada da thread de análise:
 cancelar a análise ou fechar o aplicativo encerra o processo em cerca de
 100 ms, sem esperar o tempo-limite, e apaga o áudio temporário. No Linux, o

@@ -1,0 +1,26 @@
+{
+  "count": 3,
+  "cases": [
+    {
+      "name": "fixed_120bpm",
+      "sha256": "99103ef8af67ca93ba70105f8ec75b52f6429b64a981d96ea4f9600b24a8cc45",
+      "duration": 24.0,
+      "bpm": 120.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "tempo_change_120_to_140bpm",
+      "sha256": "d05bc9f351c6a8601d7ca573c4c66401157685768c146b608fb3d1db0289f36c",
+      "duration": 32.0,
+      "bpm": 120.0,
+      "tempo_type": "variable"
+    },
+    {
+      "name": "silent_intro_125bpm",
+      "sha256": "b70cc0d18fa570973e204218d5477457854a095f3066cd5dad76e74ee8625b51",
+      "duration": 24.0,
+      "bpm": 125.0,
+      "tempo_type": "fixed"
+    }
+  ]
+}

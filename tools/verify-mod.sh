@@ -28,7 +28,7 @@ RESULTS=(); FAILED=0
 record() { RESULTS+=("$(printf '%-6s %s' "$1" "$2")"); [[ $1 == FALHA ]] && FAILED=1; return 0; }
 step() { echo; echo "=== $1"; }
 
-MOD_TESTS='BeatsTest.*:BeatGridTest.*:BeatMapTest.*:BpmControlTest.*:BeatsTranslateTest.*:BarSyncTest.*:BarJumpLoopTest.*:*GridPanelTest*:AutoDownbeatTest.*:AnalyzerGridTest.*:PhrasesTest.*:AnalyzerPhrasesTest.*:RelatedTracksTest.*:MixPointsTest.*:TempoOctaveTest.*:VilelaboxPreferencesTest.*:VocalAnalysisTest.*:AnalyzerVocalsTest.*:KeyUtilsTest.*:EngineBufferTest.*:VilelaboxPreferencesTest.*'
+MOD_TESTS='BeatsTest.*:BeatGridTest.*:BeatMapTest.*:BpmControlTest.*:BeatsTranslateTest.*:BarSyncTest.*:BarJumpLoopTest.*:*GridPanelTest*:AutoDownbeatTest.*:AnalyzerGridTest.*:PhrasesTest.*:AnalyzerPhrasesTest.*:RelatedTracksTest.*:MixPointsTest.*:TempoOctaveTest.*:VilelaboxPreferencesTest.*:VocalAnalysisTest.*:AnalyzerVocalsTest.*:KeyUtilsTest.*:EngineBufferTest.*'
 TEST_ENV=(env QT_QPA_PLATFORM=offscreen)
 
 if (( BUILD )); then
@@ -56,6 +56,12 @@ fi
 step "Ponte XML do rekordbox (Python)"
 if python3 "$ROOT/tools/rekordbox/test_sync.py"; then record OK "ponte XML"; else record FALHA "ponte XML"; fi
 
+step "Medidor de anotação de frases (Python)"
+if python3 "$ROOT/tools/phrases/test_score_csv.py"; then record OK "medidor de frases"; else record FALHA "medidor de frases"; fi
+
+step "Exportador de referência (Python)"
+if python3 "$ROOT/tools/reference/test_export_reference.py"; then record OK "exportador de referência"; else record FALHA "exportador de referência"; fi
+
 step "Detector de vocal (Python)"
 VPY=${VILELABOX_VOCAL_PYTHON:-$HOME/.venv/bin/python}
 if [[ -x $VPY ]] && "$VPY" -c 'import numpy, scipy' 2>/dev/null; then
@@ -80,7 +86,7 @@ rm -f /tmp/vilelabox-skin-check.$$
 step "Arquivos de terceiros"
 REF=${VILELABOX_RB_REFERENCE:-$HOME/Downloads/rekordbox_extracted}
 if [[ -d $REF ]]; then
-    if (cd "$ROOT" && tools/check-third-party-assets.sh "$REF" 2.5.6..HEAD); then
+    if (cd "$ROOT" && tools/check-third-party-assets.sh "$REF" 3ebac449e7..HEAD); then
         record OK "nenhum arquivo do instalador no histórico do mod"
     else
         record FALHA "arquivos do instalador encontrados"

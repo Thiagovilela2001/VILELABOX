@@ -1,0 +1,42 @@
+{
+  "name": "fixed_120bpm",
+  "sha256": "99103ef8af67ca93ba70105f8ec75b52f6429b64a981d96ea4f9600b24a8cc45",
+  "sample_rate": 44100,
+  "duration": 24.0,
+  "bpm": 120.0,
+  "tempo_type": "fixed",
+  "first_beat_time_s": 0.317,
+  "first_beat_frame": 13979,
+  "downbeat_index": 0,
+  "phrases": [
+    {
+      "start": 0.317,
+      "end": 8.317,
+      "bars": 4,
+      "type": "INTRO",
+      "confidence": 1.0
+    },
+    {
+      "start": 8.317,
+      "end": 24.0,
+      "bars": 8,
+      "type": "CHORUS",
+      "confidence": 1.0
+    }
+  ],
+  "cues": [
+    {
+      "type": "hotcue",
+      "position_frame": 13979,
+      "hotcue": 0,
+      "label": "MIX IN"
+    },
+    {
+      "type": "hotcue",
+      "position_frame": 366779,
+      "hotcue": 1,
+      "label": "DROP"
+    }
+  ],
+  "has_vocal": false
+}

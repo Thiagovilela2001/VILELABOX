@@ -27,6 +27,7 @@ compile_commands.json
 
 # Build and distribution directories for various build configurations
 /build*
+!/build-windows.bat
 /install
 
 # Exclude unneeded files from GoogleTest library when updating our bundled
@@ -66,3 +67,9 @@ src/mixxx.rc.include
 src/mixxx.res
 src/test/**/*.actual
 res/qrc_mixxx.cc
+
+# Rust workspace target directory
+rust/target/
+
+# Material do rekordbox (AlphaTheta), só local: nunca versionar
+third_party/rekordbox/

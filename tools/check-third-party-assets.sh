@@ -5,7 +5,7 @@
 # Usage: tools/check-third-party-assets.sh <reference-dir> [<rev-range>]
 #   Without a range, checks the files tracked in HEAD.
 #   Example before publishing: tools/check-third-party-assets.sh \
-#       ~/Downloads/rekordbox_extracted 2.5.6..HEAD
+#       ~/Downloads/rekordbox_extracted 3ebac449e7..HEAD
 set -euo pipefail
 
 reference=${1:?usage: $0 <reference-dir> [<rev-range>]}

@@ -6,9 +6,9 @@ Permite compartilhar faixas, Hot Cues, Loops, Beatgrid e Playlists
 entre o Mixxx e o Rekordbox sem quebrar a integridade dos bancos de dados.
 
 Uso:
-  python3 mixxx_rekordbox_bridge.py export [caminho/rekordbox.xml]
-  python3 mixxx_rekordbox_bridge.py import <caminho/rekordbox.xml>
-  python3 mixxx_rekordbox_bridge.py status [caminho/rekordbox.xml]
+  python3 sync.py export [caminho/rekordbox.xml]
+  python3 sync.py import <caminho/rekordbox.xml>
+  python3 sync.py status [caminho/rekordbox.xml]
 """
 
 import sys
@@ -456,7 +456,7 @@ def show_status(xml_path=DEFAULT_XML_PATH, db_path=DEFAULT_MIXXX_DB):
             print(f"[Rekordbox XML] Erro ao ler XML: {e}")
     else:
         print(f"[Rekordbox XML] Ainda não gerado em: {xml_path}")
-        print("                Execute: python3 mixxx_rekordbox_bridge.py export")
+        print("                Execute: python3 sync.py export")
     print("==================================================")
 
 if __name__ == "__main__":

@@ -72,13 +72,16 @@ batidas, compassos ou descrição).
 
 ## Frases: como medir
 
-No `frases.csv`, marque `limite_ok` (sim/não: o início da frase está a até um
-compasso do início real) e `tipo_correto`. Depois:
+Fluxo de trabalho:
+1. **Exportar:** gere o arquivo de anotação com `python3 tools/phrases/export_csv.py > frases.csv`.
+2. **Anotar ouvindo:** preencha as colunas `limite_ok` (`sim`/`não`, indicando se o início da frase está a até um compasso do início real) e `tipo_correto` (`INTRO`, `UP`, `CHORUS`, `DOWN`, `VERSE`, `OUTRO`).
+3. **Calcular métricas:** execute `python3 tools/phrases/score_csv.py frases.csv`. O script calcula a acurácia por faixa e no total, conferindo a meta de pelo menos 20 faixas anotadas e ≥ 80% de limites corretos.
+4. **Registrar:** copie as porcentagens obtidas para a tabela de resultado abaixo.
 
-- **Limites:** `sim` ÷ total de linhas. Meta inicial: pelo menos 80%.
-- **Rótulos:** linhas em que `tipo_detectado` = `tipo_correto` ÷ total,
-  contado à parte dos limites.
-- O resultado vale só para esta amostra.
+- **Limites:** `sim` ÷ total de linhas preenchidas. Meta inicial: pelo menos 80%.
+- **Rótulos:** linhas em que `tipo_detectado` = `tipo_correto` ÷ total preenchido, contado à parte dos limites.
+- Linhas em branco são ignoradas e computadas à parte.
+- O resultado vale para a amostra avaliada.
 
 ## Resultado
 
