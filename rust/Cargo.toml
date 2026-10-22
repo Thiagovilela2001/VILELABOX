@@ -1,5 +1,8 @@
 [workspace]
 members = [
     "vilelabox-rekordbox",
+    "vilelabox-types",
+    "vilelabox-mixxx-compat",
+    "vilelabox-reference",
 ]
 resolver = "2"

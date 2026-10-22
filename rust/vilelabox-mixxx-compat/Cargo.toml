@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-mixxx-compat"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Adaptador exclusivo de acesso ao schema SQLite e beats.proto do Mixxx para vilelabox-types"
+
+[dependencies]
+vilelabox-types = { path = "../vilelabox-types" }
+rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.10"

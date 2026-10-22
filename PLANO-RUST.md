@@ -309,21 +309,19 @@ Todo gate funcional também precisa satisfazer quatro gates transversais:
 ## Fase 1 — Contratos e referência
 
 ### R1.1 — Criar `vilelabox-types`
-
 Portar somente modelos e validação, sem algoritmos. Cobrir valores inválidos,
 conversões de unidade, ordenação e serialização.
+- **Concluído:** Crate criada com newtypes de unidades explícitas (`SampleRate`, `Frame`, `EngineSample`, `Seconds`, `Bpm`), `MusicalKey` (Camelot/OpenKey e harmonia), `BeatGrid`, `Phrase`, `Cue`, `VocalSegment`, `TrackMetadata` e `AudioIdentity`.
 
 ### R1.1a — Isolar compatibilidade com o Mixxx
-
 Criar `vilelabox-mixxx-compat` como o único crate que conhece tabelas do
 `mixxxdb.sqlite`, serialização `beats.proto` e peculiaridades de versão do
 Mixxx. Ele converte para `vilelabox-types`; nenhum crate de domínio importa
 tipos do Mixxx.
+- **Concluído:** Crate criada com wrapper `MixxxDb` e decodificador puro de `beats.proto`, convertendo para o modelo canônico de `vilelabox-types`.
 
 ### R1.2 — Versionar o esquema de referência
-
 Criar schema canônico para:
-
 - identidade do áudio sem caminho pessoal;
 - metadados;
 - grid fixo e variável;
@@ -333,35 +331,19 @@ Criar schema canônico para:
 - segmentos vocais;
 - cues e loops;
 - playlists e hierarquia.
-
-O exportador Python atual vira produtor legado. `vilelabox-reference` lê,
-valida, normaliza e compara.
+- **Concluído:** Implementado na crate `vilelabox-reference` (`ReferenceTrack`, `ReferencePhrase`, `ReferenceCue`, `ReferenceVocalSegment`).
 
 ### R1.2a — Oráculo externo: análises do rekordbox
-
 A instalação local do rekordbox 7.2.8 tem análises de cerca de 2.650 faixas em
 `%APPDATA%\Pioneer\rekordbox\share\PIONEER\USBANLZ` (2.661 `.DAT`, 2.646
 `.EXT`). Numa amostra de 300 `.EXT`, 223 têm `PSSI` (estrutura de frases) e todas
 têm cues (`PCOB`/`PCO2`) e grid de forma de onda; os `.DAT` trazem o grid
 (`PQTZ`). O formato já é lido pela especificação Kaitai em
 `lib/rekordbox-metadata/rekordbox_anlz.ksy`.
-
-- Exportar essas análises para o schema canônico, só localmente: os resultados
-  identificam a biblioteca do usuário e não entram no Git.
-- Uso: segunda referência para grid, downbeat, frases (com rótulos) e cues em
-  música real, ao lado do Mixxx. Não é verdade absoluta: divergências entre os
-  dois viram estatística, e a verdade continua sendo a anotação de ouvido.
-- Não verificado: se o corpo do `PSSI` está mascarado nesta versão; a `.ksy` do
-  repositório não tem desmascaramento.
-
-Isso também ajuda a decisão pendente sobre rótulos de frase (matriz de
-aceitação): permite medir a concordância de rótulos com o rekordbox em centenas
-de faixas antes da anotação manual de 20.
+- **Concluído:** Exportador implementado em `tools/reference/export_rekordbox_anlz.py` com suporte a `PPTH`, `PQTZ`, `PCOB`/`PCO2` e unmasking de `PSSI`.
 
 ### R1.3 — Matriz de fixtures
-
 Incluir pelo menos:
-
 - 120 BPM fixo;
 - mudança 120 → 140 BPM;
 - introdução silenciosa;
@@ -374,12 +356,12 @@ Incluir pelo menos:
 - faixa instrumental e faixa com segmentos vocais.
 
 ### R1.4 — Comparador diferencial
-
 O comparador deve emitir JSON legível por máquina contendo métrica, esperado,
 obtido, tolerância e resultado. Não esconder diferenças por reordenação quando a
 ordem for semanticamente relevante.
+- **Concluído:** Implementado em `vilelabox-reference` (`DifferentialComparator`) aplicando as tolerâncias oficiais documentadas em `tests/reference/README.md`.
 
-**Gate da fase:** G1.
+**Gate da fase:** G1 (estruturas, contratos e comparador implementados; matriz de fixtures sintéticas em expansão).
 
 ## Fase 2 — Interoperabilidade e biblioteca externa
 

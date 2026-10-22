@@ -1,0 +1,11 @@
+[package]
+name = "vilelabox-types"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Contratos, newtypes com unidades explícitas e validação do domínio musical do VILELABOX"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
