@@ -1,0 +1,17 @@
+[package]
+name = "vilelabox-anlz"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Leitor de análises ANLZ do rekordbox para o esquema canônico do VILELABOX"
+
+[dependencies]
+vilelabox-reference = { path = "../vilelabox-reference" }
+serde_json = "1.0"
+thiserror = "1.0"
+rusqlite = { version = "0.31", features = ["bundled"] }
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3.10"

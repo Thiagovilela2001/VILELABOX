@@ -4,5 +4,7 @@ members = [
     "vilelabox-types",
     "vilelabox-mixxx-compat",
     "vilelabox-reference",
+    "vilelabox-anlz",
+    "xtask",
 ]
 resolver = "2"
