@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "instrumental_126bpm",
+  "sha256": "95ec16054d9b854cfbb633e0dea350de62a80603c6069b752c86643db9bd37cb",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 16.0,
+  "bpm": 126.0,
+  "first_beat_time_s": 0.2,
+  "downbeat_index": 0,
+  "has_vocal": false,
+  "vocal_segments": [],
+  "tempo_type": "fixed"
+}

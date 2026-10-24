@@ -1,6 +1,8 @@
 {
+  "schema_version": 1,
   "name": "tempo_change_120_to_140bpm",
   "sha256": "d05bc9f351c6a8601d7ca573c4c66401157685768c146b608fb3d1db0289f36c",
+  "source": "synthetic",
   "sample_rate": 44100,
   "duration": 32.0,
   "bpm": 120.0,
@@ -18,7 +20,6 @@
     }
   ],
   "first_beat_time_s": 0.5,
-  "first_beat_frame": 22050,
   "downbeat_index": 0,
   "has_vocal": false
 }

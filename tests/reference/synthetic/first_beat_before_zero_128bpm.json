@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "name": "first_beat_before_zero_128bpm",
+  "sha256": "5ec4b5d7c6e973a9e9328987146e7232cf124236687816ae890ba28d7ce03251",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 16.0,
+  "bpm": 128.0,
+  "first_beat_time_s": -0.01,
+  "downbeat_index": 0,
+  "has_vocal": false,
+  "tempo_type": "fixed"
+}

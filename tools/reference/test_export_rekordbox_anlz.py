@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from export_rekordbox_anlz import (
+    canonical_cues,
+    canonical_phrases,
     parse_anlz_sections,
     parse_ppth,
     parse_pqtz,
@@ -82,6 +84,29 @@ class TestExportRekordboxAnlz(unittest.TestCase):
         self.assertEqual(phrases[1]["index"], 2)
         self.assertEqual(phrases[1]["beat"], 33)
         self.assertEqual(phrases[1]["kind"], "up")
+
+    def test_canonical_phrases(self):
+        raw = [
+            {"index": 1, "beat": 1, "kind": "intro", "kind_id": 1, "start_time_s": 0.5},
+            {"index": 2, "beat": 33, "kind": "verse_2", "kind_id": 3, "start_time_s": 16.5},
+            {"index": 3, "beat": 999, "kind": "outro", "kind_id": 10, "start_time_s": None},
+        ]
+        self.assertEqual(canonical_phrases(raw), [
+            {"start": 0.5, "type": "INTRO", "end": 16.5, "bars": 8},
+            {"start": 16.5, "type": "VERSE"},
+        ])
+
+    def test_canonical_cues(self):
+        raw = [
+            {"hot_cue": 0, "status": 0, "is_loop": True, "start_time_s": 4.0, "end_time_s": 6.0},
+            {"hot_cue": 2, "status": 0, "is_loop": False, "start_time_s": 1.25, "end_time_s": None},
+            {"hot_cue": 0, "status": 0, "is_loop": False, "start_time_s": 8.0, "end_time_s": None},
+        ]
+        self.assertEqual(canonical_cues(raw), [
+            {"type": "hotcue", "position_s": 1.25, "hotcue": 1},
+            {"type": "loop", "position_s": 4.0, "length_s": 2.0},
+            {"type": "memory", "position_s": 8.0},
+        ])
 
 
 if __name__ == "__main__":

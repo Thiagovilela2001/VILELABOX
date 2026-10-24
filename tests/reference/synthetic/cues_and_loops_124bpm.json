@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "name": "cues_and_loops_124bpm",
+  "sha256": "4d049fce7f03819d6481cc92f3488beca535f6f829ec21cc9e9fcacc1d3c440f",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 32.0,
+  "bpm": 124.0,
+  "first_beat_time_s": 0.2,
+  "downbeat_index": 0,
+  "cues": [
+    {
+      "type": "hotcue",
+      "position_s": 0.2001234,
+      "hotcue": 0
+    },
+    {
+      "type": "hotcue",
+      "position_s": 2.1356073,
+      "hotcue": 1
+    },
+    {
+      "type": "hotcue",
+      "position_s": 4.0710911,
+      "hotcue": 2
+    },
+    {
+      "type": "memory",
+      "position_s": 5.0387097,
+      "label": "BREAK"
+    },
+    {
+      "type": "hotcue",
+      "position_s": 6.006575,
+      "hotcue": 3
+    },
+    {
+      "type": "loop",
+      "position_s": 7.9419355,
+      "length_s": 1.9354839
+    },
+    {
+      "type": "hotcue",
+      "position_s": 7.9420589,
+      "hotcue": 4
+    },
+    {
+      "type": "hotcue",
+      "position_s": 9.8775428,
+      "hotcue": 5
+    },
+    {
+      "type": "hotcue",
+      "position_s": 11.8130266,
+      "hotcue": 6
+    },
+    {
+      "type": "hotcue",
+      "position_s": 13.7485105,
+      "hotcue": 7
+    },
+    {
+      "type": "memory",
+      "position_s": 18.1032258
+    },
+    {
+      "type": "loop",
+      "position_s": 23.4258065,
+      "length_s": 0.483871,
+      "label": "1 BEAT"
+    }
+  ],
+  "has_vocal": false,
+  "tempo_type": "fixed"
+}

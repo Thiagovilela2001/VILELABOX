@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "phrases_8_16_32_bars_128bpm",
+  "sha256": "190117816f2128c8c4ef0e0078cf91f40f459fbbf430e8606957c2c226789224",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 105.5,
+  "bpm": 128.0,
+  "first_beat_time_s": 0.1,
+  "downbeat_index": 0,
+  "phrases": [
+    {
+      "start": 0.1,
+      "end": 15.1,
+      "bars": 8,
+      "type": "INTRO",
+      "confidence": 1.0
+    },
+    {
+      "start": 15.1,
+      "end": 45.1,
+      "bars": 16,
+      "type": "UP",
+      "confidence": 1.0
+    },
+    {
+      "start": 45.1,
+      "end": 105.1,
+      "bars": 32,
+      "type": "CHORUS",
+      "confidence": 1.0
+    }
+  ],
+  "has_vocal": false,
+  "tempo_type": "fixed"
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "name": "vocal_segments_126bpm",
+  "sha256": "aef48f41164fdaa618244c59c2d63cbef15d87a013ebbc0b4105ffc3a735b86f",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 24.0,
+  "bpm": 126.0,
+  "first_beat_time_s": 0.2,
+  "downbeat_index": 0,
+  "has_vocal": true,
+  "vocal_segments": [
+    {
+      "start": 4.0,
+      "end": 10.0
+    },
+    {
+      "start": 14.0,
+      "end": 20.0
+    }
+  ],
+  "tempo_type": "fixed"
+}

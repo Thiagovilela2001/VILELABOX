@@ -21,6 +21,7 @@ import struct
 import sys
 from pathlib import Path
 
+SCHEMA_VERSION = 1
 
 PHRASE_HIGH_NAMES = {
     1: "intro",
@@ -127,6 +128,7 @@ def parse_pqtz(payload: bytes) -> dict | None:
     avg_bpm = beats[0]["bpm"]
     return {
         "bpm": avg_bpm,
+        "tempo_type": "variable" if len({b["bpm"] for b in beats}) > 1 else "fixed",
         "first_beat_time_s": first_beat_time_s,
         "downbeat_index": downbeat_index or 0,
         "beats_count": len(beats),
@@ -219,6 +221,39 @@ def parse_cues(payload: bytes) -> list[dict]:
     return cues
 
 
+def canonical_phrases(raw: list[dict]) -> list[dict]:
+    """Frases do PSSI no esquema v1: início em segundos, fim no início da
+    próxima e compassos pela distância em batidas (4/4). A última frase fica
+    sem fim; frases com batida fora da grade são descartadas."""
+    raw = [p for p in raw if p["start_time_s"] is not None]
+    phrases = []
+    for p, nxt in zip(raw, raw[1:] + [None]):
+        kind = "VERSE" if p["kind"].startswith("verse") else p["kind"].upper()
+        phrase = {"start": p["start_time_s"], "type": kind}
+        if nxt is not None:
+            phrase["end"] = nxt["start_time_s"]
+            phrase["bars"] = (nxt["beat"] - p["beat"]) // 4
+        phrases.append(phrase)
+    return phrases
+
+
+def canonical_cues(raw: list[dict]) -> list[dict]:
+    """Cues do rekordbox no esquema v1. hot_cue 0 é memory cue; 1..8 são os
+    slots A..H (hotcue 0..7)."""
+    cues = []
+    for c in raw:
+        cue = {
+            "type": "loop" if c["is_loop"] else ("hotcue" if c["hot_cue"] else "memory"),
+            "position_s": c["start_time_s"],
+        }
+        if c["is_loop"] and c["end_time_s"] is not None:
+            cue["length_s"] = round(c["end_time_s"] - c["start_time_s"], 3)
+        if c["hot_cue"]:
+            cue["hotcue"] = c["hot_cue"] - 1
+        cues.append(cue)
+    return sorted(cues, key=lambda c: (c["position_s"], c["type"], c.get("hotcue", -1)))
+
+
 def build_music_index(music_dir: Path | None, mixxx_db: Path | None) -> dict[str, Path]:
     """Indexa arquivos de áudio por nome de arquivo (stem e nome completo) para resolução rápida."""
     index = {}
@@ -297,54 +332,57 @@ def export_rekordbox_anlz(
         raw_path = parse_ppth(ext_secs.get("PPTH") or dat_secs.get("PPTH") or b"")
         audio_file = resolve_audio_file(raw_path, music_index)
 
-        if audio_file and audio_file.is_file():
-            sha256_hash = compute_file_sha256(audio_file)
-        else:
+        # Sem o áudio não há SHA-256 estável: a faixa fica de fora e é contada,
+        # como em export_reference.py.
+        if not (audio_file and audio_file.is_file()):
             missing_audio += 1
-            ident = raw_path or str(dat_path.relative_to(anlz_dir))
-            sha256_hash = hashlib.sha256(ident.encode("utf-8")).hexdigest()
+            continue
+        sha256_hash = compute_file_sha256(audio_file)
 
         grid_info = parse_pqtz(dat_secs.get("PQTZ") or b"")
         beat_times = [b["time_ms"] for b in grid_info["beats"]] if grid_info else []
 
         phrases = []
-        if "PSSI" in ext_secs:
-            phrases = parse_pssi(ext_secs["PSSI"], beat_times)
+        if "PSSI" in ext_secs and grid_info:
+            phrases = canonical_phrases(parse_pssi(ext_secs["PSSI"], beat_times))
             if phrases:
                 with_phrases += 1
 
-        cues = []
+        raw_cues = []
         for tag in ("PCO2", "PCOB"):
             if tag in ext_secs:
-                cues.extend(parse_cues(ext_secs[tag]))
+                raw_cues.extend(parse_cues(ext_secs[tag]))
             elif tag in dat_secs:
-                cues.extend(parse_cues(dat_secs[tag]))
+                raw_cues.extend(parse_cues(dat_secs[tag]))
+        cues = canonical_cues(raw_cues)
         if cues:
             with_cues += 1
 
+        # Esquema canônico v1 (rust/vilelabox-reference). O ANLZ não guarda
+        # taxa de amostragem, duração nem vocal: esses campos ficam ausentes.
         track_data = {
+            "schema_version": SCHEMA_VERSION,
             "sha256": sha256_hash,
             "source": "rekordbox_anlz",
-            "anlz_rel_path": str(dat_path.relative_to(anlz_dir)).replace("\\", "/"),
-            "has_audio_file": audio_file is not None,
+            "source_ref": str(dat_path.relative_to(anlz_dir)).replace("\\", "/"),
             "bpm": grid_info["bpm"] if grid_info else None,
+            "tempo_type": grid_info["tempo_type"] if grid_info else "fixed",
             "first_beat_time_s": grid_info["first_beat_time_s"] if grid_info else None,
             "downbeat_index": grid_info["downbeat_index"] if grid_info else None,
-            "beats_count": grid_info["beats_count"] if grid_info else 0,
-            "cues": cues,
             "phrases": phrases,
+            "cues": cues,
         }
+        track_data = {k: v for k, v in track_data.items() if v is not None}
 
         out_file = output_dir / f"{sha256_hash}.json"
         out_file.write_text(json.dumps(track_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
         index_entries.append({
             "sha256": sha256_hash,
-            "bpm": track_data["bpm"],
-            "first_beat_time_s": track_data["first_beat_time_s"],
+            "bpm": track_data.get("bpm"),
+            "first_beat_time_s": track_data.get("first_beat_time_s"),
             "cues_count": len(cues),
             "phrases_count": len(phrases),
-            "has_audio": track_data["has_audio_file"],
         })
 
     index_data = {

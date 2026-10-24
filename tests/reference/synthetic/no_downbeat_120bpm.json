@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "no_downbeat_120bpm",
+  "sha256": "c4d4a1833d18609f52e834874bf35163a280bb20a28bbb8fd9379b7d27cf1af8",
+  "source": "synthetic",
+  "sample_rate": 44100,
+  "duration": 16.0,
+  "bpm": 120.0,
+  "first_beat_time_s": 0.25,
+  "has_vocal": false,
+  "tempo_type": "fixed"
+}

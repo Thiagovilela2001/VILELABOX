@@ -2,7 +2,7 @@ pub mod beats_proto;
 pub mod db;
 pub mod error;
 
-pub use beats_proto::{beats_proto_to_grid, decode_beats_proto};
+pub use beats_proto::{beats_proto_to_grid, decode_beats, MixxxBeats};
 pub use db::{MixxxDb, MixxxPlaylist, MixxxTrack};
 pub use error::MixxxCompatError;
 
@@ -11,33 +11,118 @@ mod tests {
     use super::*;
     use vilelabox_types::{Frame, SampleRate};
 
+    /// Codificadores mínimos de protobuf para montar blobs como o Mixxx grava.
+    fn varint(mut v: u64, out: &mut Vec<u8>) {
+        loop {
+            let b = (v & 0x7F) as u8;
+            v >>= 7;
+            if v == 0 {
+                out.push(b);
+                return;
+            }
+            out.push(b | 0x80);
+        }
+    }
+
+    fn beat_msg(frame: i32) -> Vec<u8> {
+        let mut m = vec![0x08];
+        varint(frame as i64 as u64, &mut m); // int32 negativo: 10 bytes
+        m.extend_from_slice(&[0x10, 0x01]); // enabled = true (campo 2, bool)
+        m
+    }
+
+    fn submsg(field: u8, msg: &[u8], out: &mut Vec<u8>) {
+        out.push(field << 3 | 2);
+        varint(msg.len() as u64, out);
+        out.extend_from_slice(msg);
+    }
+
+    fn zigzag(v: i32) -> u64 {
+        ((v << 1) ^ (v >> 31)) as u32 as u64
+    }
+
+    fn grid_blob(bpm: f64, first_beat: i32, downbeat: Option<i32>) -> Vec<u8> {
+        let mut bpm_msg = vec![0x09];
+        bpm_msg.extend_from_slice(&bpm.to_le_bytes());
+        let mut out = Vec::new();
+        submsg(1, &bpm_msg, &mut out);
+        submsg(2, &beat_msg(first_beat), &mut out);
+        if let Some(d) = downbeat {
+            out.push(3 << 3);
+            varint(zigzag(d), &mut out);
+        }
+        out
+    }
+
     #[test]
-    fn test_beats_proto_decoding_and_grid_conversion() {
-        // Blob simulado: submensagem tag 1 (wire 2), contendo field 1 (varint 0) e field 2 (float 120.0)
-        // Sub-msg payload:
-        // field 1 (pos 0): 0x08, 0x00
-        // field 2 (bpm 120.0): 0x15, 0x00, 0x00, 0xF0, 0x42
-        // total sub-len: 7 bytes
-        // Outer: 0x0A, 0x07, [sub-bytes]
-        let mut proto_data = vec![0x0A, 0x07, 0x08, 0x00, 0x15, 0x00, 0x00, 0xF0, 0x42];
-
-        // Segunda batida: pos 22050 (0x5622 -> varint: 0xA2, 0xAC, 0x01)
-        // Sub-msg: field 1: 0x08, 0xA2, 0xAC, 0x01
-        // total sub-len: 4
-        // Outer: 0x0A, 0x04, 0x08, 0xA2, 0xAC, 0x01
-        proto_data.extend_from_slice(&[0x0A, 0x04, 0x08, 0xA2, 0xAC, 0x01]);
-
-        let beats = decode_beats_proto(&proto_data).unwrap();
-        assert_eq!(beats.len(), 2);
-        assert_eq!(beats[0].0, 0);
-        assert_eq!(beats[0].1, Some(120.0));
-        assert_eq!(beats[1].0, 22050);
-
-        let grid = beats_proto_to_grid(&proto_data, SampleRate::CD, None).unwrap();
-        assert_eq!(grid.beats().len(), 2);
-        assert_eq!(grid.beats()[0].position, Frame::new(0));
-        assert_eq!(grid.beats()[1].position, Frame::new(22050));
+    fn beat_grid_expands_constant_tempo_and_downbeat_phase() {
+        // 120 BPM a 44,1 kHz = 22050 frames por batida; downbeat na batida 6.
+        let blob = grid_blob(120.0, 11025, Some(6));
+        assert_eq!(
+            decode_beats(&blob, "BeatGrid-2.0").unwrap(),
+            MixxxBeats::Grid {
+                bpm: 120.0,
+                first_beat: 11025,
+                first_downbeat_index: Some(6),
+            }
+        );
+        let grid =
+            beats_proto_to_grid(&blob, "BeatGrid-2.0", SampleRate::CD, Frame::new(441000)).unwrap();
+        assert_eq!(grid.beats().len(), 20);
+        assert_eq!(grid.beats()[0].position, Frame::new(11025));
+        assert_eq!(grid.beats()[19].position, Frame::new(11025 + 19 * 22050));
         assert_eq!(grid.primary_bpm().unwrap().get(), 120.0);
+        // Fase 6 mod 4 = 2: terceira batida.
+        assert_eq!(grid.downbeat(), Some(Frame::new(11025 + 2 * 22050)));
+
+        let no_downbeat = grid_blob(120.0, 0, None);
+        let grid = beats_proto_to_grid(&no_downbeat, "BeatGrid-2.0", SampleRate::CD, Frame::new(1))
+            .unwrap();
+        assert_eq!(grid.downbeat(), None);
+        assert_eq!(grid.beats().len(), 1);
+    }
+
+    #[test]
+    fn beat_map_keeps_negative_frames_and_tempo_changes() {
+        let mut blob = Vec::new();
+        for f in [-512, 21538, 43588, 62488, 81388] {
+            submsg(1, &beat_msg(f), &mut blob);
+        }
+        blob.push(2 << 3);
+        varint(zigzag(-3), &mut blob);
+
+        let grid =
+            beats_proto_to_grid(&blob, "BeatMap-1.0", SampleRate::CD, Frame::new(0)).unwrap();
+        let positions: Vec<i64> = grid.beats().iter().map(|b| b.position.get()).collect();
+        assert_eq!(positions, [-512, 21538, 43588, 62488, 81388]);
+        // 22050 frames = 120 BPM; 18900 frames = 140 BPM.
+        let bpms: Vec<f64> = grid.tempo_map().iter().map(|t| t.bpm.get()).collect();
+        assert_eq!(bpms, [120.0, 140.0]);
+        // -3 mod 4 = 1.
+        assert_eq!(grid.downbeat(), Some(Frame::new(21538)));
+    }
+
+    #[test]
+    fn legacy_grid_and_invalid_blobs() {
+        let mut legacy = 128.0f64.to_ne_bytes().to_vec();
+        legacy.extend_from_slice(&1000.0f64.to_ne_bytes());
+        // 0x00 inicial = tag do campo 0: protobuf inválido, cai no formato antigo.
+        assert_eq!(legacy[0], 0);
+        assert_eq!(
+            decode_beats(&legacy, "BeatGrid-1.0").unwrap(),
+            MixxxBeats::Grid {
+                bpm: 128.0,
+                first_beat: 1000,
+                first_downbeat_index: None,
+            }
+        );
+
+        let truncated = &grid_blob(120.0, 0, None)[..5];
+        assert!(decode_beats(truncated, "BeatGrid-2.0").is_err());
+        let mut one_beat = Vec::new();
+        submsg(1, &beat_msg(0), &mut one_beat);
+        assert!(decode_beats(&one_beat, "BeatMap-1.0").is_err());
+        assert!(decode_beats(&one_beat, "Outro-1.0").is_err());
     }
 
     #[test]
@@ -65,7 +150,8 @@ mod tests {
                 samplerate INTEGER,
                 channels INTEGER,
                 location INTEGER,
-                beats BLOB
+                beats BLOB,
+                beats_version TEXT
             );
             CREATE TABLE cues (
                 id INTEGER PRIMARY KEY,

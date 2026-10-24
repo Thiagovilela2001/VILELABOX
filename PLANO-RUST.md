@@ -325,6 +325,7 @@ Criar `vilelabox-mixxx-compat` como o único crate que conhece tabelas do
 Mixxx. Ele converte para `vilelabox-types`; nenhum crate de domínio importa
 tipos do Mixxx.
 - **Concluído:** Crate criada com wrapper `MixxxDb` e decodificador puro de `beats.proto`, convertendo para o modelo canônico de `vilelabox-types`.
+- **Corrigido (2026-10-22):** o decodificador antigo só entendia `BeatMap`, lia o campo 2 de `Beat` (`bool enabled`) como BPM e devolvia zero batidas para `BeatGrid`. Agora `decode_beats` escolhe a mensagem por `library.beats_version` (`BeatGrid-1.0` sem protobuf, `BeatGrid-2.0`, `BeatMap-1.0`), como `src/track/beats.cpp`. `MixxxTrack::beat_grid` expande a grade até a duração, calcula o mapa de andamento do `BeatMap` e marca o downbeat pela fase `first_downbeat_index mod 4`. `tests/real_profile.rs` compara 913 grades do perfil real com `tests/reference/mixxx/` (primeira batida ±1 frame, fase, BPM ±0,01).
 
 ### R1.2 — Versionar o esquema de referência
 Criar schema canônico para:
@@ -338,6 +339,7 @@ Criar schema canônico para:
 - cues e loops;
 - playlists e hierarquia.
 - **Concluído:** Implementado na crate `vilelabox-reference` (`ReferenceTrack`, `ReferencePhrase`, `ReferenceCue`, `ReferenceVocalSegment`).
+- **Esquema v1 (2026-10-22):** os três exportadores gravavam formatos diferentes e nenhuma referência real era lida pelo Rust. Agora todos gravam `schema_version: 1` (tempos em segundos, campos desconhecidos rejeitados) e a crate ganhou `ReferenceTempoSection` e `ReferencePlaylistSet`. Validado com 2.537 faixas do Mixxx e 40 do rekordbox exportadas localmente. Energia (escala 1–10, cache `analysis/blackmesa.sqlite`) entrou no esquema, no comparador (±0,05, provisória) e no exportador do Mixxx.
 
 ### R1.2a — Oráculo externo: análises do rekordbox
 A instalação local do rekordbox 7.2.8 tem análises de cerca de 2.650 faixas em
@@ -360,14 +362,15 @@ Incluir pelo menos:
 - playlists vazias, aninhadas e homônimas;
 - frases de 8, 16 e 32 compassos;
 - faixa instrumental e faixa com segmentos vocais.
+- **Concluído (2026-10-22):** 11 faixas sintéticas e `playlists_tree.json` em `tests/reference/synthetic/`. `rust/vilelabox-reference/tests/fixtures.rs` exige a matriz completa, confere `index.json` e prova que o comparador passa contra a própria referência e falha com o BPM deslocado. As exportações locais do Mixxx e do rekordbox entram quando existem. O CI regenera a matriz e falha se ela divergir.
 
 ### R1.4 — Comparador diferencial
 O comparador deve emitir JSON legível por máquina contendo métrica, esperado,
 obtido, tolerância e resultado. Não esconder diferenças por reordenação quando a
 ordem for semanticamente relevante.
-- **Concluído:** Implementado em `vilelabox-reference` (`DifferentialComparator`) aplicando as tolerâncias oficiais documentadas em `tests/reference/README.md`.
+- **Concluído:** Implementado em `vilelabox-reference` (`DifferentialComparator`) aplicando as tolerâncias oficiais documentadas em `tests/reference/README.md`. Desde o esquema v1 compara também seções de tempo, tipo/slot/duração de cues, segmentos vocais e playlists, e escolhe 1 ms ou 25 ms para a primeira batida pelo campo `source`.
 
-**Gate da fase:** G1 (estruturas, contratos e comparador implementados; matriz de fixtures sintéticas em expansão).
+**Gate da fase:** G1 — Aprovado localmente em 2026-10-22 (esquema v1, matriz sintética, referências reais do Mixxx e do rekordbox exportadas e lidas pelo Rust, decodificador de `beats.proto` com paridade). Falta a primeira execução do CI no GitHub com a verificação da matriz sintética. O perfil local ainda não tem energia calculada; a paridade de energia com dados reais fica para R4.2.
 
 ## Fase 2 — Interoperabilidade e biblioteca externa
 

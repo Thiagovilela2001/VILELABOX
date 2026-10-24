@@ -1,12 +1,12 @@
 {
+  "schema_version": 1,
   "name": "fixed_120bpm",
   "sha256": "99103ef8af67ca93ba70105f8ec75b52f6429b64a981d96ea4f9600b24a8cc45",
+  "source": "synthetic",
   "sample_rate": 44100,
   "duration": 24.0,
   "bpm": 120.0,
-  "tempo_type": "fixed",
   "first_beat_time_s": 0.317,
-  "first_beat_frame": 13979,
   "downbeat_index": 0,
   "phrases": [
     {
@@ -27,16 +27,17 @@
   "cues": [
     {
       "type": "hotcue",
-      "position_frame": 13979,
+      "position_s": 0.317,
       "hotcue": 0,
       "label": "MIX IN"
     },
     {
       "type": "hotcue",
-      "position_frame": 366779,
+      "position_s": 8.317,
       "hotcue": 1,
       "label": "DROP"
     }
   ],
-  "has_vocal": false
+  "has_vocal": false,
+  "tempo_type": "fixed"
 }

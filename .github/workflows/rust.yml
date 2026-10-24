@@ -44,6 +44,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Reference exporters and synthetic fixtures are up to date
+        shell: bash
+        run: |
+          python tools/reference/test_export_reference.py
+          python tools/reference/test_export_rekordbox_anlz.py
+          python tools/reference/make_synthetic.py
+          git status --porcelain -- tests/reference/synthetic
+          test -z "$(git status --porcelain -- tests/reference/synthetic)"
+
       - name: Build Rust CLI for equivalence test
         run: cargo build
         working-directory: rust

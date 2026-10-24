@@ -1,6 +1,9 @@
 {
-  "count": 3,
-  "cases": [
+  "count": 11,
+  "playlists": [
+    "playlists_tree.json"
+  ],
+  "tracks": [
     {
       "name": "fixed_120bpm",
       "sha256": "99103ef8af67ca93ba70105f8ec75b52f6429b64a981d96ea4f9600b24a8cc45",
@@ -20,6 +23,62 @@
       "sha256": "b70cc0d18fa570973e204218d5477457854a095f3066cd5dad76e74ee8625b51",
       "duration": 24.0,
       "bpm": 125.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "first_beat_before_zero_128bpm",
+      "sha256": "5ec4b5d7c6e973a9e9328987146e7232cf124236687816ae890ba28d7ce03251",
+      "duration": 16.0,
+      "bpm": 128.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "no_downbeat_120bpm",
+      "sha256": "c4d4a1833d18609f52e834874bf35163a280bb20a28bbb8fd9379b7d27cf1af8",
+      "duration": 16.0,
+      "bpm": 120.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "short_audio_1s",
+      "sha256": "439fa16907bb619bbe3962208c96f5275fc2ed6e985a1d9bc83a722199cd0b37",
+      "duration": 1.0,
+      "bpm": 120.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "silence_10s",
+      "sha256": "59a6466ca2844d2aab8e0fb04f5dc71cf1104f04b254cf2280db08a944560bf7",
+      "duration": 10.0,
+      "bpm": null,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "cues_and_loops_124bpm",
+      "sha256": "4d049fce7f03819d6481cc92f3488beca535f6f829ec21cc9e9fcacc1d3c440f",
+      "duration": 32.0,
+      "bpm": 124.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "phrases_8_16_32_bars_128bpm",
+      "sha256": "190117816f2128c8c4ef0e0078cf91f40f459fbbf430e8606957c2c226789224",
+      "duration": 105.5,
+      "bpm": 128.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "instrumental_126bpm",
+      "sha256": "95ec16054d9b854cfbb633e0dea350de62a80603c6069b752c86643db9bd37cb",
+      "duration": 16.0,
+      "bpm": 126.0,
+      "tempo_type": "fixed"
+    },
+    {
+      "name": "vocal_segments_126bpm",
+      "sha256": "aef48f41164fdaa618244c59c2d63cbef15d87a013ebbc0b4105ffc3a735b86f",
+      "duration": 24.0,
+      "bpm": 126.0,
       "tempo_type": "fixed"
     }
   ]

@@ -1,9 +1,10 @@
+use crate::beats_proto::beats_proto_to_grid;
 use crate::error::MixxxCompatError;
 use rusqlite::{params, Connection};
 use std::path::Path;
 use vilelabox_types::{
-    AudioIdentity, Bpm, Cue, CueKind, CueOrigin, Frame, MusicalKey, SampleRate, Seconds, TrackId,
-    TrackMetadata,
+    AudioIdentity, BeatGrid, Bpm, Cue, CueKind, CueOrigin, Frame, MusicalKey, SampleRate, Seconds,
+    TrackId, TrackMetadata,
 };
 
 #[derive(Debug, Clone)]
@@ -16,6 +17,22 @@ pub struct MixxxTrack {
     pub key: Option<MusicalKey>,
     pub duration: Seconds,
     pub beats_raw: Option<Vec<u8>>,
+    /// `library.beats_version`: escolhe a mensagem de `beats_raw`.
+    pub beats_version: Option<String>,
+}
+
+impl MixxxTrack {
+    /// Grade decodificada; `None` quando a faixa não foi analisada.
+    pub fn beat_grid(&self) -> Option<Result<BeatGrid, MixxxCompatError>> {
+        let data = self.beats_raw.as_deref().filter(|d| !d.is_empty())?;
+        let version = self.beats_version.as_deref().filter(|v| !v.is_empty())?;
+        Some(beats_proto_to_grid(
+            data,
+            version,
+            self.identity.sample_rate,
+            self.identity.duration_frames,
+        ))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +69,8 @@ impl MixxxDb {
     pub fn read_tracks(&self) -> Result<Vec<MixxxTrack>, MixxxCompatError> {
         let mut stmt = self.conn.prepare(
             "SELECT l.id, tl.location, l.artist, l.title, l.album, l.year, l.genre,
-                    l.comment, l.bpm, l.key, l.duration, l.samplerate, l.channels, l.beats
+                    l.comment, l.bpm, l.key, l.duration, l.samplerate, l.channels, l.beats,
+                    l.beats_version
              FROM library l
              JOIN track_locations tl ON l.location = tl.id
              WHERE tl.fs_deleted = 0",
@@ -73,6 +91,7 @@ impl MixxxDb {
             let raw_samplerate: Option<u32> = row.get(11)?;
             let raw_channels: Option<u16> = row.get(12)?;
             let beats: Option<Vec<u8>> = row.get(13)?;
+            let beats_version: Option<String> = row.get(14)?;
 
             let year = year_str.and_then(|y| y.parse::<u32>().ok());
             let rate_u32 = raw_samplerate.unwrap_or(44100).max(1);
@@ -109,6 +128,7 @@ impl MixxxDb {
                 key,
                 duration,
                 beats_raw: beats,
+                beats_version,
             })
         })?;
 

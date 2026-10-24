@@ -81,6 +81,7 @@ class TestExportReference(unittest.TestCase):
                     title TEXT,
                     bpm REAL,
                     duration REAL,
+                    samplerate INTEGER,
                     key TEXT,
                     beats BLOB,
                     beats_version TEXT,
@@ -102,16 +103,18 @@ class TestExportReference(unittest.TestCase):
 
             # Insere localização e faixa
             conn.execute("INSERT INTO track_locations (id, location) VALUES (1, ?)", (str(self.audio_file),))
-            beats_blob = make_test_beatgrid_blob(bpm=124.0, first_beat_frame=11025, downbeat_index=0)
+            beats_blob = make_test_beatgrid_blob(bpm=124.0, first_beat_frame=11025, downbeat_index=6)
             conn.execute("""
-                INSERT INTO library (id, artist, title, bpm, duration, key, beats, beats_version, location)
-                VALUES (1, 'Vilelabox Artist', 'Reference Track', 124.0, 180.0, '8A', ?, 'BeatGrid-2.0', 1)
+                INSERT INTO library (id, artist, title, bpm, duration, samplerate, key, beats, beats_version, location)
+                VALUES (1, 'Vilelabox Artist', 'Reference Track', 124.0, 180.0, 44100, '8A', ?, 'BeatGrid-2.0', 1)
             """, (beats_blob,))
 
-            # Insere cues
+            # Cues em amostras do engine (2 por frame): 22050 = 0,25 s; loop de 2 s.
             conn.execute("""
                 INSERT INTO cues (id, track_id, type, position, length, hotcue, label, color)
-                VALUES (1, 1, 1, 11025, 0, 0, 'MIX IN', 3004200)
+                VALUES (1, 1, 1, 22050, 0, 0, 'MIX IN', 3004200),
+                       (2, 1, 4, 44100, 176400, -1, '', NULL),
+                       (3, 1, 8, 0, 100, -1, '', NULL)
             """)
             conn.commit()
 
@@ -139,6 +142,13 @@ class TestExportReference(unittest.TestCase):
                     + str(stat.st_mtime_ns // 1_000_000).encode() + b"{}" + b"# detector" + b"classifier")
         vocals_dir = self.profile_dir / "analysis" / "vocals"
         vocals_dir.mkdir(parents=True, exist_ok=True)
+        energy_identity = (str(self.audio_file).encode() + b"\0" + str(stat.st_size).encode() + b"\0"
+                           + str(stat.st_mtime_ns // 1_000_000).encode() + b"energy-v1")
+        with sqlite3.connect(self.profile_dir / "analysis" / "blackmesa.sqlite") as energy_db:
+            energy_db.execute("CREATE TABLE energy (identity TEXT PRIMARY KEY, value REAL NOT NULL)")
+            energy_db.execute("INSERT INTO energy VALUES (?, 7.25)",
+                              (hashlib.sha256(energy_identity).hexdigest(),))
+        energy_db.close()
         vocal_data = {"version": "1", "duration": 180.0, "segments": [[15.75, 30.00]], "engine": "classifier"}
         (vocals_dir / f"{hashlib.sha256(identity).hexdigest()}.json").write_text(
             json.dumps(vocal_data), encoding="utf-8")
@@ -151,9 +161,12 @@ class TestExportReference(unittest.TestCase):
         self.assertEqual(index["count"], 1)
         self.assertEqual(index["tracks"][0]["sha256"], self.expected_hash)
         self.assertNotIn("artist", index["tracks"][0])
-        self.assertEqual(index["tracks"][0]["cues_count"], 1)
+        self.assertEqual(index["tracks"][0]["cues_count"], 2)
         self.assertEqual(index["tracks"][0]["phrases_count"], 2)
         self.assertEqual(index["tracks"][0]["vocal_segments_count"], 1)
+
+        locations = json.loads((self.output_dir / "locations.json").read_text(encoding="utf-8"))
+        self.assertEqual(locations, {str(self.audio_file): self.expected_hash})
 
         # Confere arquivo exportado
         track_json_file = self.output_dir / f"{self.expected_hash}.json"
@@ -162,15 +175,24 @@ class TestExportReference(unittest.TestCase):
         with track_json_file.open("r", encoding="utf-8") as f:
             data = json.load(f)
 
+        # Esquema canônico v1 (rust/vilelabox-reference).
+        self.assertEqual(data["schema_version"], 1)
         self.assertEqual(data["sha256"], self.expected_hash)
+        self.assertEqual(data["source"], "mixxx")
+        self.assertEqual(data["sample_rate"], 44100)
         self.assertAlmostEqual(data["bpm"], 124.0, places=2)
-        self.assertEqual(data["first_beat_frame"], 11025)
-        self.assertEqual(data["downbeat_index"], 0)
+        self.assertAlmostEqual(data["first_beat_time_s"], 0.25)
+        self.assertEqual(data["downbeat_index"], 2)  # batida 6 -> fase 2
         self.assertEqual(data["key"], "8A")
-        self.assertEqual(len(data["cues"]), 1)
-        self.assertEqual(data["cues"][0]["label"], "MIX IN")
-        self.assertEqual(len(data["phrases"]), 2)
-        self.assertEqual(data["vocal_segments"], [[15.75, 30.00]])
+        self.assertEqual(data["energy"], 7.25)
+        self.assertEqual(data["cues"], [
+            {"type": "hotcue", "position_s": 0.25, "hotcue": 0, "label": "MIX IN", "color": 3004200},
+            {"type": "loop", "position_s": 0.5, "length_s": 2.0},
+        ])
+        self.assertEqual(data["phrases"][1], {"start": 15.75, "end": 31.25, "bars": 8,
+                                              "type": "CHORUS", "confidence": 0.90})
+        self.assertTrue(data["has_vocal"])
+        self.assertEqual(data["vocal_segments"], [{"start": 15.75, "end": 30.00}])
 
     def test_protobuf_parser_standalone(self):
         blob = make_test_beatgrid_blob(bpm=128.5, first_beat_frame=22050, downbeat_index=2)
