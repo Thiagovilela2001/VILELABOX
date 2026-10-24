@@ -9,11 +9,11 @@ relacionadas, pads e skins `RbxOriginal`/`RbxFlowBars`. Inspirado no rekordbox.
 
 - Commit-base upstream: `3ebac449e7` (Release 2.5.6). Commits próprios:
   `git log 3ebac449e7..HEAD`. Não há tag `2.5.6` no clone.
-- **Rust é objetivo de longo prazo.** O único código Rust é
-  `rust/vilelabox-rekordbox` (Plano 4, etapa E): compila e passa nos testes no
-  Windows (2026-10-22), exportação equivalente ao `sync.py` num banco de teste.
-  A ponte em uso continua sendo `tools/rekordbox/sync.py`. Não descrever
-  outros módulos `vilelabox-*` como existentes.
+- **Rust é o destino do produto independente.** O workspace já contém
+  `vilelabox-rekordbox`, `vilelabox-types`, `vilelabox-mixxx-compat`,
+  `vilelabox-reference` e `xtask`. O rekordbox é a única referência de
+  comportamento; o Mixxx sai do caminho do produto Rust. O código C++
+  permanece no repositório até sua remoção ser autorizada.
 - Visão geral e estado: [README.md](README.md). Um doc por recurso:
   COMPASSOS, GRID, TONALIDADE, VOCALS, FRASES, CUES, MIXPOINT, RELACIONADAS,
   PADS, CONFIGURACOES. Histórico: PLANO*.md, IMPLEMENTACAO.md. Validação real:
@@ -77,3 +77,13 @@ Para tarefas grandes de leitura (README, inventário, auditoria, planos):
    confirmar, planejado e inconsistências.
 
 Agents nunca editam o repo, nunca rodam build e nunca fazem commit.
+
+## Clean-room
+
+- O agent principal e os implementadores nunca abrem `rekord_clone.*`,
+  `third_party/rekordbox/re/` nem arquivos de evidência.
+- Toda especificação em `spec/rekordbox/` passa pelo `spec-lint` e por um
+  auditor de contaminação e lastro antes de ser promovida.
+- Para código Rust, a separação clean-room prevalece sobre a permissão de
+  copiar material do rekordbox; o código é escrito somente a partir das
+  especificações públicas aprovadas.

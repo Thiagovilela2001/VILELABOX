@@ -74,6 +74,11 @@ rust/target/
 # Material do rekordbox (AlphaTheta), só local: nunca versionar
 third_party/rekordbox/
 
+# Projeto Ghidra do rekordbox (lado sujo do clean-room): nunca versionar
+rekord_clone.gpr
+rekord_clone.rep/
+rekord_clone.lock*
+
 # Exportações locais de análises reais (não versionar dados da biblioteca do usuário)
 tests/reference/rekordbox/
-
+tests/reference/mixxx/

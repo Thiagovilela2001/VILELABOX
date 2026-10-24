@@ -10,6 +10,11 @@ Este plano complementa `PLANO-4.md`. O Plano 4 prepara inventário, referências
 e a primeira crate. Este documento cobre a migração completa e define como os
 agents devem produzir, revisar e entregar o código Rust.
 
+> **Atualização de 2026-10-23:** a arquitetura e o oráculo vigentes estão em
+> `docs/superpowers/specs/2026-10-23-rekordbox-cleanroom-rust-design.md`.
+> O rekordbox substitui o Mixxx como referência de comportamento, sob a
+> separação clean-room definida naquele documento.
+
 ## Resultado pretendido
 
 Ao final da migração, o workspace deverá conter um aplicativo desktop capaz de:
@@ -65,7 +70,8 @@ infraestrutura do Mixxx.
 
 ## Estratégia de migração
 
-Será usado o padrão **strangler**:
+O padrão **strangler** vale somente durante a transição, até o aplicativo Rust
+independente existir:
 
 1. congelar e caracterizar o comportamento existente;
 2. definir um contrato independente de Qt/Mixxx;
@@ -521,6 +527,9 @@ Ele será usado pelo CI, pelo modo sombra no Mixxx e pela futura biblioteca.
 **Gate da fase:** G4.
 
 ## Fase 5 — Integração transitória com o Mixxx
+
+**Cancelada (2026-10-23):** aplicativo Rust nasce independente; ver design
+clean-room.
 
 O objetivo é provar Rust no produto atual antes de depender da nova UI.
 
