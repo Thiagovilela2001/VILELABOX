@@ -1,9 +1,13 @@
+pub mod canonical;
 pub mod container;
+pub mod cues;
 pub mod error;
 pub mod grid;
 pub mod phrases;
 
+pub use canonical::{canonical_cues, canonical_phrases, cue_payloads, track_from_anlz};
 pub use container::{all_sections, parse_ppth, sections, FourCc};
+pub use cues::{parse_cues, RawCue};
 pub use error::AnlzError;
 pub use grid::{parse_pqtz, Beat, Grid};
 pub use phrases::{parse_pssi, RawPhrase};

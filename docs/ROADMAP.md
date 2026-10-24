@@ -2,10 +2,13 @@
 
 ## C2 — Formatos
 
-- concluir cues e loops ANLZ;
-- converter ANLZ para o esquema canônico;
-- validar contra cópias de dados reais;
-- especificar e implementar catálogo, XML e exportação USB.
+- [x] interpretar contêiner, caminho, grade e frases ANLZ;
+- [x] interpretar cues e loops `PCOB`/`PCPT`;
+- [x] converter ANLZ para o esquema canônico;
+- [x] comparar o leitor com 40 cópias de análises reais;
+- [ ] implementar o exportador ANLZ em Rust;
+- [ ] interpretar labels e cores das variantes de cues;
+- [ ] especificar e implementar catálogo, XML e exportação USB.
 
 ## C3 — Análise
 
@@ -21,6 +24,7 @@
 
 ## C5 — Interface
 
+- dividir a interface Slint em componentes menores;
 - composição das telas;
 - navegador da biblioteca;
 - waveform e interação de preparação.
