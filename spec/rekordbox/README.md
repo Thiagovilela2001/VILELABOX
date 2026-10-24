@@ -37,8 +37,8 @@ Para aprovar uma tabela numérica longa, coloque imediatamente antes da linha ou
 <!-- tabela-aprovada: AAAA-MM-DD -->
 ```
 
-Em `rust/`, valide todas as especificações com:
+Na raiz do repositório, valide todas as especificações com:
 
 ```text
-cargo run -p xtask -- spec-lint ../spec/rekordbox
+cargo run -p xtask -- spec-lint spec/rekordbox
 ```

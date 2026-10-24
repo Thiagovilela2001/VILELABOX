@@ -14,7 +14,7 @@ Matriz de fixtures (PLANO-RUST.md, R1.3), WAVs gerados só com a biblioteca padr
 - playlists_tree.json: playlists vazias, aninhadas e homônimas.
 
 Os WAVs não são versionados (tests/reference/synthetic/wavs/ com .gitignore).
-Os JSONs seguem o esquema canônico v1 de rust/vilelabox-reference.
+Os JSONs seguem o esquema canônico v1 de vilelabox-reference.
 
 Uso:
     python3 tools/reference/make_synthetic.py [--output-dir tests/reference/synthetic] [--wav-dir tests/reference/synthetic/wavs]

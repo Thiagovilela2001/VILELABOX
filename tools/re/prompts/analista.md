@@ -79,7 +79,7 @@ O rascunho deve cobrir exatamente este escopo:
 
 {{ESCOPO}}
 
-Antes de entregar, a partir do diretório `rust/`, execute:
+Antes de entregar, a partir da raiz do repositório, execute:
 
 ```text
 cargo run -p xtask -- spec-lint {{SCRATCH}}/cleanroom/drafts/{{SPEC_ID}}.md

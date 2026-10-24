@@ -34,7 +34,7 @@ Reprove o rascunho quando ocorrer qualquer uma destas condições:
 - qualquer regra Permitido/Proibido de `spec/rekordbox/README.md` é violada;
 - o comando de lint não termina com código de saída 0.
 
-Execute, a partir de `rust/`:
+Execute, a partir da raiz do repositório:
 
 ```text
 cargo run -p xtask -- spec-lint {{SCRATCH}}/cleanroom/drafts/{{SPEC_ID}}.md

@@ -254,22 +254,9 @@ def canonical_cues(raw: list[dict]) -> list[dict]:
     return sorted(cues, key=lambda c: (c["position_s"], c["type"], c.get("hotcue", -1)))
 
 
-def build_music_index(music_dir: Path | None, mixxx_db: Path | None) -> dict[str, Path]:
+def build_music_index(music_dir: Path | None) -> dict[str, Path]:
     """Indexa arquivos de áudio por nome de arquivo (stem e nome completo) para resolução rápida."""
     index = {}
-    if mixxx_db and mixxx_db.is_file():
-        import sqlite3
-        try:
-            conn = sqlite3.connect(f"{mixxx_db.as_uri()}?mode=ro", uri=True)
-            for row in conn.execute("SELECT location FROM track_locations WHERE fs_deleted = 0"):
-                p = Path(row[0])
-                if p.is_file():
-                    index[p.name.lower()] = p
-                    index[p.stem.lower()] = p
-            conn.close()
-        except Exception:
-            pass
-
     if music_dir and music_dir.is_dir():
         for ext in ("*.mp3", "*.flac", "*.wav", "*.aif", "*.aiff", "*.m4a"):
             for p in music_dir.rglob(ext):
@@ -299,7 +286,6 @@ def export_rekordbox_anlz(
     anlz_dir: Path,
     output_dir: Path,
     music_dir: Path | None = None,
-    mixxx_db: Path | None = None,
     limit: int | None = None,
 ) -> dict:
     anlz_dir = Path(anlz_dir).resolve()
@@ -307,7 +293,7 @@ def export_rekordbox_anlz(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"[*] Indexando biblioteca musical para resolução de caminhos...")
-    music_index = build_music_index(music_dir, mixxx_db)
+    music_index = build_music_index(music_dir)
     print(f"[+] {len(music_index)} arquivos/nomes indexados.")
 
     dat_files = sorted(anlz_dir.rglob("*.DAT"))
@@ -333,7 +319,7 @@ def export_rekordbox_anlz(
         audio_file = resolve_audio_file(raw_path, music_index)
 
         # Sem o áudio não há SHA-256 estável: a faixa fica de fora e é contada,
-        # como em export_reference.py.
+        # para evitar uma identidade instável.
         if not (audio_file and audio_file.is_file()):
             missing_audio += 1
             continue
@@ -358,7 +344,7 @@ def export_rekordbox_anlz(
         if cues:
             with_cues += 1
 
-        # Esquema canônico v1 (rust/vilelabox-reference). O ANLZ não guarda
+        # Esquema canônico v1 (vilelabox-reference). O ANLZ não guarda
         # taxa de amostragem, duração nem vocal: esses campos ficam ausentes.
         track_data = {
             "schema_version": SCHEMA_VERSION,
@@ -401,13 +387,11 @@ def export_rekordbox_anlz(
 def main():
     default_anlz = Path(os.environ.get("APPDATA", "")) / "Pioneer" / "rekordbox" / "share" / "PIONEER" / "USBANLZ"
     default_music = Path(os.environ.get("USERPROFILE", "")) / "Music"
-    default_db = Path("bars-profile-win") / "mixxxdb.sqlite"
 
     parser = argparse.ArgumentParser(description="Exporta análises ANLZ do rekordbox para formato canônico de referência")
     parser.add_argument("--anlz-dir", default=str(default_anlz), help="Diretório USBANLZ do rekordbox")
     parser.add_argument("--output", default="tests/reference/rekordbox", help="Diretório de saída para os JSONs")
     parser.add_argument("--music-dir", default=str(default_music), help="Diretório de arquivos de música")
-    parser.add_argument("--mixxx-db", default=str(default_db), help="Banco SQLite do Mixxx para resolver caminhos")
     parser.add_argument("--limit", type=int, default=None, help="Limite de faixas para exportar")
 
     args = parser.parse_args()
@@ -415,7 +399,6 @@ def main():
         anlz_dir=Path(args.anlz_dir),
         output_dir=Path(args.output),
         music_dir=Path(args.music_dir) if args.music_dir else None,
-        mixxx_db=Path(args.mixxx_db) if args.mixxx_db else None,
         limit=args.limit,
     )
 

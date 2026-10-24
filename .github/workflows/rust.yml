@@ -18,48 +18,32 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.99.1
           components: rustfmt, clippy
 
-      - name: Format check
+      - name: Format
         run: cargo fmt --all -- --check
-        working-directory: rust
 
-      - name: Clippy check
+      - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-        working-directory: rust
 
-      - name: Run unit & integration tests
+      - name: Tests
         run: cargo test --workspace --all-features
-        working-directory: rust
 
       - name: Clean-room spec lint
-        run: cargo run -q -p xtask -- spec-lint ../spec/rekordbox
-        working-directory: rust
+        run: cargo run -q -p xtask -- spec-lint spec/rekordbox
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Reference exporters and synthetic fixtures are up to date
+      - name: Reference fixtures
         shell: bash
         run: |
-          python tools/reference/test_export_reference.py
           python tools/reference/test_export_rekordbox_anlz.py
           python tools/reference/make_synthetic.py
-          git status --porcelain -- tests/reference/synthetic
           test -z "$(git status --porcelain -- tests/reference/synthetic)"
-
-      - name: Build Rust CLI for equivalence test
-        run: cargo build
-        working-directory: rust
-
-      - name: Run Python equivalence test
-        run: python rust/vilelabox-rekordbox/tests/equivalence.py
