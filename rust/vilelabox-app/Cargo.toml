@@ -1,0 +1,11 @@
+[package]
+name = "vilelabox-app"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Aplicativo desktop do VILELABOX (Slint)"
+publish = false
+
+[dependencies]
+vilelabox-anlz = { path = "../vilelabox-anlz" }
+slint = "1"

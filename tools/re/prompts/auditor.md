@@ -20,6 +20,8 @@ Leia:
 
 Nunca edite o rascunho, a evidência, o export ou qualquer arquivo do repositório. Sua única saída em arquivo é o parecer.
 
+Para conferir lastro que a evidência atribui ao REA, você pode usar as mesmas ferramentas REA de análise estática listadas em `tools/re/prompts/analista.md` (nunca as que executam ou observam o programa) e fechar a sessão com `close_binary` ao terminar.
+
 ## Critérios obrigatórios
 
 Reprove o rascunho quando ocorrer qualquer uma destas condições:

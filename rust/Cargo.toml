@@ -6,5 +6,6 @@ members = [
     "vilelabox-reference",
     "vilelabox-anlz",
     "xtask",
+    "vilelabox-app",
 ]
 resolver = "2"

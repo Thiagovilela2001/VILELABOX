@@ -5,10 +5,11 @@
 # instalador extraído e é pulada aqui (roda no hook pre-push local).
 name: VILELABOX
 
+# Desligado (2026-10-24): o produto agora é o app Rust independente; o mod
+# do Mixxx não é mais verificado no CI. Mantido para rodar manualmente, com
+# o build quebrado em src/widget/woverview.cpp:741 (falta include de
+# control/controlobject.h). Reativar: restaurar push/pull_request.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:

@@ -251,6 +251,12 @@ depois do C1. A mudança é registrada neste documento.
   fluxo de telas e comportamento da interface do rekordbox. Especificações da
   C5 podem conter isso. Proibido: logos e marcas da AlphaTheta (ver
   não-objetivos).
+- **Framework de interface: Slint** (2026-10-24), sem spike comparativo com
+  egui. O Slint é usado sob GPLv3, compatível com o GPL-2.0-or-later do
+  projeto; o binário do aplicativo, combinado, é distribuído como GPLv3.
+  Primeiro marco visível: `vilelabox-app`, janela com a biblioteca lida das
+  análises ANLZ e a linha do tempo de compassos e frases da faixa escolhida,
+  sem áudio.
 - **Modelos de ML do rekordbox:** algoritmos próprios em Rust no produto. Os
   modelos Keras/ONNX do rekordbox rodam só localmente, como oráculo opcional
   de comparação, nunca no produto nem no CI.
