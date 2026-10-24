@@ -4,15 +4,31 @@ Status de referência: 2026-10-24.
 
 ## Objetivo
 
-Construir um aplicativo de DJ independente em Rust, seguindo as especificações
-clean-room em `spec/rekordbox/`, sem dependência de outro aplicativo de DJ.
+Reconstruir em Rust o comportamento tecnicamente observado no programa de
+referência, usando como fonte primária a engenharia reversa, a decompilação no
+Ghidra e artefatos reais autorizados. O resultado deve ser um aplicativo de DJ
+independente, sem dependência de outro aplicativo em tempo de execução.
 
 O plano avança por unidades verticais verificáveis. Cada pacote precisa entregar
 código, testes, documentação e evidência antes que o pacote dependente comece.
 
 ## Regras permanentes
 
-- O código limpo lê somente `spec/rekordbox/` e fontes públicas autorizadas.
+- Nenhuma funcionalidade é projetada do zero quando existe comportamento no
+  programa de referência: a implementação começa pela evidência correspondente.
+- Toda tarefa de código deve apontar para uma especificação em
+  `spec/rekordbox/`; toda afirmação dessa especificação deve apontar para
+  evidência de decompilação, estrutura binária ou observação reproduzível.
+- O Ghidra é a fonte primária para fluxo, estruturas, constantes, tabelas,
+  estados e relações entre funções; testes diferenciais confirmam o
+  comportamento que a análise estática não consegue provar sozinha.
+- Pseudocódigo decompilado é evidência, não código-fonte original. A tradução
+  para Rust preserva comportamento e invariantes, sem copiar nomes ou estruturas
+  sem confirmação.
+- Toda decisão inevitavelmente nova — integração entre crates, segurança de
+  memória, persistência própria ou adaptação de API — é registrada como
+  `ADAPTAÇÃO`, com justificativa e limite claramente separados do que foi
+  observado.
 - Dados reais são copiados para uma pasta ignorada antes de qualquer teste.
 - Nenhum teste escreve em catálogos, dispositivos ou perfis reais.
 - Formatos externos entram por adaptadores e não definem o modelo interno.
@@ -27,6 +43,45 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo run -q -p xtask -- spec-lint spec/rekordbox
 ```
+
+## Fluxo obrigatório de reconstrução
+
+Nenhum pacote entra em implementação antes de completar este ciclo:
+
+```text
+artefato identificado e hash registrado
+  → função/recurso localizado no Ghidra
+    → pseudocódigo, chamadas, dados e constantes documentados
+      → observações, inferências e lacunas separadas
+        → especificação aprovada em spec/rekordbox
+          → fixtures e oráculos diferenciais preparados
+            → tradução para Rust
+              → comparação com o programa de referência
+```
+
+Cada investigação produz um registro em `evidence/` ou no local equivalente
+ignorado pelo Git, e um resumo versionável sem conteúdo proprietário em
+`spec/rekordbox/evidence/`. O resumo precisa conter:
+
+- versão e SHA-256 do artefato analisado;
+- endereços ou identificadores das funções e dados relevantes;
+- cadeia de chamadas e estados observados;
+- constantes, layouts e fórmulas recuperados;
+- classificação de cada conclusão como `OBSERVADO`, `INFERIDO` ou `DESCONHECIDO`;
+- limitações da análise estática e resultado da confirmação dinâmica;
+- ligação para requisito, fixture e teste Rust correspondentes.
+
+### Gate G0 — Proveniência da implementação
+
+Antes de iniciar qualquer item das fases P0–P7:
+
+- existe um dossiê de evidência para o comportamento em questão;
+- a especificação cita esse dossiê e delimita as lacunas;
+- há um oráculo ou teste diferencial definido;
+- adaptações necessárias ao Rust estão identificadas, sem serem apresentadas
+  como comportamento recuperado;
+- se faltar evidência, a tarefa retorna à engenharia reversa e não avança por
+  suposição de produto.
 
 ## Estado inicial
 
@@ -59,8 +114,9 @@ P0 estabilização
 
 ### P0.1 — Modularizar a interface Slint
 
-**Objetivo:** retirar a definição visual de `main.rs` e separar componentes por
-responsabilidade, sem alterar o comportamento.
+**Objetivo:** retirar a definição visual de `main.rs` e separar componentes de
+acordo com a hierarquia, os estados e as responsabilidades recuperados da
+interface de referência, sem inventar comportamento.
 
 **Arquivos previstos:**
 
@@ -84,12 +140,16 @@ vilelabox-app/
 
 **Tarefas:**
 
-1. adicionar `slint-build` como dependência de build;
-2. mover structs e componentes visuais para arquivos `.slint`;
-3. manter carregamento e transformação de dados em Rust;
-4. mover formatação de BPM, duração e cores para `presentation.rs`;
-5. criar testes unitários para a camada de apresentação;
-6. verificar que a janela compila e abre com uma pasta vazia.
+1. localizar no Ghidra a composição da tela, modelos, eventos e estados usados;
+2. registrar a correspondência entre controles recuperados e componentes Slint;
+3. adicionar `slint-build` como dependência de build;
+4. mover structs e componentes visuais para arquivos `.slint` seguindo a
+   decomposição recuperada;
+5. manter carregamento e transformação de dados em Rust;
+6. mover formatação de BPM, duração e cores para `presentation.rs`, usando as
+   regras e constantes identificadas;
+7. criar testes unitários e comparações visuais para a camada de apresentação;
+8. verificar que a janela compila e abre com uma pasta vazia.
 
 **Aceite:**
 
@@ -105,6 +165,10 @@ vilelabox-app/
 ### P1.1 — Exportador ANLZ em Rust
 
 **Objetivo:** produzir referências canônicas diretamente pelo leitor Rust.
+
+**Origem obrigatória:** rotinas de enumeração, associação DAT/EXT, resolução de
+caminhos e serialização recuperadas no Ghidra e confrontadas com o exportador
+já observado. O formato JSON canônico é uma `ADAPTAÇÃO` interna documentada.
 
 **Arquivos previstos:**
 
@@ -172,12 +236,14 @@ label e cor.
 
 ### P2.1 — Catálogo principal
 
-1. concluir e aprovar `spec/rekordbox/10-master-db.md`;
-2. decidir como fixtures descriptografadas e minimizadas serão produzidas sem
+1. localizar no Ghidra abertura, consultas, transformação de registros e
+   relações do catálogo;
+2. concluir e aprovar `spec/rekordbox/10-master-db.md` com essa evidência;
+3. decidir como fixtures descriptografadas e minimizadas serão produzidas sem
    incorporar chave, DRM ou mecanismo de licença;
-3. criar `vilelabox-catalog` somente leitura;
-4. importar faixas, metadados, playlists, cues e relacionamentos;
-5. testar versões conhecidas do esquema e erros de versão.
+4. criar `vilelabox-catalog` somente leitura;
+5. importar faixas, metadados, playlists, cues e relacionamentos;
+6. testar versões conhecidas do esquema e erros de versão.
 
 ### P2.2 — XML
 
@@ -208,7 +274,10 @@ label e cor.
 
 ### P3.1 — `vilelabox-storage`
 
-- banco SQLite próprio com migrations versionadas;
+- recuperar no Ghidra entidades, relações, índices, transações e ciclo de vida
+  dos dados antes de definir o esquema;
+- banco SQLite próprio com migrations versionadas, tratado como `ADAPTAÇÃO`
+  quando o armazenamento de referência não puder ser reproduzido diretamente;
 - conexões, transações e integridade referencial;
 - tabelas para faixas, localizações, metadados, playlists, cues, grids, frases
   e resultados de análise;
@@ -262,6 +331,8 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P4.1 — Infraestrutura DSP
 
+- recuperar no Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes,
+  encadeamento e tratamento de bordas;
 - criar `vilelabox-dsp` com contrato PCM explícito;
 - leitura em blocos produz o mesmo resultado independentemente do tamanho do
   bloco;
@@ -270,6 +341,8 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P4.2 — Pipeline de análise
 
+- reconstruir cada etapa somente após localizar suas entradas, saídas, chamadas,
+  parâmetros e tabelas no binário;
 - criar `vilelabox-analysis`;
 - implementar BPM/grid, downbeat, tonalidade, energia, waveform, frases e vocal
   como etapas canceláveis;
@@ -319,6 +392,8 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P6.1 — Decodificação e transporte
 
+- recuperar no Ghidra o grafo do transporte, estados, relógios, buffers e regras
+  de seek antes de escolher APIs Rust;
 - criar `vilelabox-audio`;
 - decodificação para PCM interno;
 - play, pause, seek, ganho e transporte por deck;
@@ -326,6 +401,7 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P6.2 — Mixer e sincronização
 
+- recuperar equações, curvas, estados e constantes antes de implementá-los;
 - mixer de canais e crossfader;
 - resampling e alteração de tempo;
 - sync por batida e compasso;
@@ -367,16 +443,20 @@ equipamento real.
 
 Ordem recomendada para as próximas entregas:
 
-1. **P0.1:** modularizar a interface sem mudar comportamento;
-2. **P1.1:** exportador ANLZ em Rust;
-3. **P1.2:** especificar e implementar labels e cores de cues;
-4. **P2.1:** iniciar a especificação do catálogo principal;
-5. **P2.2:** criar o parser XML independente.
+1. **G0/P0.1:** documentar no Ghidra a hierarquia e os estados da interface;
+2. **P0.1:** modularizar a interface conforme a evidência recuperada;
+3. **G0/P1.1:** documentar o fluxo de exportação e associação ANLZ;
+4. **P1.1:** traduzir esse fluxo para o exportador ANLZ em Rust;
+5. **G0/P1.2:** recuperar labels, cores e variantes de cues;
+6. **P1.2:** implementar as variantes conforme as evidências;
+7. **G0/P2.1:** mapear no Ghidra o catálogo principal e suas consultas.
 
 ## Definition of Done
 
 Uma tarefa só está concluída quando:
 
+- possui dossiê G0 com identidade do artefato e rastreabilidade até o Ghidra;
+- separa explicitamente `OBSERVADO`, `INFERIDO`, `DESCONHECIDO` e `ADAPTAÇÃO`;
 - a especificação necessária está aprovada;
 - entradas válidas, limites, truncamento e erros possuem testes;
 - `fmt`, Clippy, testes e `spec-lint` passam;

@@ -3,6 +3,9 @@
 O detalhamento executável, com dependências, tarefas e gates, está em
 [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 
+Toda implementação parte de evidência de engenharia reversa e decompilação no
+Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentada.
+
 ## C2 — Formatos
 
 - [x] interpretar contêiner, caminho, grade e frases ANLZ;
