@@ -39,6 +39,10 @@ jobs:
         run: cargo test --workspace --all-features
         working-directory: rust
 
+      - name: Clean-room spec lint
+        run: cargo run -q -p xtask -- spec-lint ../spec/rekordbox
+        working-directory: rust
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -165,3 +165,19 @@ Referência: o mixer nas capturas de tela do próprio instalador do rekordbox 7.
 | R1.1a — Crate `vilelabox-mixxx-compat` | `rust/vilelabox-mixxx-compat/**`, `rust/Cargo.toml` | `cargo test -p vilelabox-mixxx-compat`, `cargo clippy -p vilelabox-mixxx-compat -- -D warnings` | Passou: isolamento de SQLite (`mixxxdb.sqlite`) e decodificador binário de `beats.proto`, convertendo para os tipos puros de `vilelabox-types`. 2 testes unitários de integração passando |
 | R1.2 e R1.4 — Crate `vilelabox-reference` | `rust/vilelabox-reference/**`, `rust/Cargo.toml` | `cargo test -p vilelabox-reference`, `cargo clippy -p vilelabox-reference -- -D warnings` | Passou: schema canônico (JSON), normalizador e comparador diferencial com as tolerâncias oficiais (BPM ±0.01, downbeat 0, batidas 1 ms, frases até 1 compasso, cues 1 ms, vocais 250 ms), validado contra a fixture real `fixed_120bpm.json`. 2 testes unitários passando |
 
+
+## Clean-room rekordbox — C0 e C1 (2026-10-23 a 2026-10-24)
+
+Design: `docs/superpowers/specs/2026-10-23-rekordbox-cleanroom-rust-design.md`. Plano: `docs/superpowers/plans/2026-10-23-cleanroom-c0-c1.md`.
+
+| Pacote | Fonte | Destino | Testes | Status |
+| --- | --- | --- | --- | --- |
+| C0 — barreira | — | `.gitignore` (projeto Ghidra), `spec/rekordbox/README.md` | `git check-ignore rekord_clone.gpr rekord_clone.rep/project.prp third_party/rekordbox/re/export/functions.tsv` | Feito |
+| C0 — `xtask spec-lint` | — | `rust/xtask/` | `cargo test -p xtask` (9 testes), clippy, fmt; passo no CI `rust.yml` | Feito |
+| C0 — export do Ghidra | projeto `rekord_clone` (somente leitura) | `tools/re/` (Java + PowerShell) | guarda de lock (exit 3), inventário com 172.073 funções, 14.913 vtables, lote de descompilação com `nao-encontrada` | Feito. Modo `rtti` estourou a memória (2 GB e 5 GB numa máquina de 7,7 GB); substituído por `vtables.tsv` |
+| C0 — prompts | — | `tools/re/prompts/analista.md`, `auditor.md` | uso real no C1 | Feito |
+| C1 — `00-mapa` v2 | export + listagem da instalação e do perfil | `spec/rekordbox/00-mapa.md` | auditor: reprovado nas rodadas 1–3, aprovado na 4ª (autorizada pelo usuário); `spec-lint` exit 0 | Feito. Evidência e pareceres fora do git em `third_party/rekordbox/re/evidence/` |
+| Correção da `main` | commit `1645e7e927` (C2 Task 1) citava `xtask` sem os arquivos | `main` avançada para `f1c0915c03` | worktree limpa: antes `failed to load manifest ... xtask`; depois test, clippy e fmt ok | Feito |
+| Decisões do usuário | — | design | iluminação, vídeo e gravação dentro do produto (`36-gravacao`, `37-video` em C4; `54-iluminacao` em C6) | Registrado |
+
+Próximo gate: especificações da C2 vindas do Ghidra (`10-master-db`, `12-xml`, `13-export-usb`); `11-anlz` em execução por fontes públicas (`docs/superpowers/plans/2026-10-23-c2-anlz-rust.md`).
