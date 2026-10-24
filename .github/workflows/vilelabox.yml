@@ -30,7 +30,7 @@ jobs:
         run: tools/debian_buildenv.sh setup
 
       - name: Set up GitHub cache for ccache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/.cache/ccache
           key: vilelabox-ccache-${{ github.sha }}
