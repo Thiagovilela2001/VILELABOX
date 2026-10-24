@@ -150,14 +150,17 @@ Cada fase usa a lista final aprovada em `spec/rekordbox/00-mapa.md`.
 | C3 Análise | `20-bpm-grid`, `21-frases`, `22-tonalidade`, `23-energia`, `24-waveform`, `25-vocal` | `vilelabox-dsp`, `vilelabox-analysis` | USBANLZ real | G3/G4 |
 | C3b Biblioteca e núcleo | `26-biblioteca`, `27-preparacao` | `vilelabox-storage`, `vilelabox-library`, `vilelabox-core` | catálogo copiado e sessão observada | G5 |
 | C5 Interface | `40-telas`, `41-waveform-render`, `42-biblioteca-ui` | `vilelabox-ui` (layout do rekordbox, sem logos) | capturas operadas pelo usuário | G6 |
-| C4 Motor de áudio | `30-deck`, `31-sync`, `32-loops-cues`, `33-mixer-fx`, `34-quantize`, `35-separacao` | `vilelabox-audio` | renderização offline e gravação operada pelo usuário | G7 |
-| C6 Controladoras e rede | `50-midi`, `51-hid`, `52-mapeamentos`, `53-link-rede` | `vilelabox-midi` (rede: crate a definir no plano da C6) | arquivos de fábrica, controladora e captura de rede com equipamento operados pelo usuário | G8 |
+| C4 Motor de áudio | `30-deck`, `31-sync`, `32-loops-cues`, `33-mixer-fx`, `34-quantize`, `35-separacao`, `36-gravacao`, `37-video` | `vilelabox-audio` | renderização offline e gravação operada pelo usuário | G7 |
+| C6 Controladoras, rede e iluminação | `50-midi`, `51-hid`, `52-mapeamentos`, `53-link-rede`, `54-iluminacao` | `vilelabox-midi` (rede: crate a definir no plano da C6) | arquivos de fábrica, controladora e captura de rede com equipamento operados pelo usuário | G8 |
 
 Alteração registrada em 2026-10-24: o `00-mapa` v2 (aprovado na 4ª rodada de
 auditoria) propôs `35-separacao` e `53-link-rede`; o agent encaixou-as em C4
 e C6, como o próprio mapa sugere. Iluminação, vídeo e gravação aparecem como
-subsistemas no binário e aguardam decisão do usuário (dentro ou fora do
-produto).
+subsistemas no binário; o usuário decidiu em 2026-10-24 que ficam **dentro**
+do produto. O agent encaixou: `36-gravacao` e `37-video` em C4 (dependem do
+motor de áudio e do relógio dos decks) e `54-iluminacao` em C6 (saída para
+equipamentos, junto de controladoras e rede). As especificações nascem pelo
+mesmo ciclo analista → auditor.
 
 Alteração registrada em 2026-10-23: C1 confirmou os ids e as dependências da
 lista acima; os títulos, subsistemas, dependências e oráculos normativos ficam
