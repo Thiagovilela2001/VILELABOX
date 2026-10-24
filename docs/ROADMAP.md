@@ -1,5 +1,8 @@
 # Roadmap
 
+O detalhamento executável, com dependências, tarefas e gates, está em
+[`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
+
 ## C2 — Formatos
 
 - [x] interpretar contêiner, caminho, grade e frases ANLZ;
