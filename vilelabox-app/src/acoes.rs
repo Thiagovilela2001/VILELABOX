@@ -22,6 +22,8 @@ pub fn carregar_audio(st: &mut AppState, id: DeckId, audio_buf: Arc<AudioBuffer>
     let i = if id == DeckId::Deck1 { 0 } else { 1 };
     st.apply(Command::SetDeckAudioReady { deck: id, ready: true });
     st.loop_ativo[i] = false;
+    st.loop_in[i] = None;
+    st.loop_pontos[i] = None;
     let d = deck(st, i);
     if d.dur_s <= 0.0 {
         let dur = audio_buf.duration_seconds();
@@ -79,6 +81,46 @@ pub fn quantize(st: &mut AppState, i: usize) -> AudioCommand {
 /// AU/MA: troca a caixa de loop, sem chamada de motor.
 pub fn loop_modo(st: &mut AppState, i: usize) {
     st.loop_manual[i] = !st.loop_manual[i];
+}
+
+fn frame(st: &mut AppState, i: usize, s: f64) -> Option<u64> {
+    let sr = f64::from(deck(st, i).audio_buf.as_ref()?.sample_rate);
+    Some((s * sr).round() as u64)
+}
+
+/// IN (unit#52, p6-5): guarda a entrada e faz dela o ponto de cue; o
+/// transporte segue.
+pub fn loop_in(st: &mut AppState, i: usize, pos: f64) -> Option<AudioCommand> {
+    let f = frame(st, i, pos)?;
+    st.loop_in[i] = Some(pos);
+    Some(AudioCommand::SetCuePoint { deck: i as u8 + 1, frame: f })
+}
+
+/// OUT (unit#53, p6-5): fecha o loop IN..posição atual e passa a repetir.
+/// Sem IN anterior, nada (não observado).
+pub fn loop_out(st: &mut AppState, i: usize, pos: f64) -> Option<AudioCommand> {
+    let entrada = st.loop_in[i].filter(|&e| pos > e)?;
+    let (a, b) = (frame(st, i, entrada)?, frame(st, i, pos)?);
+    st.loop_pontos[i] = Some((entrada, pos));
+    st.loop_ativo[i] = true;
+    Some(AudioCommand::SetLoop { deck: i as u8 + 1, start_frame: a, end_frame: b })
+}
+
+/// RELOOP/EXIT, o mesmo botão (p6-5). Com loop: EXIT encerra e a reprodução
+/// segue. Sem loop: RELOOP volta ao IN e repete o último IN/OUT.
+pub fn loop_exit_reloop(st: &mut AppState, i: usize) -> Vec<AudioCommand> {
+    let n = i as u8 + 1;
+    if st.loop_ativo[i] {
+        st.loop_ativo[i] = false;
+        return vec![AudioCommand::ClearLoop { deck: n }];
+    }
+    let Some((e, s)) = st.loop_pontos[i] else { return Vec::new() };
+    let (Some(a), Some(b)) = (frame(st, i, e), frame(st, i, s)) else { return Vec::new() };
+    st.loop_ativo[i] = true;
+    vec![
+        AudioCommand::SetLoop { deck: n, start_frame: a, end_frame: b },
+        AudioCommand::SeekFrame { deck: n, frame: a },
+    ]
 }
 
 /// MEMORY: grava na lista do app e persiste, sem chamada de motor.

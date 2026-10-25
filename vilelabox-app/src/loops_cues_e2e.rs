@@ -311,3 +311,36 @@ fn persistencia_com_loop_e_q_volta_ao_recarregar() {
     assert_eq!(app.deck(0).position_frames, (3.25 * SR) as u64);
     assert_eq!(app.deck(0).state, TransportState::CueStandby);
 }
+
+#[test]
+fn loop_manual_in_out_exit_reloop() {
+    // Captura p6-5: IN em 3,20 s, OUT em 7,42 s, EXIT, tocando até 12 s, RELOOP.
+    let mut app = App::new("manual", Some(grade_120()));
+    app.tocar(0);
+    app.ir(0, 3.2);
+    let c = acoes::loop_in(&mut app.st, 0, 3.2);
+    app.enviar(c);
+    assert_eq!(app.deck(0).cue_frame, (3.2 * SR) as u64); // IN vira o ponto de cue
+    assert_eq!(app.deck(0).state, TransportState::Playing); // transporte segue
+    app.ir(0, 7.42);
+    let c = acoes::loop_out(&mut app.st, 0, 7.42);
+    app.enviar(c);
+    let faixa = Some(((3.2 * SR).round() as u64, (7.42 * SR).round() as u64));
+    assert_eq!(app.deck(0).loop_range, faixa);
+    assert!(app.deck(0).loop_active);
+    // EXIT: encerra, a reprodução segue de onde está.
+    for c in acoes::loop_exit_reloop(&mut app.st, 0) {
+        app.motor.apply(c);
+    }
+    assert!(!app.deck(0).loop_active);
+    assert_eq!(app.deck(0).state, TransportState::Playing);
+    // RELOOP depois do OUT: volta ao IN e repete o mesmo trecho.
+    app.ir(0, 12.0);
+    for c in acoes::loop_exit_reloop(&mut app.st, 0) {
+        app.motor.apply(c);
+    }
+    assert_eq!(app.deck(0).position_frames, (3.2 * SR).round() as u64);
+    assert_eq!(app.deck(0).loop_range, faixa);
+    assert!(app.deck(0).loop_active);
+    assert_eq!(app.deck(0).state, TransportState::Playing);
+}

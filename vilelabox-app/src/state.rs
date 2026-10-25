@@ -285,6 +285,9 @@ pub struct AppState {
     pub slip: [bool; 2],
     pub master_tempo: [bool; 2],
     pub loop_manual: [bool; 2],
+    /// Loop manual por deck (p6-5): IN pendente e o par IN/OUT que o RELOOP reabre, em segundos.
+    pub loop_in: [Option<f64>; 2],
+    pub loop_pontos: [Option<(f64, f64)>; 2],
     pub scan_in_progress: bool,
     pub clock_text: String,
     /// Listas do XML e a lista que filtra a tabela (None = coleção inteira).
@@ -324,6 +327,8 @@ impl AppState {
             slip: [false, false],
             master_tempo: [true, true],
             loop_manual: [false, false],
+            loop_in: [None, None],
+            loop_pontos: [None, None],
             scan_in_progress: false,
             clock_text: "--:--".into(),
             playlists: Vec::new(),

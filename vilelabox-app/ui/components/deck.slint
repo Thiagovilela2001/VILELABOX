@@ -397,15 +397,20 @@ export component Deck inherits Rectangle {
     }
 
     // loop: tamanho, metade/dobro, AU (auto) e MA (manual)
-    // MA: IN/OUT/EXIT no lugar do tamanho. Só o IN teve chamada observada
-    // (unit#53), sem efeito descrito; os três ficam sem ação (p6-2).
-    if root.loop_manual: Rectangle {
-        x: root.dx(530, 274);
+    // MA (p6-5): IN e OUT no lugar do tamanho, como no rekordbox (IN à
+    // esquerda, OUT à direita); RELOOP/EXIT no lugar do ‹.
+    for t[k] in ["IN", "OUT"] : Rectangle {
+        visible: root.loop_manual;
+        x: root.dx(530 + k * 38, 274 + k * 38);
         y: ((136px * s));
-        width: ((74px * s));
+        width: ((36px * s));
         height: ((36px * s));
-        background: #1e1e1e;
-        Text { text: "IN  OUT  EXIT"; color: #e6e9f0; font_size: ((9px * s)); font_weight: 700; }
+        background: root.loop_ativo ? #f5a623 : #1e1e1e;
+        Text { text: t; color: root.loop_ativo ? #000000 : #e6e9f0; font_size: ((11px * s)); font_weight: 700; }
+        TouchArea {
+            enabled: root.audio_ready && root.loop_manual;
+            clicked => { root.botao(k == 0 ? "loop_in" : "loop_out"); }
+        }
     }
     if !root.loop_manual: Rectangle {
         x: root.dx(530, 274);
@@ -422,10 +427,25 @@ export component Deck inherits Rectangle {
         width: ((36px * s));
         height: ((36px * s));
         background: #1e1e1e;
+        visible: !root.loop_manual;
         Text { text: l; color: #e6e9f0; font_size: ((18px * s)); }
         TouchArea {
-            enabled: root.audio_ready;
+            enabled: root.audio_ready && !root.loop_manual;
             clicked => { if i == 0 { root.loop_metade(); } else { root.loop_dobro(); } }
+        }
+    }
+    // MA: o mesmo botão é RELOOP sem loop e EXIT com loop (p6-5).
+    Rectangle {
+        visible: root.loop_manual;
+        x: root.dx(530, 274);
+        y: ((178px * s));
+        width: ((74px * s));
+        height: ((36px * s));
+        background: #1e1e1e;
+        Text { text: root.loop_ativo ? "EXIT" : "RELOOP"; color: #e6e9f0; font_size: ((11px * s)); font_weight: 700; }
+        TouchArea {
+            enabled: root.audio_ready && root.loop_manual;
+            clicked => { root.botao("loop_exit"); }
         }
     }
     DeckButton { s: root.s; x: root.dx(530, 274); y: ((222px * s)); width: ((38px * s)); height: ((22px * s)); text: "AU"; aceso: !root.loop_manual; clicked => { if root.loop_manual { root.botao("loop_modo"); } } }

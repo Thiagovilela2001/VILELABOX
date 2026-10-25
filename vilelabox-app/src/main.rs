@@ -710,6 +710,21 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 }
                 "loop_modo" => acoes::loop_modo(&mut st, i),
+                "loop_in" => {
+                    if let Some(c) = acoes::loop_in(&mut st, i, pos_s(&ctrl, i)) {
+                        ctrl.send(c);
+                    }
+                }
+                "loop_out" => {
+                    if let Some(c) = acoes::loop_out(&mut st, i, pos_s(&ctrl, i)) {
+                        ctrl.send(c);
+                    }
+                }
+                "loop_exit" => {
+                    for c in acoes::loop_exit_reloop(&mut st, i) {
+                        ctrl.send(c);
+                    }
+                }
                 "memory" => acoes::memory(&mut st, i, pos_s(&ctrl, i)),
                 _ => return,
             }
