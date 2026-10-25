@@ -1,0 +1,1841 @@
+{
+  "fonte": {
+    "medicao": "third_party/rekordbox/ui-workbench/medicoes",
+    "processo": "rekordbox",
+    "tela": "1920x1080",
+    "dpi": 120,
+    "escala": 1.25,
+    "cliente": {
+      "largura": 1920,
+      "altura": 1051,
+      "largura_logica": 1536.0,
+      "altura_logica": 840.8
+    },
+    "janela": {
+      "x": -9,
+      "y": -9,
+      "largura": 1938,
+      "altura": 1098
+    }
+  },
+  "regioes_horizontais": [
+    {
+      "y": 0,
+      "altura": 28,
+      "pct_altura": 2.66,
+      "cor_fundo": [
+        0,
+        0,
+        0
+      ],
+      "px_logicos": 22.4
+    },
+    {
+      "y": 28,
+      "altura": 36,
+      "pct_altura": 3.43,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 28.8
+    },
+    {
+      "y": 64,
+      "altura": 176,
+      "pct_altura": 16.75,
+      "cor_fundo": [
+        0,
+        0,
+        0
+      ],
+      "px_logicos": 140.8
+    },
+    {
+      "y": 240,
+      "altura": 21,
+      "pct_altura": 2.0,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 16.8
+    },
+    {
+      "y": 271,
+      "altura": 37,
+      "pct_altura": 3.52,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 29.6
+    },
+    {
+      "y": 308,
+      "altura": 54,
+      "pct_altura": 5.14,
+      "cor_fundo": [
+        0,
+        0,
+        0
+      ],
+      "px_logicos": 43.2
+    },
+    {
+      "y": 362,
+      "altura": 20,
+      "pct_altura": 1.9,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 16.0
+    },
+    {
+      "y": 382,
+      "altura": 5,
+      "pct_altura": 0.48,
+      "cor_fundo": [
+        50,
+        50,
+        50
+      ],
+      "px_logicos": 4.0
+    },
+    {
+      "y": 387,
+      "altura": 11,
+      "pct_altura": 1.05,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 8.8
+    },
+    {
+      "y": 404,
+      "altura": 78,
+      "pct_altura": 7.42,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 62.4
+    },
+    {
+      "y": 488,
+      "altura": 11,
+      "pct_altura": 1.05,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 8.8
+    },
+    {
+      "y": 499,
+      "altura": 5,
+      "pct_altura": 0.48,
+      "cor_fundo": [
+        50,
+        50,
+        50
+      ],
+      "px_logicos": 4.0
+    },
+    {
+      "y": 504,
+      "altura": 21,
+      "pct_altura": 2.0,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 16.8
+    },
+    {
+      "y": 528,
+      "altura": 51,
+      "pct_altura": 4.85,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 40.8
+    },
+    {
+      "y": 581,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 614,
+      "altura": 7,
+      "pct_altura": 0.67,
+      "cor_fundo": [
+        0,
+        0,
+        0
+      ],
+      "px_logicos": 5.6
+    },
+    {
+      "y": 621,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 656,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 689,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 722,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 756,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 789,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 823,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 857,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 891,
+      "altura": 33,
+      "pct_altura": 3.14,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 26.4
+    },
+    {
+      "y": 924,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 958,
+      "altura": 34,
+      "pct_altura": 3.24,
+      "cor_fundo": [
+        15,
+        15,
+        15
+      ],
+      "px_logicos": 27.2
+    },
+    {
+      "y": 992,
+      "altura": 11,
+      "pct_altura": 1.05,
+      "cor_fundo": [
+        30,
+        30,
+        30
+      ],
+      "px_logicos": 8.8
+    },
+    {
+      "y": 1006,
+      "altura": 10,
+      "pct_altura": 0.95,
+      "cor_fundo": [
+        50,
+        50,
+        50
+      ],
+      "px_logicos": 8.0
+    },
+    {
+      "y": 1016,
+      "altura": 35,
+      "pct_altura": 3.33,
+      "cor_fundo": [
+        0,
+        0,
+        0
+      ],
+      "px_logicos": 28.0
+    }
+  ],
+  "banda_decks": {
+    "y": 240,
+    "altura": 21,
+    "paineis": [
+      {
+        "x": 0,
+        "largura": 890,
+        "pct_largura": 46.35,
+        "cor_fundo": [
+          30,
+          30,
+          30
+        ],
+        "px_logicos": 712.0
+      },
+      {
+        "x": 893,
+        "largura": 134,
+        "pct_largura": 6.98,
+        "cor_fundo": [
+          30,
+          30,
+          30
+        ],
+        "px_logicos": 107.2
+      },
+      {
+        "x": 1030,
+        "largura": 890,
+        "pct_largura": 46.35,
+        "cor_fundo": [
+          30,
+          30,
+          30
+        ],
+        "px_logicos": 712.0
+      }
+    ]
+  },
+  "colunas_navegador": [
+    {
+      "titulo": "Atributo",
+      "x": 459,
+      "y": 655,
+      "largura": 38,
+      "altura": 34
+    },
+    {
+      "titulo": "Pré-visualização",
+      "x": 534,
+      "y": 655,
+      "largura": 250,
+      "altura": 34
+    },
+    {
+      "titulo": "Ilustração",
+      "x": 784,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "titulo": "Título da Faixa",
+      "x": 884,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "titulo": "Intérprete",
+      "x": 1044,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "titulo": "Álbum",
+      "x": 1204,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "titulo": "Género",
+      "x": 1364,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "titulo": "BPM",
+      "x": 1524,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "titulo": "Classificação",
+      "x": 1624,
+      "y": 655,
+      "largura": 112,
+      "altura": 34
+    },
+    {
+      "titulo": "Tempo",
+      "x": 1736,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "titulo": "Tonalidade",
+      "x": 1836,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    }
+  ],
+  "marcos": [
+    {
+      "nome": "ShowHideTreeShortcutButton",
+      "tipo": "Button",
+      "x": 8,
+      "y": 581,
+      "largura": 22,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideSubBrowseButton",
+      "tipo": "Button",
+      "x": 62,
+      "y": 582,
+      "largura": 25,
+      "altura": 24
+    },
+    {
+      "nome": "TAG",
+      "tipo": "RadioButton",
+      "x": 96,
+      "y": 587,
+      "largura": 28,
+      "altura": 12
+    },
+    {
+      "nome": "ShowHidePaletteButton",
+      "tipo": "Button",
+      "x": 231,
+      "y": 587,
+      "largura": 36,
+      "altura": 12
+    },
+    {
+      "nome": "WiFiSyncDetectButton",
+      "tipo": "Button",
+      "x": 2,
+      "y": 972,
+      "largura": 46,
+      "altura": 46
+    },
+    {
+      "nome": "blank list",
+      "tipo": "Edit",
+      "x": 490,
+      "y": 581,
+      "largura": 284,
+      "altura": 34
+    },
+    {
+      "nome": "MenuButton",
+      "tipo": "Button",
+      "x": 774,
+      "y": 590,
+      "largura": 15,
+      "altura": 16
+    },
+    {
+      "nome": "blank list",
+      "tipo": "Edit",
+      "x": 848,
+      "y": 581,
+      "largura": 284,
+      "altura": 34
+    },
+    {
+      "nome": "MenuButton",
+      "tipo": "Button",
+      "x": 1131,
+      "y": 590,
+      "largura": 15,
+      "altura": 16
+    },
+    {
+      "nome": "blank list",
+      "tipo": "Edit",
+      "x": 1205,
+      "y": 581,
+      "largura": 284,
+      "altura": 34
+    },
+    {
+      "nome": "MenuButton",
+      "tipo": "Button",
+      "x": 1489,
+      "y": 590,
+      "largura": 15,
+      "altura": 16
+    },
+    {
+      "nome": "blank list",
+      "tipo": "Edit",
+      "x": 1562,
+      "y": 581,
+      "largura": 284,
+      "altura": 34
+    },
+    {
+      "nome": "MenuButton",
+      "tipo": "Button",
+      "x": 1846,
+      "y": 590,
+      "largura": 15,
+      "altura": 16
+    },
+    {
+      "nome": "SelectPartialArtworkButton",
+      "tipo": "Button",
+      "x": 1382,
+      "y": 626,
+      "largura": 22,
+      "altura": 22
+    },
+    {
+      "nome": "SelectFullArtworkButton",
+      "tipo": "Button",
+      "x": 1430,
+      "y": 626,
+      "largura": 22,
+      "altura": 22
+    },
+    {
+      "nome": "Atributo",
+      "tipo": "Header",
+      "x": 459,
+      "y": 655,
+      "largura": 38,
+      "altura": 34
+    },
+    {
+      "nome": "Pré-visualização",
+      "tipo": "Header",
+      "x": 534,
+      "y": 655,
+      "largura": 250,
+      "altura": 34
+    },
+    {
+      "nome": "Ilustração",
+      "tipo": "Header",
+      "x": 784,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "nome": "Título da Faixa",
+      "tipo": "Header",
+      "x": 884,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "nome": "Intérprete",
+      "tipo": "Header",
+      "x": 1044,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "nome": "Álbum",
+      "tipo": "Header",
+      "x": 1204,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "nome": "Género",
+      "tipo": "Header",
+      "x": 1364,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "nome": "BPM",
+      "tipo": "Header",
+      "x": 1524,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "nome": "Classificação",
+      "tipo": "Header",
+      "x": 1624,
+      "y": 655,
+      "largura": 112,
+      "altura": 34
+    },
+    {
+      "nome": "Tempo",
+      "tipo": "Header",
+      "x": 1736,
+      "y": 655,
+      "largura": 100,
+      "altura": 34
+    },
+    {
+      "nome": "Tonalidade",
+      "tipo": "Header",
+      "x": 1836,
+      "y": 655,
+      "largura": 160,
+      "altura": 34
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 695,
+      "largura": 5,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 576,
+      "y": 695,
+      "largura": 12,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 601,
+      "y": 695,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 712,
+      "y": 695,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 729,
+      "largura": 6,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 578,
+      "y": 729,
+      "largura": 11,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 589,
+      "y": 729,
+      "largura": 14,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 719,
+      "y": 729,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 762,
+      "largura": 8,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 579,
+      "y": 762,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 600,
+      "y": 762,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 756,
+      "y": 762,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 796,
+      "largura": 9,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 584,
+      "y": 796,
+      "largura": 15,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 599,
+      "y": 796,
+      "largura": 15,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 704,
+      "y": 796,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 830,
+      "largura": 2,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 574,
+      "y": 830,
+      "largura": 10,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 589,
+      "y": 830,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 735,
+      "y": 830,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 863,
+      "largura": 9,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 582,
+      "y": 863,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 601,
+      "y": 863,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 704,
+      "y": 863,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 897,
+      "largura": 9,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 581,
+      "y": 897,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 614,
+      "y": 897,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 709,
+      "y": 897,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 965,
+      "largura": 9,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 591,
+      "y": 965,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 632,
+      "y": 965,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 694,
+      "y": 965,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 571,
+      "y": 999,
+      "largura": 8,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 579,
+      "y": 999,
+      "largura": 15,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 615,
+      "y": 999,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "prevCueSnapReg",
+      "tipo": "Button",
+      "x": 718,
+      "y": 999,
+      "largura": 16,
+      "altura": 28
+    },
+    {
+      "nome": "ShowHideMyTagButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 671,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideRelatedTracksButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 713,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideTrackSuggestionButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 756,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideTrackInfoButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 799,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideSubBrowseButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 841,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "ShowHideAutomixBrowseButton",
+      "tipo": "Button",
+      "x": 1890,
+      "y": 883,
+      "largura": 30,
+      "altura": 25
+    },
+    {
+      "nome": "HidePaletteButton",
+      "tipo": "Button",
+      "x": 1892,
+      "y": 587,
+      "largura": 22,
+      "altura": 22
+    },
+    {
+      "nome": "2Deck Horizontal",
+      "tipo": "ComboBox",
+      "x": 169,
+      "y": 32,
+      "largura": 50,
+      "altura": 25
+    },
+    {
+      "nome": "Free",
+      "tipo": "Button",
+      "x": 1498,
+      "y": 33,
+      "largura": 59,
+      "altura": 25
+    },
+    {
+      "nome": "PERFORMANCE",
+      "tipo": "ComboBox",
+      "x": 12,
+      "y": 35,
+      "largura": 138,
+      "altura": 20
+    },
+    {
+      "nome": "LINK",
+      "tipo": "Button",
+      "x": 498,
+      "y": 35,
+      "largura": 50,
+      "altura": 20
+    },
+    {
+      "nome": "13:09",
+      "tipo": "Text",
+      "x": 1855,
+      "y": 37,
+      "largura": 48,
+      "altura": 15
+    },
+    {
+      "nome": "AudioCpuGraphButton",
+      "tipo": "Button",
+      "x": 1789,
+      "y": 43,
+      "largura": 44,
+      "altura": 12
+    },
+    {
+      "nome": "RST",
+      "tipo": "Button",
+      "x": 2,
+      "y": 141,
+      "largura": 22,
+      "altura": 18
+    },
+    {
+      "nome": "TRIM",
+      "tipo": "Button",
+      "x": 905,
+      "y": 275,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "HIGH",
+      "tipo": "Button",
+      "x": 905,
+      "y": 316,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "MID",
+      "tipo": "Button",
+      "x": 905,
+      "y": 357,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "LOW",
+      "tipo": "Button",
+      "x": 905,
+      "y": 399,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "CUE",
+      "tipo": "Button",
+      "x": 905,
+      "y": 423,
+      "largura": 45,
+      "altura": 22
+    },
+    {
+      "nome": "TRIM",
+      "tipo": "Button",
+      "x": 970,
+      "y": 275,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "HIGH",
+      "tipo": "Button",
+      "x": 970,
+      "y": 316,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "MID",
+      "tipo": "Button",
+      "x": 970,
+      "y": 357,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "LOW",
+      "tipo": "Button",
+      "x": 970,
+      "y": 399,
+      "largura": 45,
+      "altura": 12
+    },
+    {
+      "nome": "CUE",
+      "tipo": "Button",
+      "x": 970,
+      "y": 423,
+      "largura": 45,
+      "altura": 22
+    },
+    {
+      "nome": "1",
+      "tipo": "Button",
+      "x": 801,
+      "y": 533,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "2",
+      "tipo": "Button",
+      "x": 841,
+      "y": 533,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "1",
+      "tipo": "Button",
+      "x": 1041,
+      "y": 533,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "2",
+      "tipo": "Button",
+      "x": 1081,
+      "y": 533,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "3",
+      "tipo": "Button",
+      "x": 801,
+      "y": 553,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "4",
+      "tipo": "Button",
+      "x": 841,
+      "y": 553,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "3",
+      "tipo": "Button",
+      "x": 1041,
+      "y": 553,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "4",
+      "tipo": "Button",
+      "x": 1081,
+      "y": 553,
+      "largura": 38,
+      "altura": 18
+    },
+    {
+      "nome": "MIX",
+      "tipo": "Text",
+      "x": 646,
+      "y": 547,
+      "largura": 21,
+      "altura": 12
+    },
+    {
+      "nome": "LEVEL",
+      "tipo": "Text",
+      "x": 726,
+      "y": 547,
+      "largura": 38,
+      "altura": 12
+    },
+    {
+      "nome": "Not Loaded.",
+      "tipo": "Text",
+      "x": 80,
+      "y": 252,
+      "largura": 578,
+      "altura": 22
+    },
+    {
+      "nome": "BEAT SYNC",
+      "tipo": "Button",
+      "x": 792,
+      "y": 250,
+      "largura": 55,
+      "altura": 28
+    },
+    {
+      "nome": "KEY SYNC",
+      "tipo": "Button",
+      "x": 688,
+      "y": 255,
+      "largura": 88,
+      "altura": 16
+    },
+    {
+      "nome": "-00:00",
+      "tipo": "Text",
+      "x": 511,
+      "y": 276,
+      "largura": 58,
+      "altura": 20
+    },
+    {
+      "nome": ".0",
+      "tipo": "Text",
+      "x": 569,
+      "y": 276,
+      "largura": 15,
+      "altura": 20
+    },
+    {
+      "nome": "00:00",
+      "tipo": "Text",
+      "x": 584,
+      "y": 276,
+      "largura": 54,
+      "altura": 20
+    },
+    {
+      "nome": ".0",
+      "tipo": "Text",
+      "x": 638,
+      "y": 276,
+      "largura": 15,
+      "altura": 20
+    },
+    {
+      "nome": "MASTER",
+      "tipo": "Button",
+      "x": 792,
+      "y": 282,
+      "largura": 88,
+      "altura": 16
+    },
+    {
+      "nome": "Not Loaded.",
+      "tipo": "Text",
+      "x": 1110,
+      "y": 252,
+      "largura": 578,
+      "altura": 22
+    },
+    {
+      "nome": "BEAT SYNC",
+      "tipo": "Button",
+      "x": 1822,
+      "y": 250,
+      "largura": 55,
+      "altura": 28
+    },
+    {
+      "nome": "KEY SYNC",
+      "tipo": "Button",
+      "x": 1718,
+      "y": 255,
+      "largura": 88,
+      "altura": 16
+    },
+    {
+      "nome": "-00:00",
+      "tipo": "Text",
+      "x": 1541,
+      "y": 276,
+      "largura": 58,
+      "altura": 20
+    },
+    {
+      "nome": ".0",
+      "tipo": "Text",
+      "x": 1599,
+      "y": 276,
+      "largura": 15,
+      "altura": 20
+    },
+    {
+      "nome": "00:00",
+      "tipo": "Text",
+      "x": 1614,
+      "y": 276,
+      "largura": 54,
+      "altura": 20
+    },
+    {
+      "nome": ".0",
+      "tipo": "Text",
+      "x": 1668,
+      "y": 276,
+      "largura": 15,
+      "altura": 20
+    },
+    {
+      "nome": "MASTER",
+      "tipo": "Button",
+      "x": 1822,
+      "y": 282,
+      "largura": 88,
+      "altura": 16
+    },
+    {
+      "nome": "1",
+      "tipo": "Text",
+      "x": 10,
+      "y": 250,
+      "largura": 15,
+      "altura": 15
+    },
+    {
+      "nome": "2",
+      "tipo": "Text",
+      "x": 1040,
+      "y": 250,
+      "largura": 15,
+      "altura": 15
+    },
+    {
+      "nome": "A",
+      "tipo": "Text",
+      "x": 58,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "E",
+      "tipo": "Text",
+      "x": 292,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "I",
+      "tipo": "Text",
+      "x": 528,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "M",
+      "tipo": "Text",
+      "x": 762,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "B",
+      "tipo": "Text",
+      "x": 58,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "F",
+      "tipo": "Text",
+      "x": 292,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "J",
+      "tipo": "Text",
+      "x": 528,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "N",
+      "tipo": "Text",
+      "x": 762,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "C",
+      "tipo": "Text",
+      "x": 58,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "G",
+      "tipo": "Text",
+      "x": 292,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "K",
+      "tipo": "Text",
+      "x": 528,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "O",
+      "tipo": "Text",
+      "x": 762,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "D",
+      "tipo": "Text",
+      "x": 58,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "H",
+      "tipo": "Text",
+      "x": 292,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "L",
+      "tipo": "Text",
+      "x": 528,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "P",
+      "tipo": "Text",
+      "x": 762,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "HOT CUE",
+      "tipo": "Button",
+      "x": 48,
+      "y": 486,
+      "largura": 85,
+      "altura": 25
+    },
+    {
+      "nome": "00.00",
+      "tipo": "Text",
+      "x": 725,
+      "y": 419,
+      "largura": 68,
+      "altura": 29
+    },
+    {
+      "nome": "0.0",
+      "tipo": "Text",
+      "x": 712,
+      "y": 447,
+      "largura": 32,
+      "altura": 14
+    },
+    {
+      "nome": "%",
+      "tipo": "Text",
+      "x": 746,
+      "y": 447,
+      "largura": 10,
+      "altura": 14
+    },
+    {
+      "nome": "± 0",
+      "tipo": "Text",
+      "x": 761,
+      "y": 447,
+      "largura": 40,
+      "altura": 14
+    },
+    {
+      "nome": "INT",
+      "tipo": "Button",
+      "x": 628,
+      "y": 373,
+      "largura": 50,
+      "altura": 25
+    },
+    {
+      "nome": "SLIP",
+      "tipo": "Button",
+      "x": 840,
+      "y": 373,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "Cue",
+      "tipo": "Button",
+      "x": 630,
+      "y": 409,
+      "largura": 45,
+      "altura": 45
+    },
+    {
+      "nome": "Q",
+      "tipo": "Button",
+      "x": 840,
+      "y": 409,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "Reproduzir/Pause",
+      "tipo": "Button",
+      "x": 630,
+      "y": 466,
+      "largura": 45,
+      "altura": 45
+    },
+    {
+      "nome": "MT",
+      "tipo": "Button",
+      "x": 840,
+      "y": 489,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "00.00",
+      "tipo": "Text",
+      "x": 1140,
+      "y": 419,
+      "largura": 68,
+      "altura": 29
+    },
+    {
+      "nome": "0.0",
+      "tipo": "Text",
+      "x": 1128,
+      "y": 447,
+      "largura": 32,
+      "altura": 14
+    },
+    {
+      "nome": "%",
+      "tipo": "Text",
+      "x": 1161,
+      "y": 447,
+      "largura": 10,
+      "altura": 14
+    },
+    {
+      "nome": "± 0",
+      "tipo": "Text",
+      "x": 1176,
+      "y": 447,
+      "largura": 40,
+      "altura": 14
+    },
+    {
+      "nome": "INT",
+      "tipo": "Button",
+      "x": 1042,
+      "y": 373,
+      "largura": 50,
+      "altura": 25
+    },
+    {
+      "nome": "SLIP",
+      "tipo": "Button",
+      "x": 1255,
+      "y": 373,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "Cue",
+      "tipo": "Button",
+      "x": 1045,
+      "y": 409,
+      "largura": 45,
+      "altura": 45
+    },
+    {
+      "nome": "Q",
+      "tipo": "Button",
+      "x": 1255,
+      "y": 409,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "Reproduzir/Pause",
+      "tipo": "Button",
+      "x": 1045,
+      "y": 466,
+      "largura": 45,
+      "altura": 45
+    },
+    {
+      "nome": "MT",
+      "tipo": "Button",
+      "x": 1255,
+      "y": 489,
+      "largura": 38,
+      "altura": 22
+    },
+    {
+      "nome": "A",
+      "tipo": "Text",
+      "x": 1412,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "E",
+      "tipo": "Text",
+      "x": 1648,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "I",
+      "tipo": "Text",
+      "x": 1882,
+      "y": 379,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "B",
+      "tipo": "Text",
+      "x": 1412,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "F",
+      "tipo": "Text",
+      "x": 1648,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "J",
+      "tipo": "Text",
+      "x": 1882,
+      "y": 405,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "C",
+      "tipo": "Text",
+      "x": 1412,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "G",
+      "tipo": "Text",
+      "x": 1648,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "K",
+      "tipo": "Text",
+      "x": 1882,
+      "y": 431,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "D",
+      "tipo": "Text",
+      "x": 1412,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "H",
+      "tipo": "Text",
+      "x": 1648,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "L",
+      "tipo": "Text",
+      "x": 1882,
+      "y": 457,
+      "largura": 14,
+      "altura": 14
+    },
+    {
+      "nome": "HOT CUE",
+      "tipo": "Button",
+      "x": 1788,
+      "y": 486,
+      "largura": 85,
+      "altura": 25
+    },
+    {
+      "nome": "8",
+      "tipo": "Button",
+      "x": 530,
+      "y": 373,
+      "largura": 85,
+      "altura": 40
+    },
+    {
+      "nome": "AU",
+      "tipo": "Button",
+      "x": 530,
+      "y": 460,
+      "largura": 41,
+      "altura": 22
+    },
+    {
+      "nome": "MA",
+      "tipo": "Button",
+      "x": 574,
+      "y": 460,
+      "largura": 41,
+      "altura": 22
+    },
+    {
+      "nome": "4",
+      "tipo": "Button",
+      "x": 1305,
+      "y": 373,
+      "largura": 85,
+      "altura": 40
+    },
+    {
+      "nome": "AU",
+      "tipo": "Button",
+      "x": 1305,
+      "y": 460,
+      "largura": 41,
+      "altura": 22
+    },
+    {
+      "nome": "MA",
+      "tipo": "Button",
+      "x": 1349,
+      "y": 460,
+      "largura": 41,
+      "altura": 22
+    },
+    {
+      "nome": "btnMultiWindow",
+      "tipo": "Button",
+      "x": 1885,
+      "y": 1026,
+      "largura": 20,
+      "altura": 20
+    }
+  ]
+}

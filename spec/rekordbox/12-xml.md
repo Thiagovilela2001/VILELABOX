@@ -1,6 +1,6 @@
 # 12 — Intercâmbio XML
 
-Revisão v1, feita sobre a instalação 7.2.8 para Windows. Toda afirmação marcada "sem confirmar" é inferência; as demais foram observadas diretamente. O rekordbox não foi executado: nenhum arquivo XML gerado pelo programa real foi examinado, e os casos de teste são construídos a partir do formato público, como indicado em cada um.
+Revisão v2, feita sobre a instalação 7.2.8 para Windows. Toda afirmação marcada "sem confirmar" é inferência; as demais foram observadas diretamente. A v2 incorpora a observação de uma exportação real da coleção ("Export Collection in xml format", 2026-10-24, interface em português, 3088 Registros, 10 Playlists), feita pelo usuário; afirmações confirmadas por ela estão marcadas "observado na exportação". O arquivo exportado fica fora do repositório, por conter dados pessoais.
 
 ## Escopo e fora do escopo
 
@@ -40,13 +40,13 @@ Hierarquia:
 | `NODE` | `PLAYLISTS` ou `NODE` de Pasta | 1 raiz; 0 ou mais filhos | Pasta: `NODE`; Playlist: Referências de faixa |
 | `TRACK` (Referência) | `NODE` de Playlist | 0 ou mais | vazio |
 
-A ordem de `TEMPO` antes de `POSITION_MARK` dentro do Registro e a ordem `PRODUCT`, `COLLECTION`, `PLAYLISTS` na escrita são do formato público e do agrupamento observado, sem confirmar como exigência da leitura.
+Na escrita, `TEMPO` vem antes de `POSITION_MARK` em todos os Registros e a ordem é `PRODUCT`, `COLLECTION`, `PLAYLISTS` (observado na exportação). Que a leitura exija essa ordem fica sem confirmar.
 
 Codificação e cabeçalho:
 
-- o documento começa com a declaração `<?xml version="1.0" encoding="UTF-8"?>`; todo texto é UTF-8;
-- na escrita, os caracteres especiais em valores de atributo são substituídos por referências de entidade; `&amp;`, `&apos;` e `&quot;` foram observados; `&lt;` e `&gt;` são esperados pelo XML, sem confirmar;
-- recuo e quebras de linha não têm significado; o tipo de recuo usado pelo programa fica sem confirmar.
+- o documento começa com a declaração `<?xml version="1.0" encoding="UTF-8"?>`, seguida de uma linha em branco; todo texto é UTF-8;
+- na escrita, os caracteres especiais em valores de atributo são substituídos por referências de entidade; `&amp;`, `&apos;`, `&quot;` e `&lt;` foram observados na exportação; `&gt;` é esperado pelo XML, sem confirmar;
+- recuo de dois espaços por nível; atributos longos quebram a linha e continuam alinhados sob o primeiro atributo (observado na exportação). Recuo e quebras de linha não têm significado na leitura.
 
 `DJ_PLAYLISTS`:
 
@@ -58,8 +58,8 @@ Codificação e cabeçalho:
 
 | atributo | tipo | significado |
 | --- | --- | --- |
-| `Name` | texto | nome do produto que gerou o arquivo; outros programas o exibem; o programa escreve `rekordbox`, sem confirmar |
-| `Version` | texto | versão do produto; para esta instalação, `7.2.8`, sem confirmar |
+| `Name` | texto | nome do produto que gerou o arquivo; outros programas o exibem; o programa escreve `rekordbox` (observado na exportação) |
+| `Version` | texto | versão do produto; para esta instalação, `7.2.8` (observado na exportação) |
 | `Company` | texto | empresa; o programa escreve `AlphaTheta` |
 
 `COLLECTION`:
@@ -87,7 +87,7 @@ Registro de faixa (`TRACK` em `COLLECTION`). Somente `Location` é declarada ess
 | `DiscNumber` | inteiro de 32 bits | — | ≥ 0 | número do disco |
 | `TrackNumber` | inteiro de 32 bits | — | ≥ 0 | número da faixa no álbum |
 | `Year` | inteiro de 32 bits | ano | — | ano |
-| `AverageBpm` | decimal | batidas por minuto, duas casas (`128.00`) | > 0; 0 quando sem análise, sem confirmar | andamento médio |
+| `AverageBpm` | decimal | batidas por minuto, duas casas (`128.00`) | > 0; `0.00` quando sem grade (observado na exportação) | andamento médio |
 | `DateModified` | data | `aaaa-mm-dd` | — | data de modificação; não observada no binário, sem confirmar que o programa a escreva |
 | `DateAdded` | data | `aaaa-mm-dd` | — | data de inclusão na coleção |
 | `BitRate` | inteiro de 32 bits | kbit/s | ≥ 0 | taxa de bits |
@@ -98,14 +98,14 @@ Registro de faixa (`TRACK` em `COLLECTION`). Somente `Location` é declarada ess
 | `Rating` | inteiro de 32 bits | escala 0–255 | ver tabela | classificação por estrelas |
 | `Location` | URL de arquivo | ver abaixo | — | localização do arquivo, incluindo o nome |
 | `Remixer` | texto | — | — | remixador |
-| `Tonality` | texto | — | — | tom; a notação escrita (por exemplo `Am`, `8A`) fica sem confirmar |
+| `Tonality` | texto | nome do tom: tônica e `m` para menor (`Am`, `F#m`, `Abm`, `C`) | vazio quando sem tom | tom; a exportação usou nomes, não notação alfanumérica, e trouxe tanto bemóis quanto sustenidos (`Abm` e `G#m`) — se a grafia depende de preferência ou da origem do valor fica sem confirmar |
 | `Label` | texto | — | — | gravadora |
 | `Mix` | texto | — | — | nome da mixagem |
 | `Colour` | texto | `0xRRGGBB` | 8 valores, ver tabela | cor de agrupamento da faixa |
 
-A presença de `Name`, `Kind`, `Size`, `Year` e `Mix` vem do formato público; esses nomes curtos não aparecem nas strings examinadas e ficam sem confirmar para esta versão.
+`Name`, `Kind`, `Size`, `Year` e `Mix` são escritos em todos os Registros, mesmo vazios (`Mix=""`, `Year="0"`). `DateModified` e `LastPlayed` não são escritos (observado na exportação).
 
-Ordem de escrita dos atributos observada no programa (as lacunas marcadas "sem confirmar" correspondem a nomes curtos não legíveis no export): `TrackID`, `Name` (sem confirmar), `Artist`, `Composer`, `Album`, `Grouping`, `Genre`, `Kind`, `Size` (sem confirmar), `TotalTime`, `DiscNumber`, `TrackNumber`, `Year` (sem confirmar), `AverageBpm`, `DateAdded`, `BitRate`, `SampleRate`, `Comments`, `PlayCount`, `Rating`, `Location`, `Remixer`, `Tonality`, `Label`, `Mix` (sem confirmar), `Colour`.
+Ordem de escrita dos atributos, idêntica em todos os Registros da exportação: `TrackID`, `Name`, `Artist`, `Composer`, `Album`, `Grouping`, `Genre`, `Kind`, `Size`, `TotalTime`, `DiscNumber`, `TrackNumber`, `Year`, `AverageBpm`, `DateAdded`, `BitRate`, `SampleRate`, `Comments`, `PlayCount`, `Rating`, `Location`, `Remixer`, `Tonality`, `Label`, `Mix`, `Colour`. Atributos de texto vazios são escritos como `""`, não omitidos; `Colour` é a exceção e é omitido quando a faixa não tem cor (nenhum Registro da exportação tinha cor).
 
 `Rating`:
 
@@ -120,7 +120,7 @@ Ordem de escrita dos atributos observada no programa (as lacunas marcadas "sem c
 
 Valores intermediários: arredondar para a estrela mais próxima, sem confirmar.
 
-`Kind` escrito pelo programa (lista completa observada): `MP3 File`, `AAC File`, `MP4 File`, `M4A File`, `FLAC File`, `ALAC File`, `WAV File`, `AIFF File`, `Unknown Format`. A correspondência exata com a extensão e o codec fica sem confirmar.
+`Kind` é **traduzido para o idioma da interface**. Com interface em português a exportação escreveu `Ficheiro MP3`, `Ficheiro WAV`, `Ficheiro FLAC` e `Formato Desconhecido` (este para um `.mpeg`). Os textos em inglês do binário são: `MP3 File`, `AAC File`, `MP4 File`, `M4A File`, `FLAC File`, `ALAC File`, `WAV File`, `AIFF File`, `Unknown Format`. Consequência: o leitor não deve deduzir o formato de `Kind`; usar a extensão de `Location`. O escritor do VILELABOX escreve os textos em inglês (`ADAPTAÇÃO`).
 
 `Colour` (lista completa dos valores escritos pelo programa; os nomes vêm da documentação pública):
 
@@ -135,13 +135,16 @@ Valores intermediários: arredondar para a estrela mais próxima, sem confirmar.
 | `0x0000FF` | Blue |
 | `0x660099` | Violet |
 
-Faixa sem cor: o atributo é omitido, sem confirmar.
+Faixa sem cor: o atributo é omitido (observado na exportação).
+
+`Rating`: a exportação só trouxe 0 e 51, coerentes com a tabela acima.
 
 ### Localização
 
 - Forma: prefixo `file://localhost/` seguido do caminho absoluto com `/` como separador. No Windows, a unidade vem logo após o prefixo e o `:` fica literal: `file://localhost/C:/Musica/faixa.mp3`. Em sistemas com raiz `/`, o caminho começa logo após o prefixo: `file://localhost/Users/dj/faixa.mp3`, sem confirmar a forma escrita pelo programa no macOS.
-- Codificação: o caminho é convertido para bytes UTF-8 e cada byte fora do conjunto preservado é escrito como `%` seguido de dois dígitos hexadecimais. Ficam literais as letras ASCII, os dígitos e os caracteres `( ) * + , - . / : ; = ? @ _ ~`. Assim, espaço vira `%20`, `&` vira `%26` e `#` vira `%23`. Que esse conjunto seja exatamente o usado na escrita fica sem confirmar.
-- Caixa dos dígitos: o bloco do programa ligado ao intercâmbio contém uma tabela de dígitos hexadecimais minúsculos (0 a 9 e a a f); que escreva `%c3%a9` e não `%C3%A9` fica sem confirmar. Na leitura, aceitar as duas caixas.
+- Codificação: o caminho é convertido para bytes UTF-8 e cada byte fora do conjunto preservado é escrito como `%` seguido de dois dígitos hexadecimais. Observado na exportação: ficam literais as letras ASCII, os dígitos e `! # $ ( ) + , - . / : _`; são codificados o espaço (`%20`), `&` (`%26`), `'` (`%27`), `[` (`%5b`), `]` (`%5d`) e todo byte não ASCII. **`#` fica literal**, ao contrário do esperado para URL. Os caracteres `* ; = ? @ ~` não apareceram em nenhum caminho; o tratamento deles fica sem confirmar.
+- Caixa dos dígitos: minúscula, sem exceção (`%c3%a9`, 1862 ocorrências, nenhuma maiúscula; observado na exportação). Na leitura, aceitar as duas caixas.
+- Normalização Unicode: o caminho é escrito com os bytes do sistema de arquivos, sem normalizar; um nome em forma decomposta saiu como `E%cc%81` (observado na exportação). O leitor compara caminhos sem normalizar.
 - Na leitura, aceitar também `file:///` (sem `localhost`), sem confirmar que o programa aceite.
 
 ## Grade
@@ -158,7 +161,9 @@ Trecho de grade (`TEMPO`). Um Registro pode ter vários; a Grade variável é a 
 Regras:
 
 - grade constante: um único `TEMPO`; as batidas seguintes ficam em `Inizio + k × 60 / Bpm`;
-- Grade variável: o programa escreve um `TEMPO` por ponto em que o andamento muda, sem confirmar se escreve um por batida; o leitor deve aceitar ambos;
+- o programa escreve um `TEMPO` por trecho da grade, não por batida: a exportação teve 8320 `TEMPO` em 2602 Registros com grade (média de 3,2). Em 510 Registros há vários `TEMPO` com o mesmo `Bpm`, ou seja, um trecho novo não implica mudança de andamento (por exemplo, grade reancorada); só 1 Registro tinha andamentos distintos;
+- `Battito` do primeiro `TEMPO` de um trecho pode ser qualquer batida do compasso (1 a 4 observados), não só 1;
+- o leitor deve aceitar também um `TEMPO` por batida, que outros programas produzem;
 - sem confirmar: a escrita da grade é controlada por uma preferência própria do programa, e, desligada, omite todos os `TEMPO`;
 - `Metro` diferente de `4/4`: o programa lê o atributo; o comportamento da grade com outros compassos fica sem confirmar.
 
@@ -171,7 +176,7 @@ Marca (`POSITION_MARK`).
 | `Name` | texto | — | pode ser vazio | nome da Marca |
 | `Type` | inteiro | ver tabela | 0–4 | tipo |
 | `Start` | decimal | segundos, três casas | ≥ 0 | início |
-| `End` | decimal | segundos, três casas | > `Start` | fim; presente só em loop, sem confirmar |
+| `End` | decimal | segundos, três casas | > `Start` | fim; presente só em loop (observado na exportação) |
 | `Num` | inteiro | — | -1, ou 0 em diante | -1 é Marca de memória; 0, 1, 2… são os Disparos rápidos A, B, C… |
 | `Red` | inteiro | 0–255 | — | componente vermelho da cor |
 | `Green` | inteiro | 0–255 | — | componente verde da cor |
@@ -189,8 +194,12 @@ Marca (`POSITION_MARK`).
 
 Regras:
 
-- `Red`, `Green` e `Blue` vêm juntos; os exemplos públicos os trazem em Disparos rápidos e sem eles em Marcas de memória. Que o programa 7.2.8 escreva cor em Marca de memória fica sem confirmar. Sem os três atributos, a Marca usa a cor padrão do programa, sem confirmar;
-- quantidade de Disparos rápidos: o maior `Num` aceito (7 para A–H) fica sem confirmar;
+- `Red`, `Green` e `Blue` vêm juntos. Sem os três atributos, a Marca usa a cor padrão do programa, sem confirmar;
+- quantidade de Disparos rápidos: a exportação escreveu `Num` até 7 (A–H); valor acima de 7 na leitura fica sem confirmar;
+- ordem dos atributos escritos: `Name`, `Type`, `Start`, `End`, `Num`, `Red`, `Green`, `Blue`; `End` só em loop (observado na exportação);
+- Marcas de memória (`Num="-1"`) e loops de memória são escritos **sem** `Red`, `Green` e `Blue`; Disparos rápidos sempre com eles (observado na exportação, numa faixa com um ponto e um loop de memória criados para o teste);
+- loop de memória: `Type="4"`, `Start` e `End` com três casas; o loop de 8 batidas a 130 BPM saiu como `Start="0.050" End="3.743"` (observado na exportação);
+- ordem das Marcas no Registro: os Disparos rápidos primeiro, **fora da ordem de `Num`** (saiu 2, 0, 1, 7), depois as Marcas de memória, com o loop antes do ponto na mesma posição. O leitor não pode depender da ordem; a regra de ordenação do escritor fica sem confirmar;
 - dois Disparos rápidos com o mesmo `Num` no mesmo Registro: o comportamento fica sem confirmar; o escritor do VILELABOX não deve produzir isso;
 - `Start` e `End` são escritos com três casas decimais, isto é, resolução de 1 ms.
 
@@ -218,7 +227,10 @@ Regras:
 - a ordem dos `NODE` filhos é a ordem de exibição e a ordem das Referências é a ordem da Playlist, sem confirmar;
 - a mesma faixa pode aparecer mais de uma vez na mesma Playlist, sem confirmar;
 - profundidade de Pastas: sem limite conhecido, sem confirmar;
-- o programa escreve `KeyType` 0, sem confirmar.
+- o programa escreve `KeyType` 0 em todas as Playlists (observado na exportação);
+- ordem dos atributos escritos: Pasta `Type`, `Name`, `Count`; Playlist `Name`, `Type`, `KeyType`, `Entries` (observado na exportação);
+- Referências de faixa trazem só `Key`; na exportação nenhuma era órfã e não havia `TrackID` duplicado;
+- Playlists de sistema também são exportadas (uma Playlist vazia criada pelo programa apareceu na exportação, com nome traduzido).
 
 ## Regras de importação
 
@@ -255,7 +267,7 @@ O programa exporta a coleção pelo comando "Export Collection in xml format".
 - Escreve a declaração XML com `UTF-8`, `DJ_PLAYLISTS Version="1.0.0"`, `PRODUCT` com `Version`, `Company="AlphaTheta"` e, sem confirmar, `Name`, `COLLECTION` com `Entries`, os Registros com seus `TEMPO` e `POSITION_MARK`, e `PLAYLISTS` com a árvore.
 - Arredondamentos: `AverageBpm` e `Bpm` com duas casas decimais; `Inizio`, `Start` e `End` com três casas decimais; `TotalTime` em segundos inteiros. Se o arredondamento é para o mais próximo ou por truncamento fica sem confirmar.
 - `Colour` é escrito só com um dos 8 valores da tabela.
-- Ordem dos atributos do Registro: a da seção Faixa. Ordem dos Registros na Coleção: sem confirmar (ordem do catálogo).
+- Ordem dos atributos do Registro: a da seção Faixa. Ordem dos Registros na Coleção: não é crescente por `TrackID` (observado na exportação); provavelmente a ordem do catálogo, sem confirmar.
 - `TrackID` do Registro é o identificador da faixa no catálogo, sem confirmar.
 
 ## Casos de teste
@@ -337,19 +349,19 @@ Caminho no disco: `C:\Músicas\Rock & Roll\faixa #1.mp3`.
 
 ```xml
 <TRACK TrackID="3" Name="Rock &amp; Roll"
-       Location="file://localhost/C:/M%c3%basicas/Rock%20%26%20Roll/faixa%20%231.mp3"/>
+       Location="file://localhost/C:/M%c3%basicas/Rock%20%26%20Roll/faixa%20#1.mp3"/>
 ```
 
-Saída esperada: o leitor recupera exatamente o caminho original; `ú` vira os bytes UTF-8 `%c3%ba` (o leitor aceita também `%C3%BA`); o `&` do nome é escrito como `&amp;` no atributo `Name`.
+Saída esperada: o leitor recupera exatamente o caminho original; `ú` vira os bytes UTF-8 `%c3%ba` (o leitor aceita também `%C3%BA`); `#` fica literal, como na exportação real; o `&` do nome é escrito como `&amp;` no atributo `Name`. O leitor também aceita `%23`.
 
 ## Perguntas abertas
 
-- Qual valor exato o programa escreve em `PRODUCT Name` e `PRODUCT Version`?
-- O programa escreve `Name`, `Kind`, `Size`, `Year`, `Mix`, `DateModified` e `LastPlayed` nesta versão? Em qual posição?
-- A codificação de `Location` usa dígitos hexadecimais minúsculos ou maiúsculos, e qual é o conjunto exato de caracteres preservados?
-- Na Grade variável, o programa escreve um `TEMPO` por mudança de andamento ou por batida?
-- O programa escreve `Red`, `Green` e `Blue` em Marcas de memória? Qual é o maior `Num` de Disparo rápido aceito?
+Respondidas na v2 pela exportação real: valores de `PRODUCT`; presença e posição de `Name`, `Kind`, `Size`, `Year` e `Mix`; ausência de `DateModified` e `LastPlayed`; caixa dos dígitos de `Location`; um `TEMPO` por trecho e não por batida; `Tonality` como nome de tom; escrita de Marcas de memória e loops. Duas exportações seguidas sem mudança na coleção saíram idênticas byte a byte: a escrita é determinística.
+
+Ainda abertas:
+
+- Como os caracteres `* ; = ? @ ~` são tratados em `Location`?
+- A grafia de `Tonality` com bemol ou sustenido depende de preferência ou da origem do valor?
+- Valores de `Colour` escritos: confirmar com uma faixa colorida.
 - Na importação para o catálogo, quais campos do XML sobrescrevem os de uma faixa já existente?
-- Como são tratadas Referências órfãs e Registros com `TrackID` duplicado?
-- O valor de `Tonality` usa nome de tom ou notação alfanumérica?
-- Os casos de teste acima precisam ser confirmados com um arquivo exportado pelo programa real, operado pelo usuário.
+- Como são tratadas Referências órfãs e Registros com `TrackID` duplicado na leitura?

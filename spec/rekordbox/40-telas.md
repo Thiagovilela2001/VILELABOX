@@ -1,14 +1,18 @@
 # 40 — Telas
 
-Especificação da interface do Núcleo. Revisão v1, montada a partir de fontes públicas:
-manual oficial do rekordbox 7 e a visão geral oficial da interface. Nada aqui foi
-medido em tela própria; toda medida continua ausente e está marcada.
+Especificação da interface do Núcleo. Revisão v2: estrutura derivada do manual oficial
+do rekordbox 7 e da visão geral oficial da interface; geometria medida na UI em execução
+em 2026-10-24, registrada em [`evidence/p3-1-ui-medido.md`](evidence/p3-1-ui-medido.md).
+O que ainda não foi medido continua marcado.
 
 Fontes:
 
 - manual oficial do rekordbox 7 (PDF publicado pela AlphaTheta);
 - página oficial de visão geral da interface do rekordbox 7;
-- comportamento observável descrito na documentação de usuário dos painéis.
+- comportamento observável descrito na documentação de usuário dos painéis;
+- medição da UI em execução nesta máquina (2026-10-24): dossiê de proveniência
+  [`evidence/p3-1-ui-medido.md`](evidence/p3-1-ui-medido.md);
+- dossiê de proveniência G0: [`evidence/p0-1-interface.md`](evidence/p0-1-interface.md).
 
 ## Escopo e fora do escopo
 
@@ -49,8 +53,11 @@ regiões podem sumir conforme o modo e os painéis ativos.
 
 Reprodução e navegador são os dois espaços de trabalho. No modo de performance, a
 mixagem e os pads ganham espaço; no modo de exportação, a preparação e a organização
-da coleção passam ao centro. Registro sem confirmar: uma das fontes cita também os
-modos de edição e de iluminação; a disponibilidade depende da versão e da instalação.
+da coleção passam ao centro. Medido no 7.2.8: o seletor de modo oferece exactamente
+`EXPORT`, `PERFORMANCE` e `EDIT`, e não há modo de iluminação nesta instalação. O EDIT
+não é o performance com menos painéis: é outro espaço de trabalho, com barra de menus
+própria, barra de projecto, painel de paleta à direita e abas de ferramentas na base
+([medição](evidence/p3-2-ui-outros-estados.md)).
 
 ## Barra global
 
@@ -59,8 +66,10 @@ Contém o que afeta a janela ou o programa inteiro.
 - **Seletor de modo.** Alterna a área de trabalho. O estado ativo precisa ser
   inequívoco, e o conteúdo central da janela muda com a seleção.
 - **Seletor de disposição.** Altera a composição da área de reprodução: um, dois ou
-  quatro decks; orientação horizontal ou vertical; navegador ampliado. As opções
-  formam mais de um conjunto, e a disponibilidade depende do modo.
+  quatro decks; orientação horizontal ou vertical; navegador ampliado. Medido no 7.2.8:
+  as opções são `2Deck Horizontal`, `2Deck Vertical`, `4Deck Horizontal`,
+  `4Deck Vertical` e `Browser`. Em quatro decks a coluna de mixer fica entre as duas
+  colunas de decks, com um canal por deck ([medição](evidence/p3-2-ui-outros-estados.md)).
 - **Seleção de painéis.** Mostra ou oculta painéis auxiliares: efeitos, sampler,
   mixer, gravação, pontos de mixagem e outros habilitados nas preferências.
 - **Indicadores globais.** Nível de áudio, uso de processador, informação de programa
@@ -305,14 +314,15 @@ passar de estrutura a pixels é preciso fixar, antes de qualquer medição:
 | item | estado |
 | --- | --- |
 | Versão de referência | 7.2.8 (a instalada) |
-| Sistema e escala de tela | sem fixar |
-| Resolução de referência | sem fixar; a tela desta máquina não permite 1920×1080 |
+| Sistema e escala de tela | Windows 11, 1920×1080, DPI 120 (escala 1,25) |
+| Resolução de referência | 1920×1080; área de cliente medida 1920×1051 px físicos = 1536×841 lógicos |
 | Modo e disposição | performance, dois decks, horizontais |
-| Painéis abertos | sem fixar |
-| Capturas de referência | ausentes; as imagens da instalação são miniaturas de 360×200 |
+| Painéis abertos | nenhum painel auxiliar; quatro slots de lista vazios |
+| Capturas de referência | `captura.png` em `third_party/rekordbox/ui-workbench/medicoes/` (privado); números em [`evidence/p3-1-ui-medido.md`](evidence/p3-1-ui-medido.md) |
 
-Nenhuma medida de pixel, família tipográfica ou valor de cor foi obtida. Sem isso, a
-interface pode ser estruturalmente fiel e não exata.
+A medição de 2026-10-24 cobre geometria de regiões, painéis, colunas e faixas da tela
+no estado acima. Continuam sem medição: paleta completa, famílias tipográficas, modos
+de exportação e quatro decks, e a tela com faixa carregada.
 
 ## Casos de teste
 
@@ -330,8 +340,8 @@ execução do programa real.
 
 ## Perguntas abertas
 
-- Qual resolução de referência adotar, dado que a tela local não alcança 1920×1080?
 - A geometria vem da medição de capturas reais ou da proporção dos recursos de
-  interface da instalação?
+  interface da instalação? (decidido: medição direta, ver
+  [`evidence/p3-1-ui-medido.md`](evidence/p3-1-ui-medido.md))
 - Os modos de edição e de iluminação entram no produto ou ficam fora?
 - Existe tema claro nesta versão, e ele é requisito?

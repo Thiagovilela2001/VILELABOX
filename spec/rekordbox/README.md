@@ -1,6 +1,14 @@
 # Especificações do rekordbox
 
-Este diretório é a ponte clean-room entre a análise de comportamento do rekordbox e a implementação limpa do VILELABOX. Somente especificações aprovadas entram aqui; material de análise e evidência permanece fora do repositório.
+Este diretório reúne requisitos verificáveis para o port do rekordbox em Rust.
+Na fase atual, REA e Ghidra apoiam diretamente a investigação e quem implementa
+pode consultar a decompilação e a evidência. A separação de papéis *clean-room*
+é uma etapa futura, após a disponibilização pública do aplicativo.
+
+As especificações continuam sendo documentos concisos de comportamento e
+formato, com proveniência identificada. Material bruto de análise permanece
+na área privada ignorada pelo Git; os dossiês resumidos e revisáveis podem
+ficar em `spec/rekordbox/evidence/`.
 
 ## Modelo de especificação
 
@@ -28,7 +36,8 @@ Cada especificação segue esta ordem:
 - pseudocódigo, trechos C ou C++ do Ghidra e estrutura de laços ou ramos que espelhe uma função;
 - nomes internos de funções, classes e variáveis, salvo quando fazem parte de um formato, como nome de tabela, tag `PQTZ` ou chave XML;
 - tabelas numéricas com mais de 16 valores copiadas do binário sem aprovação explícita do usuário;
-- endereços ou referências ao Ghidra no corpo; ficam somente num apêndice "Evidência", lido pelo auditor e removido antes da entrega ao lado limpo;
+- endereços ou referências internas ao REA/Ghidra no corpo da especificação;
+  ficam no dossiê de evidência ligado à regra funcional;
 - assuntos de licença, login, nuvem, streaming, telemetria ou contorno de proteção e DRM.
 
 Para aprovar uma tabela numérica longa, coloque imediatamente antes da linha ou do bloco:
