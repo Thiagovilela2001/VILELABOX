@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-audio"
+version = "0.1.0"
+edition = "2021"
+description = "Motor de áudio, decodificação e transporte para o VILELABOX"
+
+[dependencies]
+vilelabox-types = { path = "../vilelabox-types" }
+hound = "3.5"
+cpal = "0.15"
+rtrb = "0.4"
+thiserror = "1.0"
+symphonia = { version = "0.5", features = ["mp3", "wav", "flac", "aac", "isomp4", "alac", "ogg", "vorbis"] }
+
+[dev-dependencies]

@@ -4,7 +4,12 @@ members = [
     "vilelabox-reference",
     "vilelabox-anlz",
     "vilelabox-xml",
+    "vilelabox-audio",
     "xtask",
     "vilelabox-app",
 ]
 resolver = "2"
+
+# Dependencias (symphonia, slint) otimizadas mesmo no modo dev.
+[profile.dev.package."*"]
+opt-level = 3
