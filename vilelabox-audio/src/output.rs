@@ -87,6 +87,12 @@ pub enum AudioCommand {
     /// `master_bpm = None` quando o próprio deck é o master.
     BeatSync { deck: u8, on: bool, own_bpm: f64, master_bpm: Option<f64> },
     KeyShift { deck: u8, semitones: i8 },
+    /// Mixer (p7-0): fader do canal, 0..100.
+    SetFader { deck: u8, valor: f32 },
+    /// Mixer (p7-0): TRIM do canal, -10..10.
+    SetTrim { deck: u8, valor: f32 },
+    /// Mixer (p7-0): crossfader, -10 (deck 1) .. 10 (deck 2).
+    SetCrossfader { valor: f32 },
 }
 
 /// Instantâneo consolidado de ambos os decks para consulta da UI.
@@ -140,6 +146,11 @@ pub struct AudioMixer {
     shared: Arc<SharedEngineState>,
     buf_l: Vec<f32>,
     buf_r: Vec<f32>,
+    /// Mixer (p7-0), nas unidades do rekordbox: fader 0..100, TRIM -10..10
+    /// por canal [deck 1, deck 2]; crossfader -10..10 (deck 1 à esquerda).
+    pub fader: [f32; 2],
+    pub trim: [f32; 2],
+    pub crossfader: f32,
 }
 
 impl AudioMixer {
@@ -153,7 +164,18 @@ impl AudioMixer {
             shared,
             buf_l: vec![0.0f32; MAX_BLOCK],
             buf_r: vec![0.0f32; MAX_BLOCK],
+            // Posições da tela medida: faders em 100, TRIM e crossfader no centro.
+            fader: [100.0, 100.0],
+            trim: [0.0, 0.0],
+            crossfader: 0.0,
         }
+    }
+
+    /// Ganho linear do canal `c` (0/1): fader × TRIM × crossfader.
+    fn ganho(&self, c: usize) -> f32 {
+        crate::mixer::ganho_fader(self.fader[c])
+            * crate::mixer::ganho_trim(self.trim[c])
+            * crate::mixer::ganho_cross(c, self.crossfader)
     }
 
     fn deck_mut(&mut self, n: u8) -> Option<&mut Deck> {
@@ -308,6 +330,19 @@ impl AudioMixer {
                         d.set_key_shift(semitones);
                     }
                 }
+                AudioCommand::SetFader { deck, valor } => {
+                    if let Some(f) = self.fader.get_mut(usize::from(deck).wrapping_sub(1)) {
+                        *f = valor.clamp(0.0, 100.0);
+                    }
+                }
+                AudioCommand::SetTrim { deck, valor } => {
+                    if let Some(t) = self.trim.get_mut(usize::from(deck).wrapping_sub(1)) {
+                        *t = valor.clamp(-10.0, 10.0);
+                    }
+                }
+                AudioCommand::SetCrossfader { valor } => {
+                    self.crossfader = valor.clamp(-10.0, 10.0);
+                }
             }
         }
     }
@@ -327,20 +362,21 @@ impl AudioMixer {
             self.buf_r.resize(n_frames, 0.0);
         }
 
-        // Processar Deck 1
+        // Processar Deck 1 com o ganho do canal (fader, TRIM, crossfader)
+        let (g1, g2) = (self.ganho(0), self.ganho(1));
         self.deck1
             .process_block(&mut self.buf_l[..n_frames], &mut self.buf_r[..n_frames]);
         for i in 0..n_frames {
-            output[i * 2] = self.buf_l[i];
-            output[i * 2 + 1] = self.buf_r[i];
+            output[i * 2] = self.buf_l[i] * g1;
+            output[i * 2 + 1] = self.buf_r[i] * g1;
         }
 
         // Somar Deck 2
         self.deck2
             .process_block(&mut self.buf_l[..n_frames], &mut self.buf_r[..n_frames]);
         for i in 0..n_frames {
-            output[i * 2] += self.buf_l[i];
-            output[i * 2 + 1] += self.buf_r[i];
+            output[i * 2] += self.buf_l[i] * g2;
+            output[i * 2 + 1] += self.buf_r[i] * g2;
         }
 
         // Atualizar snapshot compartilhado se o lock estiver livre

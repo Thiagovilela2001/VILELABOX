@@ -287,6 +287,10 @@ pub struct AppState {
     pub loop_manual: [bool; 2],
     /// Loop manual por deck (p6-5): IN pendente e o par IN/OUT que o RELOOP reabre, em segundos.
     pub loop_in: [Option<f64>; 2],
+    /// Mixer (p7-0), unidades do rekordbox: fader 0..100, TRIM -10..10, crossfader -10..10.
+    pub mix_fader: [f32; 2],
+    pub mix_trim: [f32; 2],
+    pub mix_cross: f32,
     pub loop_pontos: [Option<(f64, f64)>; 2],
     pub scan_in_progress: bool,
     pub clock_text: String,
@@ -328,6 +332,9 @@ impl AppState {
             master_tempo: [true, true],
             loop_manual: [false, false],
             loop_in: [None, None],
+            mix_fader: [100.0, 100.0],
+            mix_trim: [0.0, 0.0],
+            mix_cross: 0.0,
             loop_pontos: [None, None],
             scan_in_progress: false,
             clock_text: "--:--".into(),

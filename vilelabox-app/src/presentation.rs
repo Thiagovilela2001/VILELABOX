@@ -250,6 +250,7 @@ pub fn render(state: &AppState, ui: &AppWindow) {
     render_deck1(&state.deck1, ui);
     render_deck2(&state.deck2, ui);
     render_transport(state, ui);
+    render_mixer(state, ui);
 
     ui.set_deck1_loop_tamanho(crate::loops::rotulo(state.loop_batidas[0]).into());
     ui.set_deck2_loop_tamanho(crate::loops::rotulo(state.loop_batidas[1]).into());
@@ -258,6 +259,13 @@ pub fn render(state: &AppState, ui: &AppWindow) {
     ui.set_deck1_quantize(state.quantize[0]);
     ui.set_deck2_quantize(state.quantize[1]);
     render_botoes(state, ui);
+}
+
+/// Fader, TRIM e crossfader (p7-0). Barato: chamado a cada evento de arrasto.
+pub fn render_mixer(st: &AppState, ui: &AppWindow) {
+    ui.set_mix_fader(ModelRc::new(VecModel::from(st.mix_fader.to_vec())));
+    ui.set_mix_trim(ModelRc::new(VecModel::from(st.mix_trim.to_vec())));
+    ui.set_mix_cross(st.mix_cross);
 }
 
 /// MT, BEAT SYNC, MASTER, KEY SYNC, SLIP e AU/MA (dossiê p6-2).

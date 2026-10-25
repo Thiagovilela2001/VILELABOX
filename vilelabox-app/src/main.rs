@@ -599,6 +599,49 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // Mixer (p7-0): fader, TRIM e crossfader vão ao motor; a tela atualiza só o mixer.
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_mixer_fader(move |c, v| {
+            let Ok(mut st) = state_ref.lock() else { return };
+            let Some(f) = st.mix_fader.get_mut(c as usize) else { return };
+            *f = v;
+            ctrl.send(AudioCommand::SetFader { deck: c as u8 + 1, valor: v });
+            if let Some(ui) = ui_weak.upgrade() {
+                presentation::render_mixer(&st, &ui);
+            }
+        });
+    }
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_mixer_trim(move |c, v| {
+            let Ok(mut st) = state_ref.lock() else { return };
+            let Some(t) = st.mix_trim.get_mut(c as usize) else { return };
+            *t = v;
+            ctrl.send(AudioCommand::SetTrim { deck: c as u8 + 1, valor: v });
+            if let Some(ui) = ui_weak.upgrade() {
+                presentation::render_mixer(&st, &ui);
+            }
+        });
+    }
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_mixer_cross(move |v| {
+            let Ok(mut st) = state_ref.lock() else { return };
+            st.mix_cross = v;
+            ctrl.send(AudioCommand::SetCrossfader { valor: v });
+            if let Some(ui) = ui_weak.upgrade() {
+                presentation::render_mixer(&st, &ui);
+            }
+        });
+    }
+
     // Loops, quantize e linhas de cue (spec/rekordbox/32-loops-cues.md).
     {
         let ui_weak = ui.as_weak();

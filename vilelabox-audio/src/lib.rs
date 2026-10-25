@@ -7,6 +7,7 @@
 pub mod deck;
 pub mod decode;
 pub mod error;
+pub mod mixer;
 pub mod output;
 pub mod render;
 

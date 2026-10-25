@@ -105,6 +105,13 @@ export component AppWindow inherits Window {
     callback load_selected_deck(int);
     callback deck_play(int);
     callback deck_cue(int, bool);
+    // Mixer (p7-0): fader 0..100 e TRIM -10..10 por canal; crossfader -10..10.
+    in property <[float]> mix_fader: [100, 100];
+    in property <[float]> mix_trim: [0, 0];
+    in property <float> mix_cross: 0;
+    callback mixer_fader(int, float);
+    callback mixer_trim(int, float);
+    callback mixer_cross(float);
     callback deck_loop_alternar(int);
     callback deck_loop_metade(int);
     callback deck_loop_dobro(int);
@@ -229,7 +236,11 @@ export component AppWindow inherits Window {
                 s: root.s;
                 width: ((134px * s));
                 clip: true;
-                audio_ready: false;
+                audio_ready: root.deck1_audio_ready || root.deck2_audio_ready;
+                fader: root.mix_fader;
+                trim: root.mix_trim;
+                fader_mudou(c, v) => { root.mixer_fader(c, v); }
+                trim_mudou(c, v) => { root.mixer_trim(c, v); }
             }
 
             deck2 := Deck {
@@ -286,7 +297,13 @@ export component AppWindow inherits Window {
         }
 
         // ---------- MONITORAÇÃO E CROSSFADER (54) ----------
-        MixerBar { s: root.s; height: ((54px * s)); }
+        MixerBar {
+            s: root.s;
+            height: ((54px * s));
+            audio_ready: root.deck1_audio_ready || root.deck2_audio_ready;
+            crossfader: root.mix_cross;
+            crossfader_mudou(v) => { root.mixer_cross(v); }
+        }
 
         // ---------- NAVEGADOR ----------
         HorizontalLayout {
