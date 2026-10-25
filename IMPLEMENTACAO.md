@@ -1,5 +1,19 @@
 # Registro de implementação
 
+## Biblioteca `vilelabox-library` (P3.2) — 2026-10-25
+
+| Campo | Resultado |
+| --- | --- |
+| Crate | `vilelabox-library`: importação, busca, playlists e identidade de arquivos sobre o `vilelabox-storage` |
+| Importadores | catálogo (`vilelabox-catalog`, que passou a projetar `SampleRate`) e XML (`vilelabox-xml`): faixas com metadados, cues convertidos para frames (origem `Imported`, preservando os do usuário), grade dos `TEMPO` e árvore de playlists; correspondência por caminho — reimportar atualiza, não duplica |
+| Varredura | diretórios de áudio recursivos: faixa mínima pelo nome do arquivo, localização registrada, conhecidos só marcados como presentes |
+| Busca | texto caixa-insensível em título/artista, universo da coleção ou de uma playlist, ordenação por coluna com desempate estável — mesma semântica do app |
+| Identidade | SHA-256 em streaming (64 KiB), duplicatas por hash, marcação de ausentes no disco e reencontro de movidos pelo nome normalizado (caso único; ambíguo fica para o usuário) |
+| Storage | cresceu para sustentar a biblioteca: `listar`, `atualizar`, `atualizar_identidade`, `id_por_localizacao`, `listar_localizacoes`, `marcar_localizacao` e `substituir_cues_por_origem` |
+| Testes | 11 testes novos (5 importadores, 6 biblioteca): idempotência, preservação de cue do usuário, Rating 0..255 → 0..5, vetor SHA-256, movidos e duplicados |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` (200 testes) e `xtask spec-lint` aprovados |
+| Próximo gate | `vilelabox-core` headless (P3.3): comandos, eventos e CLI de fluxo ponta a ponta |
+
 ## Banco próprio `vilelabox-storage` (P3.1) — 2026-10-25
 
 | Campo | Resultado |

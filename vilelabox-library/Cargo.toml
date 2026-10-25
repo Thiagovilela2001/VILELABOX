@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-library"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Biblioteca do VILELABOX: importação, busca, playlists e identidade de arquivos sobre o banco próprio (P3.2)"
+
+[dependencies]
+sha2 = "0.10"
+thiserror = "1.0"
+vilelabox-catalog = { path = "../vilelabox-catalog" }
+vilelabox-storage = { path = "../vilelabox-storage" }
+vilelabox-types = { path = "../vilelabox-types" }
+vilelabox-xml = { path = "../vilelabox-xml" }

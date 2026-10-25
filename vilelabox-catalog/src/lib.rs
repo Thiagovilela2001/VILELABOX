@@ -43,6 +43,8 @@ pub struct Faixa {
     pub estrelas: u8,
     pub bpm: f64,
     pub duracao_s: u32,
+    /// Taxa de amostragem (`SampleRate`); 0 quando ausente no banco.
+    pub taxa_amostragem: u32,
     /// Caminho completo do arquivo de áudio (`FolderPath`).
     pub caminho: String,
     /// Caminho do `.DAT` relativo à pasta `share` do rekordbox (`AnalysisDataPath`).
@@ -120,7 +122,7 @@ pub fn abrir(caminho: &Path) -> Result<Catalogo, ErroCatalogo> {
 fn ler_faixas(con: &Connection) -> Result<Vec<Faixa>, ErroCatalogo> {
     let mut st = con.prepare(
         "select c.ID, c.Title, a.Name, al.Name, g.Name, k.ScaleName, c.Rating, c.BPM, c.Length,
-                c.FolderPath, c.AnalysisDataPath
+                c.FolderPath, c.AnalysisDataPath, c.SampleRate
          from djmdContent c
          left join djmdArtist a on a.ID = c.ArtistID and a.rb_local_deleted = 0
          left join djmdAlbum al on al.ID = c.AlbumID and al.rb_local_deleted = 0
@@ -144,6 +146,7 @@ fn ler_faixas(con: &Connection) -> Result<Vec<Faixa>, ErroCatalogo> {
             duracao_s: inteiro(g(8)?).max(0) as u32,
             caminho: texto(g(9)?),
             analise: Some(texto(g(10)?)).filter(|s| !s.is_empty()),
+            taxa_amostragem: inteiro(g(11)?).max(0) as u32,
             cues: Vec::new(),
         })
     })?;
@@ -247,7 +250,7 @@ mod tests {
         c.execute_batch(
             "create table djmdContent (ID text, Title text, ArtistID text, AlbumID text, GenreID text,
                KeyID text, Rating int, BPM int, Length int, FolderPath text, AnalysisDataPath text,
-               created_at text, rb_local_deleted int);
+               SampleRate int, created_at text, rb_local_deleted int);
              create table djmdArtist (ID text, Name text, rb_local_deleted int);
              create table djmdAlbum (ID text, Name text, rb_local_deleted int);
              create table djmdGenre (ID text, Name text, rb_local_deleted int);
@@ -258,8 +261,8 @@ mod tests {
              insert into djmdArtist values ('a1', 'Artista', 0);
              insert into djmdKey values ('k1', 'Gm', 0);
              insert into djmdContent values ('1', 'Faixa', 'a1', null, null, 'k1', 4, 12800, 300,
-               'C:/m/f.mp3', '/PIONEER/USBANLZ/x/ANLZ0000.DAT', '2026-01-01', 0);
-             insert into djmdContent values ('2', 'Apagada', null, null, null, null, 0, 0, 0, 'C:/m/g.mp3', '', '2026-01-02', 1);
+               'C:/m/f.mp3', '/PIONEER/USBANLZ/x/ANLZ0000.DAT', 44100, '2026-01-01', 0);
+             insert into djmdContent values ('2', 'Apagada', null, null, null, null, 0, 0, 0, 'C:/m/g.mp3', '', 0, '2026-01-02', 1);
              insert into djmdCue values ('1', 0, 25, -1, '', 0);
              insert into djmdCue values ('1', 1, 37410, 39256, 'drop', 0);
              insert into djmdCue values ('1', 2, 1000, -1, '', 1);
@@ -286,6 +289,7 @@ mod tests {
         );
         assert_eq!((f.bpm, f.duracao_s, f.estrelas), (128.0, 300, 4));
         assert_eq!(f.caminho, "C:/m/f.mp3");
+        assert_eq!(f.taxa_amostragem, 44100);
         assert_eq!(
             f.analise.as_deref(),
             Some("/PIONEER/USBANLZ/x/ANLZ0000.DAT")

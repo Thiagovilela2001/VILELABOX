@@ -52,28 +52,61 @@ fn origin_from(s: &str) -> Result<CueOrigin, ErroStorage> {
     })
 }
 
+fn inserir_cue(tx: &rusqlite::Transaction, faixa: TrackId, c: &Cue) -> Result<(), ErroStorage> {
+    tx.execute(
+        "INSERT INTO cues (track_id, kind, slot, position_frames, end_position_frames,
+            label, color, origin)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            faixa.0,
+            kind_str(c.kind),
+            c.slot,
+            c.position.get(),
+            c.end_position.map(|f| f.get()),
+            c.label,
+            c.color,
+            origin_str(c.origin),
+        ],
+    )
+    .map_err(mapear_constraint)?;
+    Ok(())
+}
+
 /// Substitui atomicamente o conjunto de cues da faixa.
 pub fn substituir(con: &Connection, faixa: TrackId, cues: &[Cue]) -> Result<(), ErroStorage> {
     let tx = con.unchecked_transaction()?;
     tx.execute("DELETE FROM cues WHERE track_id = ?1", params![faixa.0])
         .map_err(mapear_constraint)?;
     for c in cues {
-        tx.execute(
-            "INSERT INTO cues (track_id, kind, slot, position_frames, end_position_frames,
-                label, color, origin)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                faixa.0,
-                kind_str(c.kind),
-                c.slot,
-                c.position.get(),
-                c.end_position.map(|f| f.get()),
-                c.label,
-                c.color,
-                origin_str(c.origin),
-            ],
-        )
-        .map_err(mapear_constraint)?;
+        inserir_cue(&tx, faixa, c)?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Substitui só os cues da origem dada (ex.: reimportação), preservando os
+/// das demais origens. Os inseridos entram sempre com a origem declarada.
+pub fn substituir_por_origem(
+    con: &Connection,
+    faixa: TrackId,
+    origem: CueOrigin,
+    cues: &[Cue],
+) -> Result<(), ErroStorage> {
+    let tx = con.unchecked_transaction()?;
+    tx.execute(
+        "DELETE FROM cues WHERE track_id = ?1 AND origin = ?2",
+        params![faixa.0, origin_str(origem)],
+    )
+    .map_err(mapear_constraint)?;
+    for c in cues {
+        inserir_cue(
+            &tx,
+            faixa,
+            &Cue {
+                origin: origem,
+                ..c.clone()
+            },
+        )?;
     }
     tx.commit()?;
     Ok(())

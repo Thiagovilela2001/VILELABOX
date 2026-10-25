@@ -6,6 +6,7 @@ members = [
     "vilelabox-xml",
     "vilelabox-catalog",
     "vilelabox-storage",
+    "vilelabox-library",
     "vilelabox-audio",
     "xtask",
     "vilelabox-app",

@@ -23,11 +23,11 @@ pub mod migrations;
 pub use error::ErroStorage;
 pub use grids::GradeRow;
 pub use playlists::ListaRow;
-pub use tracks::{FaixaRow, LocalizacaoRow, NovaFaixa};
+pub use tracks::{FaixaRow, LocalizacaoCompleta, LocalizacaoRow, NovaFaixa};
 
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
-use vilelabox_types::{BeatGrid, Cue, Phrase, TrackId};
+use vilelabox_types::{AudioIdentity, BeatGrid, Cue, CueOrigin, Phrase, TrackId};
 
 /// Banco próprio aberto, já migrado e com chaves estrangeiras ligadas.
 pub struct Database {
@@ -106,6 +106,40 @@ impl Database {
         tracks::localizacoes(&self.con, faixa)
     }
 
+    /// Todas as faixas do banco (`None`) ou as de uma playlist na ordem dela.
+    pub fn listar_faixas(&self, lista: Option<i64>) -> Result<Vec<FaixaRow>, ErroStorage> {
+        tracks::listar(&self.con, lista)
+    }
+
+    /// Atualiza metadados, BPM, tom e estrelas (não toca a identidade).
+    pub fn atualizar_faixa(&self, id: TrackId, faixa: &NovaFaixa) -> Result<bool, ErroStorage> {
+        tracks::atualizar(&self.con, id, faixa)
+    }
+
+    /// Grava a identidade acústica (hash, duração, taxa, canais).
+    pub fn atualizar_identidade(
+        &self,
+        id: TrackId,
+        identidade: &AudioIdentity,
+    ) -> Result<bool, ErroStorage> {
+        tracks::atualizar_identidade(&self.con, id, identidade)
+    }
+
+    /// Faixa dona de uma localização pelo caminho exato.
+    pub fn id_por_localizacao(&self, caminho: &str) -> Result<Option<TrackId>, ErroStorage> {
+        tracks::id_por_localizacao(&self.con, caminho)
+    }
+
+    /// Todas as localizações com as faixas donas.
+    pub fn listar_localizacoes(&self) -> Result<Vec<LocalizacaoCompleta>, ErroStorage> {
+        tracks::listar_localizacoes(&self.con)
+    }
+
+    /// Marca uma localização como ausente ou presente.
+    pub fn marcar_localizacao(&self, id: i64, ausente: bool) -> Result<(), ErroStorage> {
+        tracks::marcar_localizacao(&self.con, id, ausente)
+    }
+
     // --- Cues ---
 
     /// Substitui atomicamente o conjunto de cues da faixa.
@@ -115,6 +149,16 @@ impl Database {
 
     pub fn cues(&self, faixa: TrackId) -> Result<Vec<Cue>, ErroStorage> {
         cues::listar(&self.con, faixa)
+    }
+
+    /// Substitui só os cues da origem dada, preservando os das demais.
+    pub fn substituir_cues_da_origem(
+        &self,
+        faixa: TrackId,
+        origem: CueOrigin,
+        cues: &[Cue],
+    ) -> Result<(), ErroStorage> {
+        cues::substituir_por_origem(&self.con, faixa, origem, cues)
     }
 
     // --- Grade de batidas ---

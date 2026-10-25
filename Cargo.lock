@@ -5258,6 +5258,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vilelabox-library"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+ "thiserror 1.0.69",
+ "vilelabox-catalog",
+ "vilelabox-storage",
+ "vilelabox-types",
+ "vilelabox-xml",
+]
+
+[[package]]
 name = "vilelabox-reference"
 version = "0.1.0"
 dependencies = [

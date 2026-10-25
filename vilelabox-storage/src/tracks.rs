@@ -134,6 +134,130 @@ pub fn inserir(con: &Connection, faixa: &NovaFaixa) -> Result<TrackId, ErroStora
     .map_err(mapear_constraint)?;
     Ok(TrackId(con.last_insert_rowid()))
 }
+/// Localização com a faixa dona (varredura de ausentes e movidos).
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocalizacaoCompleta {
+    pub id: i64,
+    pub faixa: TrackId,
+    pub caminho: String,
+    pub ausente: bool,
+}
+
+/// Todas as faixas do banco (`None`) ou as de uma playlist na ordem dela.
+pub fn listar(con: &Connection, lista: Option<i64>) -> Result<Vec<FaixaRow>, ErroStorage> {
+    let linhas = match lista {
+        Some(l) => {
+            let sql = format!(
+                "SELECT {COLUNAS} FROM tracks t
+                 JOIN playlist_tracks p ON p.track_id = t.id
+                 WHERE p.playlist_id = ?1 ORDER BY p.track_no"
+            );
+            let mut st = con.prepare(&sql)?;
+            let x = st
+                .query_map(params![l], ler_faixa)?
+                .collect::<Result<Vec<_>, _>>()?;
+            x
+        }
+        None => {
+            let sql = format!("SELECT {COLUNAS} FROM tracks ORDER BY id");
+            let mut st = con.prepare(&sql)?;
+            let x = st
+                .query_map([], ler_faixa)?
+                .collect::<Result<Vec<_>, _>>()?;
+            x
+        }
+    };
+    linhas.into_iter().map(montar_faixa).collect()
+}
+
+/// Atualiza metadados, BPM, tom e estrelas, tocando `updated_at`; a
+/// identidade acústica não é alterada (use [`atualizar_identidade`]).
+pub fn atualizar(con: &Connection, id: TrackId, faixa: &NovaFaixa) -> Result<bool, ErroStorage> {
+    if faixa.estrelas > 5 {
+        return Err(ErroStorage::Validacao(format!(
+            "estrelas fora de 0..=5: {}",
+            faixa.estrelas
+        )));
+    }
+    let n = con
+        .execute(
+            "UPDATE tracks SET title = ?2, artist = ?3, album = ?4, genre = ?5, year = ?6,
+                comment = ?7, bpm = ?8, key_text = ?9, rating = ?10,
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             WHERE id = ?1",
+            params![
+                id.0,
+                faixa.metadados.title,
+                faixa.metadados.artist,
+                faixa.metadados.album,
+                faixa.metadados.genre,
+                faixa.metadados.year,
+                faixa.metadados.comment,
+                faixa.bpm.map(|b| b.get()),
+                faixa.tom,
+                faixa.estrelas,
+            ],
+        )
+        .map_err(mapear_constraint)?;
+    Ok(n > 0)
+}
+
+/// Grava a identidade acústica (hash, duração, taxa, canais) da faixa.
+pub fn atualizar_identidade(
+    con: &Connection,
+    id: TrackId,
+    identidade: &AudioIdentity,
+) -> Result<bool, ErroStorage> {
+    let n = con.execute(
+        "UPDATE tracks SET sha256 = ?2, duration_frames = ?3, sample_rate = ?4, channels = ?5,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?1",
+        params![
+            id.0,
+            identidade.sha256,
+            identidade.duration_frames.get(),
+            identidade.sample_rate.get(),
+            identidade.channels,
+        ],
+    )?;
+    Ok(n > 0)
+}
+
+/// Faixa dona de uma localização pelo caminho exato.
+pub fn id_por_localizacao(con: &Connection, caminho: &str) -> Result<Option<TrackId>, ErroStorage> {
+    Ok(con
+        .query_row(
+            "SELECT track_id FROM track_locations WHERE path = ?1",
+            params![caminho],
+            |r| r.get::<_, i64>(0),
+        )
+        .optional()?
+        .map(TrackId))
+}
+
+/// Todas as localizações com as faixas donas.
+pub fn listar_localizacoes(con: &Connection) -> Result<Vec<LocalizacaoCompleta>, ErroStorage> {
+    let mut st =
+        con.prepare("SELECT id, track_id, path, missing FROM track_locations ORDER BY id")?;
+    let rows = st.query_map([], |r| {
+        Ok(LocalizacaoCompleta {
+            id: r.get(0)?,
+            faixa: TrackId(r.get(1)?),
+            caminho: r.get(2)?,
+            ausente: r.get::<_, i64>(3)? != 0,
+        })
+    })?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
+/// Marca uma localização como ausente ou presente.
+pub fn marcar_localizacao(con: &Connection, id: i64, ausente: bool) -> Result<(), ErroStorage> {
+    con.execute(
+        "UPDATE track_locations SET missing = ?2 WHERE id = ?1",
+        params![id, ausente],
+    )?;
+    Ok(())
+}
 
 pub fn obter(con: &Connection, id: TrackId) -> Result<Option<FaixaRow>, ErroStorage> {
     let sql = format!("SELECT {COLUNAS} FROM tracks WHERE id = ?1");

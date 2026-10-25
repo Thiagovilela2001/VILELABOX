@@ -28,7 +28,7 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 ## C3b — Biblioteca e preparação
 
 - [x] banco próprio (`vilelabox-storage`, P3.1);
-- [ ] coleções, playlists, busca e preparação;
+- [x] coleções, playlists, busca e preparação (`vilelabox-library`, P3.2);
 - [ ] núcleo headless com comandos e eventos.
 
 ## C5 — Interface
