@@ -1,0 +1,11 @@
+[package]
+name = "vilelabox-xml"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Leitura e escrita do documento de intercâmbio XML (DJ_PLAYLISTS) conforme spec/rekordbox/12-xml.md"
+
+[dependencies]
+roxmltree = "0.21"
+thiserror = "1.0"

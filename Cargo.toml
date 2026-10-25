@@ -3,6 +3,7 @@ members = [
     "vilelabox-types",
     "vilelabox-reference",
     "vilelabox-anlz",
+    "vilelabox-xml",
     "xtask",
     "vilelabox-app",
 ]
