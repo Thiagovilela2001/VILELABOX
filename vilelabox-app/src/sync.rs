@@ -32,14 +32,28 @@ fn tom(s: &str) -> Option<(i32, bool)> {
     Some(((base + acid).rem_euclid(12), menor))
 }
 
-/// KEY SYNC: semitons para levar `own` ao tom de `reference`. Observado
-/// `Gm ±0 -> Fm -2` (p6-2). Só para o mesmo modo (menor/maior); casar modos
-/// diferentes é DESCONHECIDO. Faixa -6..=5: a escolha no empate de 6
-/// semitons é DESCONHECIDA.
+/// KEY SYNC: semitons para levar `own` a uma tonalidade compatível com
+/// `reference`. A regra vem de `p6-10`: o destino é a tonalidade do outro deck,
+/// sua dominante (+7) ou sua subdominante (+5) — as vizinhas no círculo de
+/// quintas — e vale a de menor deslocamento absoluto. Partindo de `G -2`, de
+/// `C +3` e de `F -4` contra um deck em `F`, o rekordbox levou o deck a `Bb +1`
+/// nas três, ou seja, o deslocamento anterior é ignorado. `p6-2` (`Gm` -> `Fm`,
+/// −2) é o mesmo cálculo com outro par. Só para o mesmo modo (menor/maior);
+/// modo diferente é DESCONHECIDO, e o desempate de ±6 também.
 pub fn key_sync_shift(own: &str, reference: &str) -> Option<i8> {
     let (a, ma) = tom(own)?;
     let (b, mb) = tom(reference)?;
-    (ma == mb).then(|| ((b - a + 6).rem_euclid(12) - 6) as i8)
+    if ma != mb {
+        return None;
+    }
+    let mut melhor: Option<i8> = None;
+    for cand in [b, (b + 7).rem_euclid(12), (b + 5).rem_euclid(12)] {
+        let d = ((cand - a + 6).rem_euclid(12) - 6) as i8;
+        if melhor.map_or(true, |m| (d as i32).abs() < (m as i32).abs()) {
+            melhor = Some(d);
+        }
+    }
+    melhor
 }
 
 /// Tom deslocado `n` semitons: `Gm` -2 = `Fm`. Grafia: `Bb` observado na
@@ -141,6 +155,20 @@ fn memory_cue(pos_s: f64) -> RawCue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn key_sync_escolhe_a_tonalidade_compativel_mais_proxima() {
+        // p6-10: deck 1 em A contra deck 2 em F -> Bb +1 (subdominante de F),
+        // partindo de G -2, de C +3 e de F -4 (o deslocamento anterior e ignorado).
+        assert_eq!(key_sync_shift("A", "F"), Some(1));
+        assert_eq!(transpor("A", 1).as_deref(), Some("Bb"));
+        // p6-2: Gm contra Fm -> Fm -2 (a propria tonalidade do outro deck).
+        assert_eq!(key_sync_shift("Gm", "Fm"), Some(-2));
+        // p6-7: Bb contra F -> nada a fazer, Bb ja e a subdominante de F.
+        assert_eq!(key_sync_shift("Bb", "F"), Some(0));
+        // mesma tonalidade: sem deslocamento.
+        assert_eq!(key_sync_shift("A", "A"), Some(0));
+    }
 
     #[test]
     fn key_sync_gm_para_fm_menos_2() {

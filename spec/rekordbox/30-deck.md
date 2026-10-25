@@ -52,8 +52,9 @@ O CUE reage ao pressionar e ao soltar separadamente.
 | KEY SYNC | tons no mesmo modo | ligar | desloca o tom para o tom do outro deck | OBSERVADO |
 | KEY SYNC | modos diferentes (menor e maior) | ligar | sem regra; nada muda | DESCONHECIDO |
 | KEY SYNC | ligado | desligar | só o indicador; deslocamento mantido | OBSERVADO (p6-7) |
-| KEY SYNC | Bb contra F, MT desligado | ligar | nada mudou na tela (a regra abaixo daria −5) | OBSERVADO; causa DESCONHECIDA |
-| KEY SYNC | A contra F (−4), BEAT SYNC e MT em qualquer estado | ligar | nada muda no tom nem no andamento dos dois decks | OBSERVADO; causa DESCONHECIDA (p6-8) |
+| KEY SYNC | A contra F, qualquer deslocamento anterior | ligar | deck vai para `Bb +1` (subdominante de F) | OBSERVADO (p6-10) |
+| KEY SYNC | já em `Bb` contra F | ligar | nada muda: o valor calculado já é o que está aplicado | OBSERVADO (p6-7, p6-10) |
+| deslocamento de tom (`‹` `›`) | qualquer | clique | ±1 semitom por clique; o tom exibido transpõe junto | OBSERVADO (p6-10, `unit#41`) |
 | KEY SYNC | A contra F (−4), deck de referência a 0,0 % de velocidade | ligar/desligar | chamada ao motor confirmada em memória (ponteiro do deck, argumento `0x1`); tom inalterado | OBSERVADO (p6-9) |
 | SLIP | qualquer | clique | alterna o estado | OBSERVADO |
 | SLIP | ligado, loop automático | sair do loop | salta para onde a música estaria sem o loop e segue tocando | OBSERVADO |
@@ -66,14 +67,16 @@ Regras:
 - BEAT SYNC: velocidade = BPM do master ÷ BPM da faixa; a tela mostra o
   andamento resultante e a variação em porcentagem com uma casa (OBSERVADO:
   130,00 → 130,14 BPM, `+0,1 %`).
-- KEY SYNC: o deslocamento é a menor distância em semitons, na faixa −6..+5
-  (INFERIDO de um único caso: `Gm ±0` → `Fm -2`). Essa regra **não** descreve os
-  pares medidos depois dela: `Bb` contra `F` (−5) e `A` contra `F` (−4) não
-  deslocaram o tom em nenhuma combinação de BEAT SYNC, MT e velocidade zero de
-  um dos decks (p6-7, p6-8, p6-9). A chamada ao motor acontece nesses casos
-  (confirmado em memória, p6-9) e mesmo assim não produz deslocamento — não é
-  um problema de leitura de tela. A escolha no empate de 6 semitons e a grafia
-  de notas alteradas são DESCONHECIDAS.
+- KEY SYNC: o destino é a tonalidade do outro deck, sua dominante (+7 semitons)
+  ou sua subdominante (+5) — as três vizinhas no círculo de quintas — e vale o de
+  menor deslocamento absoluto a partir do tom da própria faixa (INFERIDO de dois
+  pares: `Gm` → `Fm -2` em p6-2 e `A` → `Bb +1` em p6-10). O deslocamento que o
+  deck já tinha é ignorado: partindo de `G -2`, de `C +3` e de `F -4` contra um
+  deck em `F`, o resultado foi `Bb +1` nas três (OBSERVADO, p6-10). O caso `Bb`
+  contra `F` de p6-7 é o valor já aplicado, por isso "nada mudou"; a chamada ao
+  motor nesses casos foi confirmada em memória (p6-9). Modo diferente (maior ×
+  menor), desempate de ±6 semitons e grafia das notas alteradas além de `Bb`:
+  DESCONHECIDOS.
 - A referência do KEY SYNC é o outro deck, não o master de andamento: na
   captura o deck 1 era o master e casou com o tom do deck 2 (INFERIDO).
 - SLIP: com o SLIP ligado, ao abrir um loop automático a reprodução segue em
@@ -135,6 +138,17 @@ Origem: rekordbox 7.2.8, automação de interface e leitura de memória via REA/
     ligar e desligar → chamada `unit#45` confirmada com o ponteiro do deck 1,
     tom inalterado nos dois decks.
 
+Origem: rekordbox 7.2.8, automação de interface e instrumentação REA/Frida
+(dossiê evidence/p6-10-keysync-par-de-tonalidades.md).
+
+15. Setas de deslocamento de tom no deck 1: cada clique muda 1 semitom e a tela
+    transpõe o tom (`A ±0` → `Ab -1` → `G -2`; `A ±0` → `B +2` → `C +3`);
+    chamada `unit#41` com o valor alvo.
+16. Deck 1 em `A` contra deck 2 em `F`, partindo de `G -2`, de `C +3` e de
+    `F -4`: KEY SYNC → `Bb +1` nas três; o deslocamento anterior é ignorado.
+17. Deck 1 em `Bb` contra deck 2 em `F`: KEY SYNC → nada muda (o valor calculado
+    já é `Bb +1`).
+
 ## Rastreabilidade
 
 - Transporte: `evidence/p6-0-transporte.md`.
@@ -144,6 +158,9 @@ Origem: rekordbox 7.2.8, automação de interface e leitura de memória via REA/
 - MT no tom exibido e KEY SYNC entre tons distantes: `evidence/p6-8-mt-tom-exibido-keysync.md`.
 - KEY SYNC com um deck a 0,0 % de velocidade, confirmação em memória:
   `evidence/p6-9-keysync-par-distante-fechado.md`.
+- Regra do KEY SYNC e deslocamento manual de tom (`unit#41`):
+  `evidence/p6-10-keysync-par-de-tonalidades.md`; teste
+  `sync::tests::key_sync_escolhe_a_tonalidade_compativel_mais_proxima`.
 - Testes: `vilelabox-audio/tests/transport_spec_tests.rs`,
   `vilelabox-audio/tests/sync_slip_quantize_spec_tests.rs`, `vilelabox-app/src/sync.rs`.
 
@@ -154,11 +171,12 @@ Origem: rekordbox 7.2.8, automação de interface e leitura de memória via REA/
 - Comportamento com QUANTIZE ligado, loop ativo e Auto Cue.
 - Comportamento por controladora.
 - BEAT SYNC no deck que já é master: o que ele dispara além do indicador.
-- KEY SYNC entre modos diferentes; a regra do deslocamento, que não vale para
-  `Bb`/`F` nem para `A`/`F`, nem com um dos decks a 0,0 % de velocidade
-  (confirmado em memória, p6-9), e só foi vista funcionar de `Gm` para `Fm`
-  — a condição desse único caso positivo (dois tons a 1–2 semitons, os dois
-  decks a 0,0 %) continua sem reprodução; falta uma via confiável para achar
-  esse par na biblioteca sem depender de ordenar a grade de faixas por clique
-  de tela, que se mostrou não confiável nesta máquina (p6-9).
+- KEY SYNC entre modos diferentes; desempate de ±6 semitons; grafia das notas
+  alteradas além de `Bb`; e a confirmação da regra atual (compatíveis com o outro
+  deck, menor deslocamento a partir do tom da própria faixa, hoje INFERIDO de dois
+  pares) num terceiro par de tonalidades — de preferência um em que a previsão
+  difira da distância direta entre os dois tons.
+- Por que o MASTER não troca nesta disposição de tela: o clique no MASTER do deck 1
+  não tirou o master do deck 2, o que impede usar o deck 2 como seguidor e medir o
+  par invertido sem trocar faixa (p6-10).
 - Sombra do SLIP fora do loop automático.
