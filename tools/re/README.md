@@ -1,6 +1,9 @@
 # Export headless do Ghidra
 
-Estas ferramentas geram o inventário usado pelo lado sujo do processo clean-room.
+Estas ferramentas geram inventários e trechos decompilados para o port em Rust.
+Nesta fase, quem investiga e quem implementa podem lê-los junto com as
+evidências do REA. A separação de papéis *clean-room* descrita nos prompts
+`analista.md` e `auditor.md` fica para depois da disponibilização pública do app.
 
 ## Pré-requisitos
 
@@ -49,4 +52,6 @@ Por padrão, os arquivos são escritos em `third_party/rekordbox/re/export/` com
 
 Tabs, quebras de linha e retornos de carro em campos TSV são escapados. Uma falha ou timeout individual de descompilação não interrompe o lote.
 
-**Saída é lado sujo: só analistas e auditores leem. O agent principal e implementadores Rust nunca abrem.**
+**Saída privada:** não versionar exports nem trechos decompilados. Na fase atual,
+analistas e implementadores podem consultá-los para traduzir a lógica para Rust
+e rastrear cada regra até a evidência.
