@@ -274,7 +274,11 @@ pub fn load_catalogo(
         .into_iter()
         .map(|l| Playlist {
             name: l.nome,
-            tracks: l.faixas.iter().filter_map(|id| ids.get(id).copied()).collect(),
+            tracks: l
+                .faixas
+                .iter()
+                .filter_map(|id| ids.get(id).copied())
+                .collect(),
         })
         .collect();
     Ok((tracks, playlists))

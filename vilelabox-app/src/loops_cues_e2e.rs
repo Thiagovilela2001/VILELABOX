@@ -14,9 +14,19 @@ const SR: f64 = 44_100.0;
 /// Batidas a 120 BPM (uma a cada 0,5 s) a partir de 1,0 s: 1,0 / 1,5 / 2,0 ...
 fn grade_120() -> Grid {
     let beats = (0..200)
-        .map(|k| Beat { beat_number: (k % 4) as u16 + 1, bpm: 120.0, time_ms: 1000 + k * 500 })
+        .map(|k| Beat {
+            beat_number: (k % 4) as u16 + 1,
+            bpm: 120.0,
+            time_ms: 1000 + k * 500,
+        })
         .collect();
-    Grid { bpm: 120.0, variable: false, first_beat_time_s: 1.0, downbeat_index: 0, beats }
+    Grid {
+        bpm: 120.0,
+        variable: false,
+        first_beat_time_s: 1.0,
+        downbeat_index: 0,
+        beats,
+    }
 }
 
 struct App {
@@ -28,8 +38,7 @@ struct App {
 impl App {
     /// Faixas de 120 s em silêncio carregadas nos dois decks, cues em pasta temporária.
     fn new(nome: &str, grid: Option<Grid>) -> Self {
-        let dir = std::env::temp_dir()
-            .join(format!("vilelabox-e2e-{nome}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vilelabox-e2e-{nome}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let mut st = AppState::new();
         st.cues_dir = Some(dir.clone());
@@ -39,7 +48,7 @@ impl App {
                 .map(|d| Track {
                     title: format!("A - Faixa {d}.mp3"),
                     dat: None,
-                    path: Some(format!("/musica/{nome}-{d}.mp3").into()),
+                    path: Some(format!("/musica/{nome}-{d}.mp3")),
                     meta: None,
                     ext: None,
                     grid: grid.clone(),
@@ -47,7 +56,11 @@ impl App {
                 .into(),
             summary: String::new(),
         });
-        let mut app = Self { st, motor: AudioMixer::offline(), dir };
+        let mut app = Self {
+            st,
+            motor: AudioMixer::offline(),
+            dir,
+        };
         app.carregar(DeckId::Deck1);
         app.carregar(DeckId::Deck2);
         app
@@ -55,14 +68,21 @@ impl App {
 
     fn carregar(&mut self, id: DeckId) {
         let filtered_index = if id == DeckId::Deck1 { 0 } else { 1 };
-        self.st.apply(Command::LoadToDeck { deck: id, filtered_index });
+        self.st.apply(Command::LoadToDeck {
+            deck: id,
+            filtered_index,
+        });
         let buf = Arc::new(AudioBuffer::silence(44_100, 120 * 44_100));
         let cmd = acoes::carregar_audio(&mut self.st, id, buf);
         self.motor.apply(cmd);
     }
 
     fn deck(&self, i: usize) -> &Deck {
-        if i == 0 { &self.motor.deck1 } else { &self.motor.deck2 }
+        if i == 0 {
+            &self.motor.deck1
+        } else {
+            &self.motor.deck2
+        }
     }
 
     fn pos(&self, i: usize) -> f64 {
@@ -76,7 +96,10 @@ impl App {
     }
 
     fn ir(&mut self, i: usize, s: f64) {
-        self.motor.apply(AudioCommand::SeekSeconds { deck: i as u8 + 1, seconds: s });
+        self.motor.apply(AudioCommand::SeekSeconds {
+            deck: i as u8 + 1,
+            seconds: s,
+        });
     }
 
     fn tocar(&mut self, i: usize) {
@@ -214,12 +237,23 @@ fn caso_6_au_ma_so_troca_o_estado_da_caixa() {
     let mut app = App::new("c6", Some(grade_120()));
     app.ir(0, 5.0);
     app.loop_alternar(0);
-    let antes = (app.deck(0).clone().snapshot(), app.st.loop_batidas, app.st.loop_ativo);
+    let antes = (
+        app.deck(0).clone().snapshot(),
+        app.st.loop_batidas,
+        app.st.loop_ativo,
+    );
     acoes::loop_modo(&mut app.st, 0); // AU -> MA, sem comando de motor
     assert!(app.st.loop_manual[0]);
     acoes::loop_modo(&mut app.st, 0);
     assert!(!app.st.loop_manual[0]);
-    assert_eq!((app.deck(0).snapshot(), app.st.loop_batidas, app.st.loop_ativo), antes);
+    assert_eq!(
+        (
+            app.deck(0).snapshot(),
+            app.st.loop_batidas,
+            app.st.loop_ativo
+        ),
+        antes
+    );
 }
 
 #[test]
@@ -299,9 +333,21 @@ fn persistencia_com_loop_e_q_volta_ao_recarregar() {
     assert!(!app.st.loop_ativo[1]);
     assert!(app.deck(1).loop_range.is_none());
     assert!(app.st.quantize[1]); // Q é do deck, não da faixa
-    let hot: Vec<_> = app.st.deck2.cues.iter().map(|c| (c.hot_cue, c.start_time_s)).collect();
+    let hot: Vec<_> = app
+        .st
+        .deck2
+        .cues
+        .iter()
+        .map(|c| (c.hot_cue, c.start_time_s))
+        .collect();
     assert_eq!(hot, [(1, 1.5)]);
-    let mem: Vec<_> = app.st.deck1.cues.iter().map(|c| (c.hot_cue, c.start_time_s)).collect();
+    let mem: Vec<_> = app
+        .st
+        .deck1
+        .cues
+        .iter()
+        .map(|c| (c.hot_cue, c.start_time_s))
+        .collect();
     assert_eq!(mem, [(0, 3.25)]);
     // O cue recarregado leva ao mesmo ponto no motor.
     app.ir(1, 30.0);

@@ -13,10 +13,16 @@ fn deck() -> Deck {
 fn hot_cue_pula_e_toca_parado_ou_tocando() {
     let mut d = deck();
     d.jump_and_play(100_000);
-    assert_eq!((d.position_frames, d.state), (100_000, TransportState::Playing));
+    assert_eq!(
+        (d.position_frames, d.state),
+        (100_000, TransportState::Playing)
+    );
     d.seek_frame(500_000);
     d.jump_and_play(100_000);
-    assert_eq!((d.position_frames, d.state), (100_000, TransportState::Playing));
+    assert_eq!(
+        (d.position_frames, d.state),
+        (100_000, TransportState::Playing)
+    );
 }
 
 #[test]

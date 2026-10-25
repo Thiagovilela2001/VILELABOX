@@ -25,12 +25,36 @@ fn saida_db(cmds: Vec<AudioCommand>) -> f32 {
 fn fader_trim_e_crossfader_nos_pontos_medidos() {
     let base = saida_db(vec![]); // fader 100, TRIM 0, crossfader 0 (-1,06 dB)
     let rel = |c: Vec<AudioCommand>| saida_db(c) - base;
-    assert!((rel(vec![AudioCommand::SetFader { deck: 1, valor: 50.0 }]) + 12.0).abs() < 0.05);
-    assert!((rel(vec![AudioCommand::SetTrim { deck: 1, valor: -2.0 }]) + 2.55).abs() < 0.05);
+    assert!(
+        (rel(vec![AudioCommand::SetFader {
+            deck: 1,
+            valor: 50.0
+        }]) + 12.0)
+            .abs()
+            < 0.05
+    );
+    assert!(
+        (rel(vec![AudioCommand::SetTrim {
+            deck: 1,
+            valor: -2.0
+        }]) + 2.55)
+            .abs()
+            < 0.05
+    );
     // crossfader todo para o deck 1: +1,06 dB em relação ao centro
     assert!((rel(vec![AudioCommand::SetCrossfader { valor: -10.0 }]) - 1.06).abs() < 0.05);
     // mudos
-    assert!(rel(vec![AudioCommand::SetFader { deck: 1, valor: 0.0 }]) < -150.0);
+    assert!(
+        rel(vec![AudioCommand::SetFader {
+            deck: 1,
+            valor: 0.0
+        }]) < -150.0
+    );
     assert!(rel(vec![AudioCommand::SetCrossfader { valor: 10.0 }]) < -150.0);
-    assert!(rel(vec![AudioCommand::SetTrim { deck: 1, valor: -10.0 }]) < -150.0);
+    assert!(
+        rel(vec![AudioCommand::SetTrim {
+            deck: 1,
+            valor: -10.0
+        }]) < -150.0
+    );
 }

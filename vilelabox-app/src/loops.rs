@@ -6,7 +6,10 @@ use vilelabox_anlz::Beat;
 /// batida da grade que contém a posição e a seguinte; na falta, o BPM dela.
 pub fn batida_s(beats: &[Beat], pos_s: f64) -> Option<f64> {
     let pos_ms = pos_s * 1000.0;
-    let i = beats.iter().rposition(|b| f64::from(b.time_ms) <= pos_ms).unwrap_or(0);
+    let i = beats
+        .iter()
+        .rposition(|b| f64::from(b.time_ms) <= pos_ms)
+        .unwrap_or(0);
     let b = beats.get(i)?;
     match beats.get(i + 1) {
         Some(n) if n.time_ms > b.time_ms => Some(f64::from(n.time_ms - b.time_ms) / 1000.0),
@@ -40,7 +43,11 @@ mod tests {
     use super::*;
 
     fn b(t: u32) -> Beat {
-        Beat { beat_number: 1, bpm: 120.0, time_ms: t }
+        Beat {
+            beat_number: 1,
+            bpm: 120.0,
+            time_ms: t,
+        }
     }
 
     #[test]

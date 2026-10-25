@@ -77,13 +77,21 @@ fn lin(db: f32) -> f32 {
 #[must_use]
 pub fn ganho_fader(v: f32) -> f32 {
     let v = v.round();
-    if v <= 0.0 { 0.0 } else { lin(interp(&FADER, v.min(100.0))) }
+    if v <= 0.0 {
+        0.0
+    } else {
+        lin(interp(&FADER, v.min(100.0)))
+    }
 }
 
 /// Ganho linear do TRIM.
 #[must_use]
 pub fn ganho_trim(v: f32) -> f32 {
-    if v <= -10.0 { 0.0 } else { lin(interp(&TRIM, v.min(10.0))) }
+    if v <= -10.0 {
+        0.0
+    } else {
+        lin(interp(&TRIM, v.min(10.0)))
+    }
 }
 
 /// Ganho linear do crossfader para o canal `canal` (0 = esquerda/deck 1,

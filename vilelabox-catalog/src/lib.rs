@@ -86,14 +86,22 @@ fn inteiro(v: Value) -> i64 {
 }
 
 pub fn abrir(caminho: &Path) -> Result<Catalogo, ErroCatalogo> {
-    let uri = format!("file:{}?immutable=1", caminho.display().to_string().replace('\\', "/"));
-    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let con = Connection::open_with_flags(uri, flags).map_err(|e| ErroCatalogo::Abrir(e.to_string()))?;
+    let uri = format!(
+        "file:{}?immutable=1",
+        caminho.display().to_string().replace('\\', "/")
+    );
+    let flags = OpenFlags::SQLITE_OPEN_READ_ONLY
+        | OpenFlags::SQLITE_OPEN_URI
+        | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+    let con =
+        Connection::open_with_flags(uri, flags).map_err(|e| ErroCatalogo::Abrir(e.to_string()))?;
     for t in ESSENCIAIS {
         let existe: bool = con
-            .query_row("select count(*) from sqlite_master where type = 'table' and name = ?1", [t], |r| {
-                r.get::<_, i64>(0)
-            })
+            .query_row(
+                "select count(*) from sqlite_master where type = 'table' and name = ?1",
+                [t],
+                |r| r.get::<_, i64>(0),
+            )
             .map(|n| n > 0)
             .map_err(|e| ErroCatalogo::Abrir(e.to_string()))?;
         if !existe {
@@ -183,7 +191,12 @@ fn ler_listas(con: &Connection) -> Result<Vec<Lista>, ErroCatalogo> {
     let nos: Vec<No> = st
         .query_map([], |r| {
             let g = |i: usize| r.get::<_, Value>(i);
-            Ok(No { id: texto(g(0)?), pai: texto(g(1)?), nome: texto(g(2)?), atributo: inteiro(g(3)?) })
+            Ok(No {
+                id: texto(g(0)?),
+                pai: texto(g(1)?),
+                nome: texto(g(2)?),
+                atributo: inteiro(g(3)?),
+            })
         })?
         .collect::<Result<_, _>>()?;
     let mut st = con.prepare(
@@ -203,7 +216,13 @@ fn ler_listas(con: &Connection) -> Result<Vec<Lista>, ErroCatalogo> {
 /// Pastas (`Attribute` 1) viram prefixo; playlists normais (0) entram com as
 /// faixas. Listas inteligentes (4) ficam de fora: o conteúdo delas é uma
 /// condição, não está em `djmdSongPlaylist`.
-fn achatar(nos: &[No], pai: &str, prefixo: &str, faixas: &mut HashMap<String, Vec<String>>, out: &mut Vec<Lista>) {
+fn achatar(
+    nos: &[No],
+    pai: &str,
+    prefixo: &str,
+    faixas: &mut HashMap<String, Vec<String>>,
+    out: &mut Vec<Lista>,
+) {
     for n in nos.iter().filter(|n| n.pai == pai) {
         match n.atributo {
             1 => achatar(nos, &n.id, &format!("{prefixo}{} / ", n.nome), faixas, out),
@@ -261,25 +280,52 @@ mod tests {
         let cat = abrir(&fixture(&dir)).unwrap();
         assert_eq!(cat.faixas.len(), 1);
         let f = &cat.faixas[0];
-        assert_eq!((f.titulo.as_str(), f.artista.as_str(), f.tom.as_str()), ("Faixa", "Artista", "Gm"));
+        assert_eq!(
+            (f.titulo.as_str(), f.artista.as_str(), f.tom.as_str()),
+            ("Faixa", "Artista", "Gm")
+        );
         assert_eq!((f.bpm, f.duracao_s, f.estrelas), (128.0, 300, 4));
         assert_eq!(f.caminho, "C:/m/f.mp3");
-        assert_eq!(f.analise.as_deref(), Some("/PIONEER/USBANLZ/x/ANLZ0000.DAT"));
+        assert_eq!(
+            f.analise.as_deref(),
+            Some("/PIONEER/USBANLZ/x/ANLZ0000.DAT")
+        );
         assert_eq!(f.cues.len(), 2);
-        assert_eq!(f.cues[0], Cue { tipo: 0, entrada_ms: 25, saida_ms: None, rotulo: None });
+        assert_eq!(
+            f.cues[0],
+            Cue {
+                tipo: 0,
+                entrada_ms: 25,
+                saida_ms: None,
+                rotulo: None
+            }
+        );
         assert_eq!(f.cues[1].saida_ms, Some(39256));
-        assert_eq!(cat.listas, [Lista { nome: "Pasta / Set".into(), faixas: vec!["1".into()] }]);
+        assert_eq!(
+            cat.listas,
+            [Lista {
+                nome: "Pasta / Set".into(),
+                faixas: vec!["1".into()]
+            }]
+        );
         // imutável: nada criado ao lado do banco
         assert!(!dir.join("catalogo.db-wal").exists());
     }
 
     #[test]
     fn esquema_incompleto_da_erro_tipado() {
-        let dir = std::env::temp_dir().join(format!("vilelabox-catalog-vazio-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("vilelabox-catalog-vazio-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let p = dir.join("vazio.db");
         let _ = std::fs::remove_file(&p);
-        Connection::open(&p).unwrap().execute_batch("create table x (a int);").unwrap();
-        assert!(matches!(abrir(&p), Err(ErroCatalogo::Esquema("djmdContent"))));
+        Connection::open(&p)
+            .unwrap()
+            .execute_batch("create table x (a int);")
+            .unwrap();
+        assert!(matches!(
+            abrir(&p),
+            Err(ErroCatalogo::Esquema("djmdContent"))
+        ));
     }
 }

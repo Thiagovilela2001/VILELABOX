@@ -20,7 +20,10 @@ fn deck(st: &mut AppState, i: usize) -> &mut DeckState {
 /// dele, `Deck::load_audio`) e marca o deck pronto.
 pub fn carregar_audio(st: &mut AppState, id: DeckId, audio_buf: Arc<AudioBuffer>) -> AudioCommand {
     let i = if id == DeckId::Deck1 { 0 } else { 1 };
-    st.apply(Command::SetDeckAudioReady { deck: id, ready: true });
+    st.apply(Command::SetDeckAudioReady {
+        deck: id,
+        ready: true,
+    });
     st.loop_ativo[i] = false;
     st.loop_in[i] = None;
     st.loop_pontos[i] = None;
@@ -33,7 +36,11 @@ pub fn carregar_audio(st: &mut AppState, id: DeckId, audio_buf: Arc<AudioBuffer>
     }
     d.audio_buf = Some(Arc::clone(&audio_buf));
     d.audio_ready = true;
-    AudioCommand::LoadTrack { deck: i as u8 + 1, audio: audio_buf, cue_frame: Some(0) }
+    AudioCommand::LoadTrack {
+        deck: i as u8 + 1,
+        audio: audio_buf,
+        cue_frame: Some(0),
+    }
 }
 
 /// Clique no tamanho: sem loop, abre `loop_batidas` batidas na posição
@@ -58,7 +65,11 @@ pub fn loop_alternar(st: &mut AppState, i: usize, pos: f64) -> Option<AudioComma
     // desligado, o motor usa a posição exata dele.
     let start_frame = q.then(|| (loops::quantizar_s(&d.beats, pos, true) * sr).round() as u64);
     st.loop_ativo[i] = true;
-    Some(AudioCommand::AutoLoop { deck: n, len_frames, start_frame })
+    Some(AudioCommand::AutoLoop {
+        deck: n,
+        len_frames,
+        start_frame,
+    })
 }
 
 /// ½ (`dobro = false`) e ×2: observado só com loop ativo; sem loop, nada.
@@ -68,14 +79,21 @@ pub fn loop_cut(st: &mut AppState, i: usize, dobro: bool) -> Option<AudioCommand
     }
     let (num, den) = if dobro { (2, 1) } else { (1, 2) };
     st.loop_batidas[i] = st.loop_batidas[i] * num as f64 / den as f64;
-    Some(AudioCommand::LoopCut { deck: i as u8 + 1, num, den })
+    Some(AudioCommand::LoopCut {
+        deck: i as u8 + 1,
+        num,
+        den,
+    })
 }
 
 /// Q (unit#9, p6-2): estado; o arredondamento para baixo é aplicado pelo app
 /// ao gravar loop automático e hot cue (`loops::quantizar_s`).
 pub fn quantize(st: &mut AppState, i: usize) -> AudioCommand {
     st.quantize[i] = !st.quantize[i];
-    AudioCommand::SetQuantize { deck: i as u8 + 1, on: st.quantize[i] }
+    AudioCommand::SetQuantize {
+        deck: i as u8 + 1,
+        on: st.quantize[i],
+    }
 }
 
 /// AU/MA: troca a caixa de loop, sem chamada de motor.
@@ -93,7 +111,10 @@ fn frame(st: &mut AppState, i: usize, s: f64) -> Option<u64> {
 pub fn loop_in(st: &mut AppState, i: usize, pos: f64) -> Option<AudioCommand> {
     let f = frame(st, i, pos)?;
     st.loop_in[i] = Some(pos);
-    Some(AudioCommand::SetCuePoint { deck: i as u8 + 1, frame: f })
+    Some(AudioCommand::SetCuePoint {
+        deck: i as u8 + 1,
+        frame: f,
+    })
 }
 
 /// OUT (unit#53, p6-5): fecha o loop IN..posição atual e passa a repetir.
@@ -103,7 +124,11 @@ pub fn loop_out(st: &mut AppState, i: usize, pos: f64) -> Option<AudioCommand> {
     let (a, b) = (frame(st, i, entrada)?, frame(st, i, pos)?);
     st.loop_pontos[i] = Some((entrada, pos));
     st.loop_ativo[i] = true;
-    Some(AudioCommand::SetLoop { deck: i as u8 + 1, start_frame: a, end_frame: b })
+    Some(AudioCommand::SetLoop {
+        deck: i as u8 + 1,
+        start_frame: a,
+        end_frame: b,
+    })
 }
 
 /// RELOOP/EXIT, o mesmo botão (p6-5). Com loop: EXIT encerra e a reprodução
@@ -114,11 +139,19 @@ pub fn loop_exit_reloop(st: &mut AppState, i: usize) -> Vec<AudioCommand> {
         st.loop_ativo[i] = false;
         return vec![AudioCommand::ClearLoop { deck: n }];
     }
-    let Some((e, s)) = st.loop_pontos[i] else { return Vec::new() };
-    let (Some(a), Some(b)) = (frame(st, i, e), frame(st, i, s)) else { return Vec::new() };
+    let Some((e, s)) = st.loop_pontos[i] else {
+        return Vec::new();
+    };
+    let (Some(a), Some(b)) = (frame(st, i, e), frame(st, i, s)) else {
+        return Vec::new();
+    };
     st.loop_ativo[i] = true;
     vec![
-        AudioCommand::SetLoop { deck: n, start_frame: a, end_frame: b },
+        AudioCommand::SetLoop {
+            deck: n,
+            start_frame: a,
+            end_frame: b,
+        },
         AudioCommand::SeekFrame { deck: n, frame: a },
     ]
 }
@@ -151,8 +184,12 @@ pub fn cue_linha(st: &mut AppState, i: usize, linha: usize, pos: f64) -> Option<
         st.salvar_cues(i);
         None
     } else {
-        let mut mem: Vec<f64> =
-            d.cues.iter().filter(|c| c.hot_cue == 0).map(|c| c.start_time_s).collect();
+        let mut mem: Vec<f64> = d
+            .cues
+            .iter()
+            .filter(|c| c.hot_cue == 0)
+            .map(|c| c.start_time_s)
+            .collect();
         mem.sort_by(f64::total_cmp);
         let frame = (mem.get(linha)? * sr).round() as u64;
         Some(AudioCommand::SetCueAndStandby { deck: n, frame })

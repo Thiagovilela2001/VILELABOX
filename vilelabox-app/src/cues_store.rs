@@ -39,8 +39,9 @@ pub fn dir_padrao() -> Option<PathBuf> {
 
 /// FNV-1a 64 bits dos bytes do caminho.
 fn fnv1a(s: &str) -> u64 {
-    s.bytes()
-        .fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3))
+    s.bytes().fold(0xcbf2_9ce4_8422_2325, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    })
 }
 
 /// `<nome base sanitizado>-<fnv1a hex>.json`: mesmo caminho, mesmo arquivo.
@@ -49,7 +50,13 @@ pub fn arquivo(base: &Path, faixa: &str) -> PathBuf {
     let nome = nome.rsplit_once('.').map_or(nome, |(n, _)| n);
     let nome: String = nome
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .take(40)
         .collect();
     base.join(format!("{nome}-{:016x}.json", fnv1a(faixa)))
@@ -65,7 +72,11 @@ pub fn ler(base: &Path, faixa: &str) -> Vec<RawCue> {
             .cues
             .into_iter()
             .map(|c| RawCue {
-                hot_cue: if c.tipo == Tipo::Hot { c.slot.unwrap_or(0) } else { 0 },
+                hot_cue: if c.tipo == Tipo::Hot {
+                    c.slot.unwrap_or(0)
+                } else {
+                    0
+                },
                 status: 1,
                 is_loop: false,
                 start_time_s: c.pos_s,
@@ -87,7 +98,11 @@ pub fn gravar(base: &Path, faixa: &str, cues: &[RawCue]) -> std::io::Result<()> 
             .iter()
             .filter(|c| !c.is_loop)
             .map(|c| Cue {
-                tipo: if c.hot_cue == 0 { Tipo::Memory } else { Tipo::Hot },
+                tipo: if c.hot_cue == 0 {
+                    Tipo::Memory
+                } else {
+                    Tipo::Hot
+                },
                 slot: (c.hot_cue != 0).then_some(c.hot_cue),
                 pos_s: c.start_time_s,
             })
@@ -132,7 +147,10 @@ mod tests {
         let lidos = ler(&d, FAIXA);
         let v: Vec<_> = lidos.iter().map(|c| (c.hot_cue, c.start_time_s)).collect();
         assert_eq!(v, [(3, 12.5), (0, 51.718)]);
-        let nomes: Vec<_> = std::fs::read_dir(&d).unwrap().map(|e| e.unwrap().file_name()).collect();
+        let nomes: Vec<_> = std::fs::read_dir(&d)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
         assert_eq!(nomes.len(), 1);
         assert!(!nomes[0].to_string_lossy().ends_with(".tmp"));
         println!("{}", std::fs::read_to_string(arquivo(&d, FAIXA)).unwrap());
@@ -164,7 +182,11 @@ mod tests {
         // FNV-1a de referência: vazio = offset basis, "a" = af63dc4c8601ec8c.
         assert_eq!(fnv1a(""), 0xcbf2_9ce4_8422_2325);
         assert_eq!(fnv1a("a"), 0xaf63_dc4c_8601_ec8c);
-        let n = arquivo(b, FAIXA).file_name().unwrap().to_string_lossy().into_owned();
+        let n = arquivo(b, FAIXA)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
         assert!(n.starts_with("Artista_-_Faixa__Mix_-"), "{n}");
     }
 
@@ -175,7 +197,10 @@ mod tests {
         gravar_hot_cue(&mut cues, 1, 1.0);
         gravar_hot_cue(&mut cues, 1, 2.0);
         gravar(&d, FAIXA, &cues).unwrap();
-        let v: Vec<_> = ler(&d, FAIXA).iter().map(|c| (c.hot_cue, c.start_time_s)).collect();
+        let v: Vec<_> = ler(&d, FAIXA)
+            .iter()
+            .map(|c| (c.hot_cue, c.start_time_s))
+            .collect();
         assert_eq!(v, [(1, 2.0)]);
     }
 }
