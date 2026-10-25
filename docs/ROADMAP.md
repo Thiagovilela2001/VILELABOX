@@ -16,7 +16,8 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 - [x] interpretar labels e cores das variantes de cues;
 - [x] especificar o catálogo principal (`10-master-db.md` + G0/P2.1);
 - [x] implementar `vilelabox-xml` (leitura, escrita e integração ao app; G0/P2.2);
-- [ ] implementar `vilelabox-catalog` e exportação USB.
+- [x] implementar `vilelabox-catalog` (leitura da cópia sem criptografia; `tools/catalog/exportar_catalogo.py`);
+- [ ] exportação USB.
 
 ## C3 — Análise
 

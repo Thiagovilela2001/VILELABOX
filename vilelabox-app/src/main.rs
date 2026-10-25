@@ -310,12 +310,15 @@ fn default_dir() -> PathBuf {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
-    // Argumento: pasta de análises, ou um documento XML (coleção, tom, cues e
-    // listas do XML; grade e formas de onda das análises em `default_dir`).
+    // Argumento: pasta de análises, um documento XML ou a cópia sem
+    // criptografia do catálogo (`.db`, gerada por tools/catalog/exportar_catalogo.py).
+    // XML e catálogo dão coleção, tom, cues e listas; grade e formas de onda
+    // vêm das análises em `default_dir`.
     let arg = std::env::args_os().nth(1).map(PathBuf::from);
-    let xml = arg
-        .clone()
-        .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("xml")));
+    let xml = arg.clone().filter(|p| {
+        p.extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("xml") || e.eq_ignore_ascii_case("db"))
+    });
     let dir = match (&xml, arg) {
         (None, Some(d)) => d,
         _ => default_dir(),
@@ -351,10 +354,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let scan_dir = dir.clone();
         std::thread::spawn(move || {
             let (tracks, playlists, summary) = match &xml {
-                Some(x) => match std::fs::read_to_string(x)
-                    .map_err(|e| e.to_string())
-                    .and_then(|s| library::load_xml(&s, &scan_dir).map_err(|e| e.to_string()))
-                {
+                Some(x) => match if x.extension().is_some_and(|e| e.eq_ignore_ascii_case("db")) {
+                    library::load_catalogo(x, &scan_dir).map_err(|e| e.to_string())
+                } else {
+                    std::fs::read_to_string(x)
+                        .map_err(|e| e.to_string())
+                        .and_then(|s| library::load_xml(&s, &scan_dir).map_err(|e| e.to_string()))
+                } {
                     Ok((t, p)) => {
                         let com_analise = t.iter().filter(|t| t.ext.is_some()).count();
                         let s = format!(
@@ -366,7 +372,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         );
                         (t, p, s)
                     }
-                    Err(e) => (Vec::new(), Vec::new(), format!("XML ilegível: {e}")),
+                    Err(e) => (Vec::new(), Vec::new(), format!("Coleção ilegível: {e}")),
                 },
                 None => {
                     let t = library::scan(&scan_dir);

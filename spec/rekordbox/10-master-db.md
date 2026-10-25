@@ -162,3 +162,24 @@ Consulta canônica de faixas de uma playlist:
 4. Converter registros de faixa, cues (`InMsec`, `OutMsec`, `Kind`, `Comment`,
    `Color`) e árvore de playlists para os tipos do domínio sem vazar nomes de
    tabelas `djmd*` para `vilelabox-core`.
+
+## Implementação (2026-10-25)
+
+- Crate `vilelabox-catalog`: abre a cópia com `immutable=1` e
+  `SQLITE_OPEN_READ_ONLY` (nenhum `-wal`/`-shm` criado), confere as quatro
+  tabelas essenciais (`ErroCatalogo::Esquema`) e devolve faixas, cues e
+  playlists normais com o caminho das pastas no nome (`"Pasta / Lista"`). Listas
+  inteligentes (`Attribute = 4`) ficam de fora.
+- A cópia sem criptografia é gerada pelo usuário com
+  `tools/catalog/exportar_catalogo.py`, que copia `master.db` para uma pasta
+  temporária e exporta pela biblioteca externa `pyrekordbox` para
+  `%LOCALAPPDATA%\vilelabox\catalogo.db`. O original nunca é aberto e nenhuma
+  chave entra no repositório.
+- No app: `cargo run -p vilelabox-app -- <catalogo.db>`. Grade e formas de onda
+  vêm do `.DAT`/`.EXT` apontado por `AnalysisDataPath`, relativo à pasta `share`.
+- Observado na coleção do usuário: 3091 faixas, 258 cues, 10 playlists.
+  `FolderPath` é o caminho completo do arquivo (com o nome). 2239 caminhos
+  existem como estão; os demais foram movidos de pasta depois da importação, e a
+  busca por nome do app encontra 764 deles (3003 no total).
+- `djmdCue.Color` é um código, não RGB; sem mapeamento observado, os cues do
+  catálogo entram sem cor própria.

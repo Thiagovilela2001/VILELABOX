@@ -1,0 +1,10 @@
+[package]
+name = "vilelabox-catalog"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Leitura somente leitura do catálogo do rekordbox (cópia sem criptografia) conforme spec/rekordbox/10-master-db.md"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+thiserror = "1.0"

@@ -4,6 +4,7 @@ members = [
     "vilelabox-reference",
     "vilelabox-anlz",
     "vilelabox-xml",
+    "vilelabox-catalog",
     "vilelabox-audio",
     "xtask",
     "vilelabox-app",

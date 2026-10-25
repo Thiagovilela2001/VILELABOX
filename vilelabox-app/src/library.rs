@@ -210,6 +210,76 @@ pub fn load_xml(
     Ok((tracks, playlists))
 }
 
+/// Coleção a partir da cópia sem criptografia do catálogo (10-master-db,
+/// `vilelabox-catalog`). O caminho do áudio vem completo (`FolderPath`); a
+/// análise é o `.DAT` apontado pela faixa, relativo à pasta `share`, que é o
+/// avô de `anlz_dir` (`share/PIONEER/USBANLZ`).
+pub fn load_catalogo(
+    db: &Path,
+    anlz_dir: &Path,
+) -> Result<(Vec<Track>, Vec<Playlist>), vilelabox_catalog::ErroCatalogo> {
+    let cat = vilelabox_catalog::abrir(db)?;
+    let share = anlz_dir.parent().and_then(Path::parent).unwrap_or(anlz_dir);
+    let chave = |p: &Path| p.to_string_lossy().replace('\\', "/").to_lowercase();
+    let mut analises: std::collections::HashMap<String, Track> = scan(anlz_dir)
+        .into_iter()
+        .filter_map(|t| Some((chave(t.dat.as_deref()?), t)))
+        .collect();
+    let mut ids = std::collections::HashMap::new();
+    let tracks: Vec<Track> = cat
+        .faixas
+        .into_iter()
+        .enumerate()
+        .map(|(i, f)| {
+            ids.insert(f.id.clone(), i);
+            let anlz = f
+                .analise
+                .as_deref()
+                .and_then(|a| analises.remove(&chave(&share.join(a.trim_start_matches('/')))));
+            Track {
+                title: f.titulo,
+                dat: anlz.as_ref().and_then(|a| a.dat.clone()),
+                ext: anlz.as_ref().and_then(|a| a.ext.clone()),
+                grid: anlz.and_then(|a| a.grid),
+                path: Some(f.caminho).filter(|c| !c.is_empty()),
+                meta: Some(Meta {
+                    artist: f.artista,
+                    album: f.album,
+                    genre: f.genero,
+                    tonality: f.tom,
+                    stars: f.estrelas,
+                    bpm: f.bpm,
+                    total_s: f.duracao_s,
+                    cues: f
+                        .cues
+                        .into_iter()
+                        .map(|c| RawCue {
+                            hot_cue: c.tipo,
+                            status: 1,
+                            is_loop: c.saida_ms.is_some(),
+                            start_time_s: c.entrada_ms as f64 / 1000.0,
+                            end_time_s: c.saida_ms.map(|s| s as f64 / 1000.0),
+                            label: c.rotulo,
+                            // `djmdCue.Color` é um código, não RGB; sem
+                            // mapeamento observado, fica sem cor própria.
+                            color: None,
+                        })
+                        .collect(),
+                }),
+            }
+        })
+        .collect();
+    let playlists = cat
+        .listas
+        .into_iter()
+        .map(|l| Playlist {
+            name: l.nome,
+            tracks: l.faixas.iter().filter_map(|id| ids.get(id).copied()).collect(),
+        })
+        .collect();
+    Ok((tracks, playlists))
+}
+
 pub struct PhraseSpan {
     pub start: f32,
     pub end: f32,
