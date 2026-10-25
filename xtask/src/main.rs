@@ -25,6 +25,13 @@ fn arquivos_markdown(path: &Path) -> Result<Vec<PathBuf>, String> {
                 format!("não foi possível examinar {}: {erro}", caminho.display())
             })?;
             if tipo.is_dir() {
+                // Dossiês de proveniência em `evidence/` registram endereços, nomes de
+                // método e trechos de desmontagem por definição. As regras de limpeza
+                // existem para o texto das especificações, que precisa descrever
+                // comportamento sem artefato de análise.
+                if caminho.file_name().is_some_and(|nome| nome == "evidence") {
+                    continue;
+                }
                 pendentes.push(caminho);
             } else if tipo.is_file()
                 && caminho.extension().is_some_and(|extensao| extensao == "md")
