@@ -6,8 +6,9 @@ Hot cues A..H, chamada e gravação (MEMORY) de memory cue, loop automático por
 batidas com ½ e ×2, modo da caixa de loop (AU/MA) e o estado do Quantize,
 operados pela tela.
 
-Fora do escopo, por falta de evidência: escrita do MEMORY no banco, RELOOP, efeito de `IN`/`OUT`/`EXIT` do loop
-manual, slip.
+Inclui também o loop manual (`IN`, `OUT`, `EXIT`, `RELOOP`).
+
+Fora do escopo, por falta de evidência: escrita do MEMORY no banco, slip.
 
 ## Glossário
 
@@ -66,9 +67,19 @@ nos 16 altos (`0x10010` = 16/1 = 16 batidas).
 | --- | --- | --- | --- |
 | AU | clicar em MA | caixa de loop passa a `IN`/`OUT`/`EXIT`; o deck não é acionado | OBSERVADO |
 | MA | clicar em AU | caixa de loop volta ao tamanho em batidas | INFERIDO (inverso do observado) |
-| MA | `IN`, `OUT`, `EXIT` | sem efeito implementado | DESCONHECIDO |
-
 A troca de modo não altera o tamanho nem o loop ativo.
+
+### Loop manual (modo MA)
+
+`RELOOP` e `EXIT` são o mesmo botão: mostra `EXIT` com loop ativo e `RELOOP` sem.
+
+| Ação | Resultado | Classe |
+| --- | --- | --- |
+| `IN` | grava a entrada na posição atual e a torna o ponto de cue; o transporte segue | OBSERVADO |
+| `OUT` depois de `IN` | grava a saída na posição atual e passa a repetir entrada..saída | OBSERVADO |
+| `EXIT` | encerra o loop; a reprodução segue de onde está | OBSERVADO |
+| `RELOOP` | volta à entrada e repete o último entrada..saída, tocando | OBSERVADO |
+| `OUT` sem `IN`, `IN` com loop ativo, `RELOOP` parado | sem regra; nada muda | DESCONHECIDO |
 
 ### Quantize
 
@@ -142,6 +153,7 @@ Origem: rekordbox 7.2.8 (dossiê `evidence/p6-2-sync-slip-quantize.md`, seção
 - Quantize, AU/MA, MEMORY: `evidence/p6-2-sync-slip-quantize.md`.
 - Caminho da gravação do MEMORY: `evidence/p6-3-memory.md`.
 - Persistência (banco vs ANLZ): `evidence/p6-4-memory-persistencia.md`.
+- Loop manual: `evidence/p6-5-loop-manual.md`.
 - Testes: `vilelabox-audio/tests/loops_cues_spec_tests.rs`,
   `vilelabox-audio/tests/sync_slip_quantize_spec_tests.rs`, `vilelabox-app/src/sync.rs`, `vilelabox-app/src/loops.rs`.
 - Casos de teste no fluxo do app (ações de `vilelabox-app/src/acoes.rs` aplicadas ao
@@ -161,8 +173,16 @@ Origem: rekordbox 7.2.8 (dossiê `evidence/p6-2-sync-slip-quantize.md`, seção
 | 12 | `caso_12_sem_no_anterior_posicao_intacta` |
 | persistência com loop e Q | `persistencia_com_loop_e_q_volta_ao_recarregar` |
 
+Origem: rekordbox 7.2.8 (dossiê `evidence/p6-5-loop-manual.md`).
+
+13. Tocando; `IN` em 3,20 s → ponto de cue em 3,20 s, segue tocando; `OUT` em
+    7,42 s → loop 3,20..7,42 s; `EXIT` → sem loop, segue tocando; em 12 s, `RELOOP`
+    → posição 3,20 s, loop 3,20..7,42 s, tocando. Teste:
+    `loop_manual_in_out_exit_reloop`.
+
 ## Perguntas abertas
 
-- Escrita do MEMORY no banco; RELOOP.
-- Efeito e ordem das operações de `IN`, `OUT` e `EXIT` no modo MA.
+- Escrita do MEMORY no banco.
+- `OUT` sem `IN`, `IN` com loop ativo, `RELOOP` com o deck parado ou depois de
+  um loop automático; Quantize ligado no `IN`/`OUT`.
 - Limites mínimo e máximo do tamanho do loop.
