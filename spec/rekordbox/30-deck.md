@@ -54,6 +54,7 @@ O CUE reage ao pressionar e ao soltar separadamente.
 | KEY SYNC | ligado | desligar | só o indicador; deslocamento mantido | OBSERVADO (p6-7) |
 | KEY SYNC | Bb contra F, MT desligado | ligar | nada mudou na tela (a regra abaixo daria −5) | OBSERVADO; causa DESCONHECIDA |
 | KEY SYNC | A contra F (−4), BEAT SYNC e MT em qualquer estado | ligar | nada muda no tom nem no andamento dos dois decks | OBSERVADO; causa DESCONHECIDA (p6-8) |
+| KEY SYNC | A contra F (−4), deck de referência a 0,0 % de velocidade | ligar/desligar | chamada ao motor confirmada em memória (ponteiro do deck, argumento `0x1`); tom inalterado | OBSERVADO (p6-9) |
 | SLIP | qualquer | clique | alterna o estado | OBSERVADO |
 | SLIP | ligado, loop automático | sair do loop | salta para onde a música estaria sem o loop e segue tocando | OBSERVADO |
 | SLIP | desligado, loop automático | sair do loop | segue da posição dentro do loop | OBSERVADO |
@@ -68,8 +69,11 @@ Regras:
 - KEY SYNC: o deslocamento é a menor distância em semitons, na faixa −6..+5
   (INFERIDO de um único caso: `Gm ±0` → `Fm -2`). Essa regra **não** descreve os
   pares medidos depois dela: `Bb` contra `F` (−5) e `A` contra `F` (−4) não
-  deslocaram o tom em nenhuma combinação de BEAT SYNC e MT (p6-7, p6-8). A
-  escolha no empate de 6 semitons e a grafia de notas alteradas são DESCONHECIDAS.
+  deslocaram o tom em nenhuma combinação de BEAT SYNC, MT e velocidade zero de
+  um dos decks (p6-7, p6-8, p6-9). A chamada ao motor acontece nesses casos
+  (confirmado em memória, p6-9) e mesmo assim não produz deslocamento — não é
+  um problema de leitura de tela. A escolha no empate de 6 semitons e a grafia
+  de notas alteradas são DESCONHECIDAS.
 - A referência do KEY SYNC é o outro deck, não o master de andamento: na
   captura o deck 1 era o master e casou com o tom do deck 2 (INFERIDO).
 - SLIP: com o SLIP ligado, ao abrir um loop automático a reprodução segue em
@@ -124,6 +128,13 @@ Origem: rekordbox 7.2.8, automação de interface (dossiê evidence/p6-8-mt-tom-
 12. Deck 1 em `A` contra deck 2 em `F`, com BEAT SYNC ligado ou desligado e MT ligado ou desligado, KEY SYNC → tom e andamento dos dois decks inalterados.
 13. Deck 2 em `F` contra deck 1 em `A` (mesmas quatro combinações), KEY SYNC → `F ±0` inalterado.
 
+Origem: rekordbox 7.2.8, automação de interface e leitura de memória via REA/Frida
+(dossiê evidence/p6-9-keysync-par-distante-fechado.md).
+
+14. Deck 1 em `A` contra deck 2 em `F` (−4), deck 2 a 0,0 % de velocidade, KEY SYNC
+    ligar e desligar → chamada `unit#45` confirmada com o ponteiro do deck 1,
+    tom inalterado nos dois decks.
+
 ## Rastreabilidade
 
 - Transporte: `evidence/p6-0-transporte.md`.
@@ -131,6 +142,8 @@ Origem: rekordbox 7.2.8, automação de interface (dossiê evidence/p6-8-mt-tom-
 - Sombra do SLIP: `evidence/p6-6-slip-sombra.md`; teste `vilelabox-audio/tests/slip_sombra_tests.rs`.
 - Desligar BEAT SYNC e KEY SYNC, tom com MT desligado: `evidence/p6-7-desligar-sync.md`.
 - MT no tom exibido e KEY SYNC entre tons distantes: `evidence/p6-8-mt-tom-exibido-keysync.md`.
+- KEY SYNC com um deck a 0,0 % de velocidade, confirmação em memória:
+  `evidence/p6-9-keysync-par-distante-fechado.md`.
 - Testes: `vilelabox-audio/tests/transport_spec_tests.rs`,
   `vilelabox-audio/tests/sync_slip_quantize_spec_tests.rs`, `vilelabox-app/src/sync.rs`.
 
@@ -142,5 +155,10 @@ Origem: rekordbox 7.2.8, automação de interface (dossiê evidence/p6-8-mt-tom-
 - Comportamento por controladora.
 - BEAT SYNC no deck que já é master: o que ele dispara além do indicador.
 - KEY SYNC entre modos diferentes; a regra do deslocamento, que não vale para
-  `Bb`/`F` nem para `A`/`F` e só foi vista funcionar de `Gm` para `Fm`.
+  `Bb`/`F` nem para `A`/`F`, nem com um dos decks a 0,0 % de velocidade
+  (confirmado em memória, p6-9), e só foi vista funcionar de `Gm` para `Fm`
+  — a condição desse único caso positivo (dois tons a 1–2 semitons, os dois
+  decks a 0,0 %) continua sem reprodução; falta uma via confiável para achar
+  esse par na biblioteca sem depender de ordenar a grade de faixas por clique
+  de tela, que se mostrou não confiável nesta máquina (p6-9).
 - Sombra do SLIP fora do loop automático.
