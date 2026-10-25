@@ -1,5 +1,18 @@
 # Registro de implementação
 
+## Banco próprio `vilelabox-storage` (P3.1) — 2026-10-25
+
+| Campo | Resultado |
+| --- | --- |
+| Crate | `vilelabox-storage`: SQLite próprio (rusqlite bundled) sobre os tipos de `vilelabox-types` |
+| Esquema v1 | `tracks`, `track_locations`, `cues`, `beatgrids` + `grid_beats`/`grid_tempo`, `phrases`, `playlists` + `playlist_tracks`, `analysis_results`; chaves estrangeiras com remoção em cascata |
+| ADAPTAÇÃO | esquema próprio sem a máquina `rb_*` do catálogo de referência; registrada em `spec/rekordbox/10-master-db.md` |
+| Migrações | `PRAGMA user_version`, uma transação por versão, rollback automático em falha, lacuna de versão rejeitada, continuação da versão parcial; backup `<nome>.backup-v<N>.db` antes de migrar arquivo preexistente |
+| P2.3 bloqueado | exportação USB retornou à engenharia reversa (Gate G0): não há dossiê do fluxo de exportação nem artefato `export.pdb` no ambiente; desbloqueio exige sessão Ghidra ou mídia exportada pelo programa de referência |
+| Testes | 19 testes novos (9 migrações, 7 integridade, 3 unitários): upgrade, rollback, interrupção, cascata, cache de análise, banco corrompido e inválido |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` (189 testes) e `xtask spec-lint` aprovados |
+| Próximo gate | `vilelabox-library` (P3.2): importadores, busca, ordenação, playlists e detecção de arquivos movidos |
+
 ## Beatgrid, metrônomo e scratch na waveform — 2026-10-25
 
 | Campo | Resultado |

@@ -9,6 +9,7 @@ depende de outro aplicativo de DJ.
 vilelabox-app
   -> futuro vilelabox-core
     -> domínio e serviços de biblioteca
+      -> vilelabox-storage
       -> vilelabox-types
 
 adaptadores de formato

@@ -183,3 +183,30 @@ Consulta canônica de faixas de uma playlist:
   busca por nome do app encontra 764 deles (3003 no total).
 - `djmdCue.Color` é um código, não RGB; sem mapeamento observado, os cues do
   catálogo entram sem cor própria.
+
+## Banco próprio do VILELABOX (ADAPTAÇÃO)
+
+A escrita no catálogo de referência está fora do escopo (ver "Fora do
+escopo"). O VILELABOX mantém seu próprio banco SQLite, implementado pelo crate
+`vilelabox-storage` (P3.1). Esta seção registra o que foi deliberadamente
+criado para o produto, sem pretensão de reproduzir o programa de referência:
+
+- **Esquema próprio.** Tabelas `tracks`, `track_locations`, `cues`,
+  `beatgrids`, `grid_beats`, `grid_tempo`, `phrases`, `playlists`,
+  `playlist_tracks` e `analysis_results`, com chaves estrangeiras e remoção em
+  cascata. Os nomes `djmd*`, a exclusão lógica `rb_local_deleted` e os demais
+  campos `rb_*` não se aplicam: pertencem à máquina de sincronização do
+  catálogo de referência, que o VILELABOX não reproduz.
+- **Conteúdo espelhado do domínio.** Faixas guardam metadados, identidade
+  acústica (hash, duração, taxa, canais), BPM e tonalidade; cues guardam tipo,
+  slot, posições, rótulo e cor; a grade guarda batidas, mapa de tempo,
+  downbeat e bloqueio de edição; playlists formam árvore com ordem estável;
+  resultados de análise são cacheados por faixa, etapa, versão do algoritmo e
+  configuração.
+- **Migrações.** Versionadas por `PRAGMA user_version`, uma transação por
+  versão, com rollback automático em falha e continuação da versão parcial na
+  abertura seguinte. Arquivo preexistente é copiado para backup antes de
+  qualquer migração.
+- **Tipos do domínio.** Registros lidos passam pelas invariantes de
+  `vilelabox-types`; linhas corrompidas (batidas fora de ordem, BPM inválido,
+  frase com início após o fim) retornam erro tipado em vez de valores ruins.

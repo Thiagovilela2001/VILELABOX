@@ -1,0 +1,12 @@
+[package]
+name = "vilelabox-storage"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Banco SQLite próprio do VILELABOX com migrações versionadas (P3.1; ADAPTAÇÃO documentada em spec/rekordbox/10-master-db.md)"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+thiserror = "1.0"
+vilelabox-types = { path = "../vilelabox-types" }
