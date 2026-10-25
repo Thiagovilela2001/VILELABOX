@@ -61,12 +61,14 @@ pub fn build_track_rows(state: &AppState) -> Vec<TrackRow> {
         .collect()
 }
 
+/// Entrada do cache de waveforms: (índice da faixa, imagem geral, blocos da ampliada).
+type WaveCacheEntry = (Option<usize>, Image, Vec<WaveTile>);
+
 /// Imagem geral e blocos da ampliada do deck; vazios quando a faixa não tem `.EXT`.
 /// Cacheadas por (deck, faixa): converter ~1 MB por render travava a UI.
 fn wave_images(deck: &DeckState, n: usize) -> (Image, ModelRc<WaveTile>) {
     thread_local! {
-        static CACHE: std::cell::RefCell<[Option<(Option<usize>, Image, Vec<WaveTile>)>; 2]> =
-            Default::default();
+        static CACHE: std::cell::RefCell<[Option<WaveCacheEntry>; 2]> = Default::default();
     }
     CACHE.with(|c| {
         let mut c = c.borrow_mut();
@@ -129,8 +131,8 @@ fn modelo_marcas(m: Vec<marks::Marca>) -> ModelRc<Marca> {
 }
 
 /// Marcas (grade + cues) da janela ampliada centrada na posição atual.
-fn marcas_detalhe(deck: &DeckState) -> ModelRc<Marca> {
-    let (ini, dur) = waveform::janela(deck.pos_s);
+fn marcas_detalhe(deck: &DeckState, velocidade: f64) -> ModelRc<Marca> {
+    let (ini, dur) = waveform::janela_com_velocidade(deck.pos_s, velocidade);
     let mut detalhe = marks::grade(&deck.beats, ini, dur);
     detalhe.extend(marks::cues(&deck.cues, ini, dur));
     modelo_marcas(detalhe)
@@ -154,10 +156,7 @@ fn deck_marks(deck: &DeckState, hot: bool) -> (ModelRc<Marca>, ModelRc<LinhaCue>
             e_loop: l.e_loop,
         })
         .collect();
-    (
-        modelo_marcas(geral),
-        ModelRc::new(VecModel::from(linhas)),
-    )
+    (modelo_marcas(geral), ModelRc::new(VecModel::from(linhas)))
 }
 
 fn render_deck1(deck: &DeckState, ui: &AppWindow) {
@@ -270,6 +269,7 @@ pub fn render_mixer(st: &AppState, ui: &AppWindow) {
 
 /// MT, BEAT SYNC, MASTER, KEY SYNC, SLIP e AU/MA (dossiê p6-2).
 fn render_botoes(st: &AppState, ui: &AppWindow) {
+    use crate::beatgrid::EditRange;
     use crate::sync;
     for i in 0..2 {
         let d = if i == 0 { &st.deck1 } else { &st.deck2 };
@@ -293,6 +293,12 @@ fn render_botoes(st: &AppState, ui: &AppWindow) {
             ui.set_deck1_slip(st.slip[0]);
             ui.set_deck1_mt(st.master_tempo[0]);
             ui.set_deck1_loop_manual(st.loop_manual[0]);
+            ui.set_deck1_grid_fine(st.grid_edit[0].fine);
+            ui.set_deck1_grid_partial(st.grid_edit[0].range == EditRange::FromPosition);
+            ui.set_deck1_grid_locked(st.grid_edit[0].locked);
+            ui.set_deck1_grid_can_undo(st.grid_edit[0].can_undo());
+            ui.set_deck1_grid_can_redo(st.grid_edit[0].can_redo());
+            ui.set_deck1_grid_metronome(i32::from(st.grid_edit[0].metronome));
         } else {
             ui.set_deck2_bpm(bpm.into());
             ui.set_deck2_key(tom.into());
@@ -304,6 +310,12 @@ fn render_botoes(st: &AppState, ui: &AppWindow) {
             ui.set_deck2_slip(st.slip[1]);
             ui.set_deck2_mt(st.master_tempo[1]);
             ui.set_deck2_loop_manual(st.loop_manual[1]);
+            ui.set_deck2_grid_fine(st.grid_edit[1].fine);
+            ui.set_deck2_grid_partial(st.grid_edit[1].range == EditRange::FromPosition);
+            ui.set_deck2_grid_locked(st.grid_edit[1].locked);
+            ui.set_deck2_grid_can_undo(st.grid_edit[1].can_undo());
+            ui.set_deck2_grid_can_redo(st.grid_edit[1].can_redo());
+            ui.set_deck2_grid_metronome(i32::from(st.grid_edit[1].metronome));
         }
     }
 }
@@ -325,14 +337,16 @@ pub fn render_transport(state: &AppState, ui: &AppWindow) {
     ui.set_deck1_tocando(d1.is_playing);
     ui.set_deck1_cue_aceso(d1.is_cue_standby);
     ui.set_deck1_wave_pos(d1.pos_s as f32);
-    ui.set_deck1_marcas_detalhe(marcas_detalhe(d1));
+    ui.set_deck1_wave_rate(state.velocidade[0] as f32);
+    ui.set_deck1_marcas_detalhe(marcas_detalhe(d1, state.velocidade[0]));
     ui.set_deck2_pos_rel(pos_rel(d2));
     ui.set_deck2_tempo_decorrido(SharedString::from(&d2.tempo_decorrido));
     ui.set_deck2_tempo_restante(SharedString::from(&d2.tempo_restante));
     ui.set_deck2_tocando(d2.is_playing);
     ui.set_deck2_cue_aceso(d2.is_cue_standby);
     ui.set_deck2_wave_pos(d2.pos_s as f32);
-    ui.set_deck2_marcas_detalhe(marcas_detalhe(d2));
+    ui.set_deck2_wave_rate(state.velocidade[1] as f32);
+    ui.set_deck2_marcas_detalhe(marcas_detalhe(d2, state.velocidade[1]));
 }
 
 #[cfg(test)]

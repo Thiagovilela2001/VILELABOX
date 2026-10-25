@@ -5,6 +5,7 @@ import { LibraryBrowser } from "components/library.slint";
 import { MixerBar, MixerStrip } from "components/mixer.slint";
 import { IconRail, MenuBar, PerformanceToolbar } from "components/navigation.slint";
 import { StatusBar } from "components/status.slint";
+import { GridEditPanel } from "components/grid_edit.slint";
 
 export { Bar, Segment, TrackRow }
 
@@ -47,6 +48,7 @@ export component AppWindow inherits Window {
     in property <image> deck1_wave_overview;
     in property <[WaveTile]> deck1_wave_tiles;
     in property <float> deck1_wave_pos;
+    in property <float> deck1_wave_rate: 1.0;
     in property <[Marca]> deck1_marcas_detalhe;
     in property <[Marca]> deck1_marcas_geral;
     in property <[LinhaCue]> deck1_cues;
@@ -79,6 +81,7 @@ export component AppWindow inherits Window {
     in property <image> deck2_wave_overview;
     in property <[WaveTile]> deck2_wave_tiles;
     in property <float> deck2_wave_pos;
+    in property <float> deck2_wave_rate: 1.0;
     in property <[Marca]> deck2_marcas_detalhe;
     in property <[Marca]> deck2_marcas_geral;
     in property <[LinhaCue]> deck2_cues;
@@ -120,6 +123,23 @@ export component AppWindow inherits Window {
     callback deck_botao(int, string);
     callback deck_cue_linha(int, int);
     callback deck_seek(int, float);
+    callback deck_wave_seek(int, float);
+    callback deck_wave_scratch_begin(int);
+    callback deck_wave_scratch_to(int, float);
+    callback deck_wave_scratch_end(int);
+    callback grid_command(int, string, float);
+    in property <bool> deck1_grid_fine: false;
+    in property <bool> deck1_grid_partial: false;
+    in property <bool> deck1_grid_locked: false;
+    in property <bool> deck1_grid_can_undo: false;
+    in property <bool> deck1_grid_can_redo: false;
+    in property <int> deck1_grid_metronome: 0;
+    in property <bool> deck2_grid_fine: false;
+    in property <bool> deck2_grid_partial: false;
+    in property <bool> deck2_grid_locked: false;
+    in property <bool> deck2_grid_can_undo: false;
+    in property <bool> deck2_grid_can_redo: false;
+    in property <int> deck2_grid_metronome: 0;
     callback search_edited(string);
     callback sort_clicked(int);
     callback playlist_selected(int);
@@ -131,6 +151,7 @@ export component AppWindow inherits Window {
     property <length> drag_x;
     property <length> drag_y;
     property <int> drag_alvo: root.alvo(root.drag_x, root.drag_y);
+    in-out property <int> grid_edit_deck: 0;
 
     Rectangle {
     x: 0; y: 0; width: root.width; height: root.height;
@@ -162,7 +183,14 @@ export component AppWindow inherits Window {
                     height: ((88px * s));
                     tiles: root.deck1_wave_tiles;
                     pos_s: root.deck1_wave_pos;
+                    playback_rate: root.deck1_wave_rate;
                     marcas: root.deck1_marcas_detalhe;
+                    audio_ready: root.deck1_audio_ready;
+                    grid_editing: root.grid_edit_deck == 1;
+                    seek_absolute(seconds) => { root.deck_wave_seek(1, seconds); }
+                    scratch_begin => { root.deck_wave_scratch_begin(1); }
+                    scratch_to(seconds) => { root.deck_wave_scratch_to(1, seconds); }
+                    scratch_end => { root.deck_wave_scratch_end(1); }
                 }
                 DeckWave {
                     s: root.s;
@@ -170,7 +198,14 @@ export component AppWindow inherits Window {
                     height: ((88px * s));
                     tiles: root.deck2_wave_tiles;
                     pos_s: root.deck2_wave_pos;
+                    playback_rate: root.deck2_wave_rate;
                     marcas: root.deck2_marcas_detalhe;
+                    audio_ready: root.deck2_audio_ready;
+                    grid_editing: root.grid_edit_deck == 2;
+                    seek_absolute(seconds) => { root.deck_wave_seek(2, seconds); }
+                    scratch_begin => { root.deck_wave_scratch_begin(2); }
+                    scratch_to(seconds) => { root.deck_wave_scratch_to(2, seconds); }
+                    scratch_end => { root.deck_wave_scratch_end(2); }
                 }
             }
         }
@@ -185,6 +220,7 @@ export component AppWindow inherits Window {
                 numero: 1;
                 width: ((890px * s));
                 clip: true;
+                grid_edit_active: root.grid_edit_deck == 1;
                 titulo: root.deck1_title;
                 artista: root.deck1_artist;
                 duracao: root.deck1_duration;
@@ -230,6 +266,7 @@ export component AppWindow inherits Window {
                 seek_clicked(p) => {
                     root.deck_seek(1, p);
                 }
+                grid_toggle => { root.grid_edit_deck = root.grid_edit_deck == 1 ? 0 : 1; }
             }
 
             MixerStrip {
@@ -248,6 +285,7 @@ export component AppWindow inherits Window {
                 numero: 2;
                 horizontal_stretch: 1;
                 clip: true;
+                grid_edit_active: root.grid_edit_deck == 2;
                 titulo: root.deck2_title;
                 artista: root.deck2_artist;
                 duracao: root.deck2_duration;
@@ -293,6 +331,7 @@ export component AppWindow inherits Window {
                 seek_clicked(p) => {
                     root.deck_seek(2, p);
                 }
+                grid_toggle => { root.grid_edit_deck = root.grid_edit_deck == 2 ? 0 : 2; }
             }
         }
 
@@ -372,6 +411,25 @@ export component AppWindow inherits Window {
             text: root.track_rows[root.drag_idx].title + (root.drag_alvo > 0 ? "  ->  DECK " + root.drag_alvo : "");
             color: #ffffff;
             font_size: 13px;
+        }
+    }
+
+    if root.grid_edit_deck > 0: GridEditPanel {
+        x: root.grid_edit_deck == 1 ? deck1.absolute-position.x : deck2.absolute-position.x;
+        y: (root.grid_edit_deck == 1 ? deck1.absolute-position.y : deck2.absolute-position.y) + 122px * root.s;
+        width: root.grid_edit_deck == 1 ? deck1.width : deck2.width;
+        height: 165px * root.s;
+        s: root.s;
+        deck: root.grid_edit_deck;
+        bpm: root.grid_edit_deck == 1 ? root.deck1_bpm : root.deck2_bpm;
+        partial: root.grid_edit_deck == 1 ? root.deck1_grid_partial : root.deck2_grid_partial;
+        locked: root.grid_edit_deck == 1 ? root.deck1_grid_locked : root.deck2_grid_locked;
+        can_undo: root.grid_edit_deck == 1 ? root.deck1_grid_can_undo : root.deck2_grid_can_undo;
+        can_redo: root.grid_edit_deck == 1 ? root.deck1_grid_can_redo : root.deck2_grid_can_redo;
+        metronome: root.grid_edit_deck == 1 ? root.deck1_grid_metronome : root.deck2_grid_metronome;
+        command(name, value) => {
+            if name == "close" { root.grid_edit_deck = 0; }
+            else { root.grid_command(root.grid_edit_deck, name, value); }
         }
     }
 

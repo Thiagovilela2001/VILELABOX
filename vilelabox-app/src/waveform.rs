@@ -106,9 +106,11 @@ pub fn render_detail(
     buf
 }
 
-/// Janela (início, duração) em segundos da forma de onda ampliada.
-pub fn janela(posicao_s: f64) -> (f64, f64) {
-    (posicao_s - JANELA_S as f64 / 2.0, JANELA_S as f64)
+/// Janela compensada pela velocidade de reprodução. Assim a largura da tela
+/// representa tempo ouvido, não apenas tempo bruto do arquivo.
+pub fn janela_com_velocidade(posicao_s: f64, velocidade: f64) -> (f64, f64) {
+    let dur = JANELA_S as f64 * velocidade.clamp(0.01, 16.0);
+    (posicao_s - dur / 2.0, dur)
 }
 
 /// Colunas por bloco: abaixo do limite de textura comum (8192) das GPUs.
@@ -124,10 +126,16 @@ pub fn detail_blocks(d: &WaveformDetail) -> Vec<(usize, SharedPixelBuffer<Rgba8P
         .collect()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn janela_visual_compensa_pitch() {
+        let (inicio, dur) = janela_com_velocidade(20.0, 1.03125);
+        assert!((dur - 24.75).abs() < 1e-9);
+        assert!((inicio - 7.625).abs() < 1e-9);
+    }
 
     fn px(buf: &SharedPixelBuffer<Rgba8Pixel>, x: u32, y: u32) -> Rgba8Pixel {
         buf.as_slice()[(y * buf.width() + x) as usize]

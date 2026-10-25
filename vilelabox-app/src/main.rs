@@ -4,7 +4,9 @@
 //! A thread da interface abre imediatamente sem bloquear no scan da biblioteca (U0.5).
 
 mod acoes;
+mod beatgrid;
 mod cues_store;
+mod grid_store;
 mod library;
 mod loops;
 #[cfg(test)]
@@ -15,6 +17,7 @@ pub mod state;
 mod sync;
 mod waveform;
 
+use crate::beatgrid::{EditRange, GridAction};
 use crate::state::{AppState, Command, DeckId, SortColumn};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -50,7 +53,11 @@ fn search_dir_recursive(dir: &std::path::Path, target_name: &str, depth: usize) 
     search_dir_match(dir, depth, &|name| name.eq_ignore_ascii_case(target_name))
 }
 
-fn search_dir_match(dir: &std::path::Path, depth: usize, ok: &dyn Fn(&str) -> bool) -> Option<PathBuf> {
+fn search_dir_match(
+    dir: &std::path::Path,
+    depth: usize,
+    ok: &dyn Fn(&str) -> bool,
+) -> Option<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return None;
     };
@@ -196,27 +203,14 @@ fn find_audio_file(raw_path: Option<&str>, title: &str) -> Option<PathBuf> {
     None
 }
 
-#[cfg(test)]
-mod busca_tests {
-    use super::nome_normalizado;
-
-    #[test]
-    fn ignora_numeracao_e_extensao() {
-        let a = nome_normalizado("01 - FAIXA PRETA ((FUNKHALL)).mp3");
-        assert_eq!(a, nome_normalizado("FAIXA PRETA ((FUNKHALL)).wav"));
-        assert_eq!(nome_normalizado("01. Brutalismus 3000 - Horime.flac").as_deref(), Some("brutalismus 3000 - horime"));
-        assert_eq!(nome_normalizado("capa.jpg"), None);
-    }
-}
-
 fn resolve_audio_buffer(
     path: Option<&str>,
     title: &str,
 ) -> Result<Arc<vilelabox_audio::AudioBuffer>, String> {
     // Sem substituto sintético: tocar um WAV de teste no lugar da faixa soava
     // como "só estalos" e escondia o arquivo ausente.
-    let found = find_audio_file(path, title)
-        .ok_or_else(|| format!("Áudio não encontrado: {title}"))?;
+    let found =
+        find_audio_file(path, title).ok_or_else(|| format!("Áudio não encontrado: {title}"))?;
     vilelabox_audio::decode_audio(&found)
         .map(Arc::new)
         .map_err(|e| format!("Falha ao decodificar {}: {e}", found.display()))
@@ -234,7 +228,38 @@ fn deck_idx(n: i32) -> Option<usize> {
 /// Posição do deck `i` (0/1) no motor, em segundos.
 fn pos_s(ctrl: &AudioController, i: usize) -> f64 {
     let snap = ctrl.get_snapshot();
-    if i == 0 { snap.deck1.position_seconds } else { snap.deck2.position_seconds }
+    if i == 0 {
+        snap.deck1.position_seconds
+    } else {
+        snap.deck2.position_seconds
+    }
+}
+
+/// Enfileira o alinhamento no motor. A posição é calculada quando o callback
+/// consome o comando, evitando usar um snapshot que já ficou para trás.
+fn send_phase_alignment(ctrl: &AudioController, st: &AppState, slave_i: usize) -> bool {
+    if slave_i == st.master {
+        return false;
+    }
+    let master = if st.master == 0 { &st.deck1 } else { &st.deck2 };
+    let slave = if slave_i == 0 { &st.deck1 } else { &st.deck2 };
+    if master.beats.len() < 2 || slave.beats.len() < 2 {
+        return false;
+    }
+    ctrl.send(AudioCommand::AlignBeatPhase {
+        deck: (slave_i + 1) as u8,
+        master: (st.master + 1) as u8,
+        master_beats: master
+            .beats
+            .iter()
+            .map(|b| (b.time_ms, b.beat_number))
+            .collect(),
+        slave_beats: slave
+            .beats
+            .iter()
+            .map(|b| (b.time_ms, b.beat_number))
+            .collect(),
+    })
 }
 
 fn render_ui(ui: &slint::Weak<AppWindow>, st: &AppState) {
@@ -299,6 +324,21 @@ fn apply_audio(
     audio_buf: Arc<vilelabox_audio::AudioBuffer>,
 ) {
     controller.send(acoes::carregar_audio(state, deck, audio_buf));
+    let i = if deck == DeckId::Deck1 { 0 } else { 1 };
+    send_metronome(controller, state, i);
+}
+
+fn send_metronome(controller: &AudioController, state: &AppState, i: usize) {
+    let beats = if i == 0 {
+        &state.deck1.beats
+    } else {
+        &state.deck2.beats
+    };
+    controller.send(AudioCommand::SetMetronome {
+        deck: (i + 1) as u8,
+        level: state.grid_edit[i].metronome,
+        beats: beats.iter().map(|b| (b.time_ms, b.beat_number)).collect(),
+    });
 }
 
 /// Pasta onde o rekordbox grava as análises (`.DAT`/`.EXT`). É um caminho de
@@ -571,15 +611,20 @@ fn main() -> Result<(), slint::PlatformError> {
         let state_ref = state.clone();
         let ctrl = audio_controller.clone();
         ui.on_deck_play(move |deck_num| {
-            let deck = match deck_num {
-                1 => DeckId::Deck1,
-                2 => DeckId::Deck2,
-                _ => return,
-            };
-            ctrl.send(AudioCommand::PlayPause {
-                deck: deck_num as u8,
-            });
+            let Some(i) = deck_idx(deck_num) else { return };
+            let deck = if i == 0 { DeckId::Deck1 } else { DeckId::Deck2 };
             if let Ok(mut st) = state_ref.lock() {
+                let starting = if i == 0 {
+                    st.deck1.audio_ready && !st.deck1.is_playing
+                } else {
+                    st.deck2.audio_ready && !st.deck2.is_playing
+                };
+                if starting && st.beat_sync[i] && i != st.master {
+                    send_phase_alignment(&ctrl, &st, i);
+                }
+                ctrl.send(AudioCommand::PlayPause {
+                    deck: deck_num as u8,
+                });
                 st.apply(Command::PlayPause(deck));
                 if let Some(ui) = ui_weak.upgrade() {
                     presentation::render(&st, &ui);
@@ -612,9 +657,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let ctrl = audio_controller.clone();
         ui.on_mixer_fader(move |c, v| {
             let Ok(mut st) = state_ref.lock() else { return };
-            let Some(f) = st.mix_fader.get_mut(c as usize) else { return };
+            let Some(f) = st.mix_fader.get_mut(c as usize) else {
+                return;
+            };
             *f = v;
-            ctrl.send(AudioCommand::SetFader { deck: c as u8 + 1, valor: v });
+            ctrl.send(AudioCommand::SetFader {
+                deck: c as u8 + 1,
+                valor: v,
+            });
             if let Some(ui) = ui_weak.upgrade() {
                 presentation::render_mixer(&st, &ui);
             }
@@ -626,9 +676,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let ctrl = audio_controller.clone();
         ui.on_mixer_trim(move |c, v| {
             let Ok(mut st) = state_ref.lock() else { return };
-            let Some(t) = st.mix_trim.get_mut(c as usize) else { return };
+            let Some(t) = st.mix_trim.get_mut(c as usize) else {
+                return;
+            };
             *t = v;
-            ctrl.send(AudioCommand::SetTrim { deck: c as u8 + 1, valor: v });
+            ctrl.send(AudioCommand::SetTrim {
+                deck: c as u8 + 1,
+                valor: v,
+            });
             if let Some(ui) = ui_weak.upgrade() {
                 presentation::render_mixer(&st, &ui);
             }
@@ -669,7 +724,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let f = move |n: i32| {
             let Some(i) = deck_idx(n) else { return };
             let Ok(mut st) = state_ref.lock() else { return };
-            let Some(cmd) = acoes::loop_cut(&mut st, i, dobro) else { return };
+            let Some(cmd) = acoes::loop_cut(&mut st, i, dobro) else {
+                return;
+            };
             ctrl.send(cmd);
             render_ui(&ui_weak, &st);
         };
@@ -704,12 +761,18 @@ fn main() -> Result<(), slint::PlatformError> {
                 // MT (unit#15): alterna.
                 "mt" => {
                     st.master_tempo[i] = !st.master_tempo[i];
-                    ctrl.send(AudioCommand::SetMasterTempo { deck, on: st.master_tempo[i] });
+                    ctrl.send(AudioCommand::SetMasterTempo {
+                        deck,
+                        on: st.master_tempo[i],
+                    });
                 }
                 // SLIP (unit#14): só o estado; a sombra é DESCONHECIDA.
                 "slip" => {
                     st.slip[i] = !st.slip[i];
-                    ctrl.send(AudioCommand::SetSlip { deck, on: st.slip[i] });
+                    ctrl.send(AudioCommand::SetSlip {
+                        deck,
+                        on: st.slip[i],
+                    });
                 }
                 // BEAT SYNC (unit#22): o não master assume o andamento do master.
                 "beat_sync" => {
@@ -722,6 +785,12 @@ fn main() -> Result<(), slint::PlatformError> {
                         master_bpm,
                     });
                     sync::aplicar_sync(&mut st, i);
+                    if st.beat_sync[i] && i == st.master {
+                        st.status_text =
+                            format!("BEAT SYNC: deck {n} é MASTER; ative SYNC no outro deck");
+                    } else if st.beat_sync[i] && !send_phase_alignment(&ctrl, &st, i) {
+                        st.status_text = "BEAT SYNC: grade insuficiente para alinhar a fase".into();
+                    }
                 }
                 // MASTER: estado do app (nenhuma chamada na vtable do deck);
                 // decks em sync passam a seguir o novo master.
@@ -736,6 +805,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             master_bpm: sync::bpm_do_master(&st, j),
                         });
                         sync::aplicar_sync(&mut st, j);
+                        send_phase_alignment(&ctrl, &st, j);
                     }
                 }
                 // KEY SYNC (unit#45): desloca o tom para o do outro deck
@@ -785,7 +855,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let state_ref = state.clone();
         let ctrl = audio_controller.clone();
         ui.on_deck_cue_linha(move |n, linha| {
-            let (Some(i), Ok(linha)) = (deck_idx(n), usize::try_from(linha)) else { return };
+            let (Some(i), Ok(linha)) = (deck_idx(n), usize::try_from(linha)) else {
+                return;
+            };
             let Ok(mut st) = state_ref.lock() else { return };
             if let Some(cmd) = acoes::cue_linha(&mut st, i, linha, pos_s(&ctrl, i)) {
                 ctrl.send(cmd);
@@ -819,6 +891,184 @@ fn main() -> Result<(), slint::PlatformError> {
                     presentation::render(&st, &ui);
                 }
             }
+        });
+    }
+
+    // Clique e arrasto na grade/forma de onda ampliada usam segundos
+    // absolutos. O estado continua recebendo a posição relativa para manter
+    // em um só lugar a atualização dos tempos exibidos.
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_wave_seek(move |deck_num, seconds| {
+            let deck = match deck_num {
+                1 => DeckId::Deck1,
+                2 => DeckId::Deck2,
+                _ => return,
+            };
+            if let Ok(mut st) = state_ref.lock() {
+                let dur = match deck {
+                    DeckId::Deck1 => st.deck1.dur_s,
+                    DeckId::Deck2 => st.deck2.dur_s,
+                };
+                if dur <= 0.0 {
+                    return;
+                }
+                let sec = f64::from(seconds).clamp(0.0, dur);
+                st.apply(Command::Seek(deck, sec / dur));
+                ctrl.send(AudioCommand::SeekSeconds {
+                    deck: deck_num as u8,
+                    seconds: sec,
+                });
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
+
+    // Scratch da waveform: durante o contato, o motor lê o buffer seguindo o
+    // mouse. Diferente de seek, deslocamentos negativos geram backspin audível.
+    {
+        let ctrl = audio_controller.clone();
+        ui.on_deck_wave_scratch_begin(move |deck| {
+            if (1..=2).contains(&deck) {
+                ctrl.send(AudioCommand::ScratchBegin { deck: deck as u8 });
+            }
+        });
+    }
+    {
+        let ctrl = audio_controller.clone();
+        ui.on_deck_wave_scratch_to(move |deck, seconds| {
+            if (1..=2).contains(&deck) {
+                ctrl.send(AudioCommand::ScratchTo {
+                    deck: deck as u8,
+                    seconds: f64::from(seconds),
+                });
+            }
+        });
+    }
+    {
+        let ctrl = audio_controller.clone();
+        ui.on_deck_wave_scratch_end(move |deck| {
+            if (1..=2).contains(&deck) {
+                ctrl.send(AudioCommand::ScratchEnd { deck: deck as u8 });
+            }
+        });
+    }
+
+    // GRID/PHRASE EDIT (rekordbox 7.2.8, manual pp. 135–136).
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        let tap_clock = std::time::Instant::now();
+        ui.on_grid_command(move |deck_num, name, value| {
+            let Some(i) = deck_idx(deck_num) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            let position = pos_s(&ctrl, i);
+            let step = st.grid_edit[i].step_ms();
+            let mut changed = false;
+            match name.as_str() {
+                "downbeat" => {
+                    changed = st.edit_beatgrid(i, GridAction::SetDownbeat, position);
+                }
+                "goto_downbeat" => {
+                    let beats = if i == 0 {
+                        &st.deck1.beats
+                    } else {
+                        &st.deck2.beats
+                    };
+                    if let Some(target) = beatgrid::nearest_downbeat_s(beats, position) {
+                        let id = if i == 0 { DeckId::Deck1 } else { DeckId::Deck2 };
+                        let dur = if i == 0 {
+                            st.deck1.dur_s
+                        } else {
+                            st.deck2.dur_s
+                        };
+                        if dur > 0.0 {
+                            st.apply(Command::Seek(id, target / dur));
+                            ctrl.send(AudioCommand::SeekSeconds {
+                                deck: deck_num as u8,
+                                seconds: target,
+                            });
+                        }
+                    }
+                }
+                "shift_left" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(-step), position),
+                "shift_right" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(step), position),
+                "shift_left_3" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(-3), position),
+                "shift_left_1" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(-1), position),
+                "shift_right_1" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(1), position),
+                "shift_right_3" => changed = st.edit_beatgrid(i, GridAction::ShiftMs(3), position),
+                "undo" => changed = st.undo_beatgrid(i),
+                "redo" => changed = st.redo_beatgrid(i),
+                "set_bpm" if value > 0.0 => {
+                    changed = st.edit_beatgrid(i, GridAction::SetBpm(f64::from(value)), position);
+                }
+                "tap" => {
+                    if let Some(bpm) = st.grid_edit[i].tap(tap_clock.elapsed().as_secs_f64()) {
+                        changed = st.edit_beatgrid(i, GridAction::SetBpm(bpm), position);
+                    }
+                }
+                "narrow" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(-step), position),
+                "widen" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(step), position),
+                "narrow_3" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(-3), position),
+                "narrow_1" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(-1), position),
+                "widen_1" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(1), position),
+                "widen_3" => changed = st.edit_beatgrid(i, GridAction::SpacingMs(3), position),
+                "half" => changed = st.edit_beatgrid(i, GridAction::ScaleBpm(0.5), position),
+                "double" => changed = st.edit_beatgrid(i, GridAction::ScaleBpm(2.0), position),
+                "range" => {
+                    st.grid_edit[i].range = if st.grid_edit[i].range == EditRange::Whole {
+                        EditRange::FromPosition
+                    } else {
+                        EditRange::Whole
+                    };
+                }
+                "reset" if value > 0.0 => {
+                    changed = st.edit_beatgrid(
+                        i,
+                        GridAction::ResetAt {
+                            bpm: f64::from(value),
+                        },
+                        position,
+                    );
+                }
+                "fine" => st.grid_edit[i].fine = !st.grid_edit[i].fine,
+                "metronome" => {
+                    st.grid_edit[i].toggle_metronome();
+                    send_metronome(&ctrl, &st, i);
+                }
+                "play" => {
+                    let id = if i == 0 { DeckId::Deck1 } else { DeckId::Deck2 };
+                    let starting = if i == 0 {
+                        st.deck1.audio_ready && !st.deck1.is_playing
+                    } else {
+                        st.deck2.audio_ready && !st.deck2.is_playing
+                    };
+                    if starting && st.beat_sync[i] && i != st.master {
+                        send_phase_alignment(&ctrl, &st, i);
+                    }
+                    ctrl.send(AudioCommand::PlayPause {
+                        deck: deck_num as u8,
+                    });
+                    st.apply(Command::PlayPause(id));
+                }
+                "lock" => {
+                    st.grid_edit[i].locked = !st.grid_edit[i].locked;
+                    st.save_beatgrid(i);
+                }
+                _ => {}
+            }
+            if changed {
+                st.status_text = format!("Beatgrid do deck {deck_num} alterada");
+                if st.grid_edit[i].metronome > 0 {
+                    send_metronome(&ctrl, &st, i);
+                }
+            }
+            render_ui(&ui_weak, &st);
         });
     }
 
@@ -882,12 +1132,19 @@ fn main() -> Result<(), slint::PlatformError> {
         let ui_weak = ui.as_weak();
         // VLBX_CAPTURA_BUSCA=<texto>: busca e carrega o primeiro resultado no deck 1.
         let busca = std::env::var("VLBX_CAPTURA_BUSCA").ok();
+        let captura_grid = std::env::var("VLBX_CAPTURA_GRID")
+            .ok()
+            .and_then(|v| v.parse::<i32>().ok())
+            .filter(|v| (1..=2).contains(v));
         let state_ref = state.clone();
         capture_timer.start(
             slint::TimerMode::SingleShot,
             std::time::Duration::from_secs(8),
             move || {
                 let Some(ui) = ui_weak.upgrade() else { return };
+                if let Some(deck) = captura_grid {
+                    ui.set_grid_edit_deck(deck);
+                }
                 if let (Some(b), Ok(mut st)) = (busca.clone(), state_ref.lock()) {
                     st.apply(Command::Search(b));
                     st.apply(Command::LoadToDeck {
@@ -913,4 +1170,20 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     ui.run()
+}
+
+#[cfg(test)]
+mod busca_tests {
+    use super::nome_normalizado;
+
+    #[test]
+    fn ignora_numeracao_e_extensao() {
+        let a = nome_normalizado("01 - FAIXA PRETA ((FUNKHALL)).mp3");
+        assert_eq!(a, nome_normalizado("FAIXA PRETA ((FUNKHALL)).wav"));
+        assert_eq!(
+            nome_normalizado("01. Brutalismus 3000 - Horime.flac").as_deref(),
+            Some("brutalismus 3000 - horime")
+        );
+        assert_eq!(nome_normalizado("capa.jpg"), None);
+    }
 }

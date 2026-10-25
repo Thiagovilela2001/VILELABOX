@@ -5,6 +5,7 @@
 //! Toda lógica de seleção, ordenação, filtro e decks é puramente testável aqui
 //! sem instanciar janelas Slint.
 
+use crate::beatgrid::{BeatGridEditor, GridAction};
 use crate::library::{self, Playlist, Track};
 use std::cmp::Ordering;
 use std::sync::Arc;
@@ -285,6 +286,9 @@ pub struct AppState {
     pub slip: [bool; 2],
     pub master_tempo: [bool; 2],
     pub loop_manual: [bool; 2],
+    /// Estado do painel GRID EDIT por deck: histórico, faixa de ajuste,
+    /// precisão, bloqueio, TAP e metrônomo.
+    pub grid_edit: [BeatGridEditor; 2],
     /// Loop manual por deck (p6-5): IN pendente e o par IN/OUT que o RELOOP reabre, em segundos.
     pub loop_in: [Option<f64>; 2],
     /// Mixer (p7-0), unidades do rekordbox: fader 0..100, TRIM -10..10, crossfader -10..10.
@@ -331,6 +335,7 @@ impl AppState {
             slip: [false, false],
             master_tempo: [true, true],
             loop_manual: [false, false],
+            grid_edit: [BeatGridEditor::default(), BeatGridEditor::default()],
             loop_in: [None, None],
             mix_fader: [100.0, 100.0],
             mix_trim: [0.0, 0.0],
@@ -347,7 +352,9 @@ impl AppState {
     /// Persiste os cues do deck `i` (0/1); falha vira aviso, não derruba o app.
     pub fn salvar_cues(&mut self, i: usize) {
         let d = if i == 0 { &self.deck1 } else { &self.deck2 };
-        let path = d.loaded_track_idx.and_then(|t| self.tracks.get(t)?.path.clone());
+        let path = d
+            .loaded_track_idx
+            .and_then(|t| self.tracks.get(t)?.path.clone());
         if let (Some(dir), Some(p)) = (&self.cues_dir, path) {
             if let Err(e) = crate::cues_store::gravar(dir, &p, &d.cues) {
                 self.status_text = format!("Cues não gravados: {e}");
@@ -390,11 +397,25 @@ impl AppState {
                                 deck_state.cues.retain(|c| c.is_loop);
                                 deck_state.cues.extend(salvos);
                             }
+                            if let Some((beats, locked)) =
+                                crate::grid_store::read(dir, std::path::Path::new(p))
+                            {
+                                deck_state.beats = beats;
+                                let i = if deck == DeckId::Deck1 { 0 } else { 1 };
+                                self.grid_edit[i].locked = locked;
+                            }
                         }
                         match deck {
-                            DeckId::Deck1 => self.deck1 = deck_state,
-                            DeckId::Deck2 => self.deck2 = deck_state,
+                            DeckId::Deck1 => {
+                                self.deck1 = deck_state;
+                                self.grid_edit[0].clear_history();
+                            }
+                            DeckId::Deck2 => {
+                                self.deck2 = deck_state;
+                                self.grid_edit[1].clear_history();
+                            }
                         }
+                        self.sync_beatgrid(if deck == DeckId::Deck1 { 0 } else { 1 });
                     }
                 }
             }
@@ -495,6 +516,114 @@ impl AppState {
                     let rem2 = (self.deck2.dur_s - deck2_pos_s).max(0.0);
                     self.deck2.tempo_restante = format!("-{}", fmt_tenths(rem2));
                 }
+            }
+        }
+    }
+
+    /// Aplica uma operação do GRID EDIT e mantém deck, coleção e visão geral
+    /// coerentes. A persistência no formato ANLZ é tratada separadamente.
+    pub fn edit_beatgrid(&mut self, i: usize, action: GridAction, position_s: f64) -> bool {
+        let changed = match i {
+            0 => {
+                self.grid_edit[0].apply(&mut self.deck1.beats, action, position_s, self.deck1.dur_s)
+            }
+            1 => {
+                self.grid_edit[1].apply(&mut self.deck2.beats, action, position_s, self.deck2.dur_s)
+            }
+            _ => false,
+        };
+        if changed {
+            self.sync_beatgrid(i);
+            self.save_beatgrid(i);
+        }
+        changed
+    }
+
+    pub fn undo_beatgrid(&mut self, i: usize) -> bool {
+        let changed = match i {
+            0 => self.grid_edit[0].undo(&mut self.deck1.beats),
+            1 => self.grid_edit[1].undo(&mut self.deck2.beats),
+            _ => false,
+        };
+        if changed {
+            self.sync_beatgrid(i);
+            self.save_beatgrid(i);
+        }
+        changed
+    }
+
+    pub fn redo_beatgrid(&mut self, i: usize) -> bool {
+        let changed = match i {
+            0 => self.grid_edit[0].redo(&mut self.deck1.beats),
+            1 => self.grid_edit[1].redo(&mut self.deck2.beats),
+            _ => false,
+        };
+        if changed {
+            self.sync_beatgrid(i);
+            self.save_beatgrid(i);
+        }
+        changed
+    }
+
+    fn sync_beatgrid(&mut self, i: usize) {
+        let (track_idx, beats, dur_s) = if i == 0 {
+            (
+                self.deck1.loaded_track_idx,
+                self.deck1.beats.clone(),
+                self.deck1.dur_s,
+            )
+        } else {
+            (
+                self.deck2.loaded_track_idx,
+                self.deck2.beats.clone(),
+                self.deck2.dur_s,
+            )
+        };
+        let bars: Vec<f32> = beats
+            .iter()
+            .filter(|b| b.beat_number == 1)
+            .map(|b| (f64::from(b.time_ms) / 1000.0 / dur_s.max(0.001)).clamp(0.0, 1.0) as f32)
+            .collect();
+        if i == 0 {
+            self.deck1.bars = bars;
+        } else {
+            self.deck2.bars = bars;
+        }
+        let Some(track) = track_idx.and_then(|idx| self.tracks.get_mut(idx)) else {
+            return;
+        };
+        let Some(grid) = track.grid.as_mut() else {
+            return;
+        };
+        grid.beats = beats;
+        if let Some(first) = grid.beats.first() {
+            grid.bpm = first.bpm;
+            grid.first_beat_time_s = f64::from(first.time_ms) / 1000.0;
+        }
+        grid.variable = grid
+            .beats
+            .first()
+            .is_some_and(|first| grid.beats.iter().any(|b| (b.bpm - first.bpm).abs() > 1e-9));
+        grid.downbeat_index = grid
+            .beats
+            .iter()
+            .position(|b| b.beat_number == 1)
+            .unwrap_or(0) as u32;
+    }
+
+    pub fn save_beatgrid(&mut self, i: usize) {
+        let deck = if i == 0 { &self.deck1 } else { &self.deck2 };
+        let path = deck
+            .loaded_track_idx
+            .and_then(|idx| self.tracks.get(idx)?.path.clone());
+        if let (Some(base), Some(path)) = (&self.cues_dir, path) {
+            if let Err(error) = crate::grid_store::write(
+                base,
+                std::path::Path::new(&path),
+                &deck.beats,
+                self.grid_edit[i].locked,
+            ) {
+                self.status_text = format!("Beatgrid não gravada: {error}");
             }
         }
     }
@@ -866,7 +995,10 @@ mod tests {
         st.tracks = vec![t];
         st.filtered_indices = vec![0];
         let carregar = |st: &mut AppState| {
-            st.apply(Command::LoadToDeck { deck: DeckId::Deck1, filtered_index: 0 });
+            st.apply(Command::LoadToDeck {
+                deck: DeckId::Deck1,
+                filtered_index: 0,
+            });
         };
         carregar(&mut st);
         crate::sync::gravar_memory_cue(&mut st.deck1.cues, 3.25);
@@ -875,7 +1007,12 @@ mod tests {
         st.salvar_cues(0);
         st.deck1 = DeckState::empty();
         carregar(&mut st);
-        let v: Vec<_> = st.deck1.cues.iter().map(|c| (c.hot_cue, c.start_time_s)).collect();
+        let v: Vec<_> = st
+            .deck1
+            .cues
+            .iter()
+            .map(|c| (c.hot_cue, c.start_time_s))
+            .collect();
         assert_eq!(v, [(0, 3.25), (2, 1.5)]);
         let _ = std::fs::remove_dir_all(&dir);
     }

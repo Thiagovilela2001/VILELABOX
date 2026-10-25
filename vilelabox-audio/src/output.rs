@@ -7,6 +7,52 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+fn aligned_position(
+    master: &[(u32, u16)],
+    master_pos_s: f64,
+    slave: &[(u32, u16)],
+    slave_pos_s: f64,
+) -> Option<f64> {
+    if master.len() < 2 || slave.len() < 2 {
+        return None;
+    }
+    let master_ms = master_pos_s.max(0.0) * 1000.0;
+    let mi = master
+        .iter()
+        .rposition(|(ms, _)| f64::from(*ms) <= master_ms)
+        .unwrap_or(0)
+        .min(master.len() - 2);
+    let (ma, number) = master[mi];
+    let mb = master[mi + 1].0;
+    if mb <= ma {
+        return None;
+    }
+    let phase = ((master_ms - f64::from(ma)) / f64::from(mb - ma)).clamp(0.0, 1.0);
+    let slave_ms = slave_pos_s.max(0.0) * 1000.0;
+    let si = (0..slave.len() - 1)
+        .filter(|&i| slave[i].1 == number)
+        .min_by(|&a, &b| {
+            (f64::from(slave[a].0) - slave_ms)
+                .abs()
+                .total_cmp(&(f64::from(slave[b].0) - slave_ms).abs())
+        })?;
+    let (sa, sb) = (slave[si].0, slave[si + 1].0);
+    (sb > sa).then_some((f64::from(sa) + phase * f64::from(sb - sa)) / 1000.0)
+}
+
+#[cfg(test)]
+mod phase_tests {
+    use super::aligned_position;
+
+    #[test]
+    fn alinha_numero_e_fracao_da_batida() {
+        let master = [(1_000, 1), (1_500, 2), (2_000, 3), (2_500, 4), (3_000, 1)];
+        let slave = [(800, 1), (1_400, 2), (2_000, 3), (2_600, 4), (3_200, 1)];
+        let target = aligned_position(&master, 1.625, &slave, 1.95).unwrap();
+        assert!((target - 1.55).abs() < 1e-9);
+    }
+}
+
 /// Comandos em tempo real despachados da interface ou do núcleo para o motor de áudio.
 #[derive(Debug)]
 pub enum AudioCommand {
@@ -40,6 +86,19 @@ pub enum AudioCommand {
     SeekFrame {
         deck: u8,
         frame: u64,
+    },
+    /// Inicia o contato do mouse com a forma de onda, como segurar um vinil.
+    ScratchBegin {
+        deck: u8,
+    },
+    /// Move o ponto segurado; o motor reproduz o caminho, inclusive ao contrário.
+    ScratchTo {
+        deck: u8,
+        seconds: f64,
+    },
+    /// Solta a forma de onda e restaura o transporte anterior.
+    ScratchEnd {
+        deck: u8,
     },
     SetLoop {
         deck: u8,
@@ -81,18 +140,56 @@ pub enum AudioCommand {
         den: u64,
     },
     /// Botões de p6-2 (spec/rekordbox/30-deck.md, 32-loops-cues.md).
-    SetMasterTempo { deck: u8, on: bool },
-    SetSlip { deck: u8, on: bool },
-    SetQuantize { deck: u8, on: bool },
+    SetMasterTempo {
+        deck: u8,
+        on: bool,
+    },
+    SetSlip {
+        deck: u8,
+        on: bool,
+    },
+    SetQuantize {
+        deck: u8,
+        on: bool,
+    },
+    /// Metrônomo do GRID EDIT: nível 0..3 e nós da grade em milissegundos.
+    SetMetronome {
+        deck: u8,
+        level: u8,
+        beats: Vec<(u32, u16)>,
+    },
     /// `master_bpm = None` quando o próprio deck é o master.
-    BeatSync { deck: u8, on: bool, own_bpm: f64, master_bpm: Option<f64> },
-    KeyShift { deck: u8, semitones: i8 },
+    BeatSync {
+        deck: u8,
+        on: bool,
+        own_bpm: f64,
+        master_bpm: Option<f64>,
+    },
+    /// Casa fase e número da batida usando as posições exatas do callback.
+    AlignBeatPhase {
+        deck: u8,
+        master: u8,
+        master_beats: Vec<(u32, u16)>,
+        slave_beats: Vec<(u32, u16)>,
+    },
+    KeyShift {
+        deck: u8,
+        semitones: i8,
+    },
     /// Mixer (p7-0): fader do canal, 0..100.
-    SetFader { deck: u8, valor: f32 },
+    SetFader {
+        deck: u8,
+        valor: f32,
+    },
     /// Mixer (p7-0): TRIM do canal, -10..10.
-    SetTrim { deck: u8, valor: f32 },
+    SetTrim {
+        deck: u8,
+        valor: f32,
+    },
     /// Mixer (p7-0): crossfader, -10 (deck 1) .. 10 (deck 2).
-    SetCrossfader { valor: f32 },
+    SetCrossfader {
+        valor: f32,
+    },
 }
 
 /// Instantâneo consolidado de ambos os decks para consulta da UI.
@@ -258,6 +355,21 @@ impl AudioMixer {
                     2 => self.deck2.seek_frame(frame),
                     _ => {}
                 },
+                AudioCommand::ScratchBegin { deck } => {
+                    if let Some(d) = self.deck_mut(deck) {
+                        d.scratch_begin();
+                    }
+                }
+                AudioCommand::ScratchTo { deck, seconds } => {
+                    if let Some(d) = self.deck_mut(deck) {
+                        d.scratch_to(seconds);
+                    }
+                }
+                AudioCommand::ScratchEnd { deck } => {
+                    if let Some(d) = self.deck_mut(deck) {
+                        d.scratch_end();
+                    }
+                }
                 AudioCommand::SetLoop {
                     deck,
                     start_frame,
@@ -292,7 +404,11 @@ impl AudioMixer {
                     2 => self.deck2.set_cue_and_standby(frame),
                     _ => {}
                 },
-                AudioCommand::AutoLoop { deck, len_frames, start_frame } => {
+                AudioCommand::AutoLoop {
+                    deck,
+                    len_frames,
+                    start_frame,
+                } => {
                     if let Some(d) = self.deck_mut(deck) {
                         match start_frame {
                             Some(s) => d.auto_loop_at(s, len_frames),
@@ -320,9 +436,43 @@ impl AudioMixer {
                         d.set_quantize(on);
                     }
                 }
-                AudioCommand::BeatSync { deck, on, own_bpm, master_bpm } => {
+                AudioCommand::SetMetronome { deck, level, beats } => {
+                    if let Some(d) = self.deck_mut(deck) {
+                        d.set_metronome(level, beats);
+                    }
+                }
+                AudioCommand::BeatSync {
+                    deck,
+                    on,
+                    own_bpm,
+                    master_bpm,
+                } => {
                     if let Some(d) = self.deck_mut(deck) {
                         d.set_beat_sync(on, own_bpm, master_bpm);
+                    }
+                }
+                AudioCommand::AlignBeatPhase {
+                    deck,
+                    master,
+                    master_beats,
+                    slave_beats,
+                } => {
+                    let master_pos = match master {
+                        1 => self.deck1.snapshot().position_seconds,
+                        2 => self.deck2.snapshot().position_seconds,
+                        _ => return,
+                    };
+                    let slave_pos = match deck {
+                        1 => self.deck1.snapshot().position_seconds,
+                        2 => self.deck2.snapshot().position_seconds,
+                        _ => return,
+                    };
+                    if let Some(target) =
+                        aligned_position(&master_beats, master_pos, &slave_beats, slave_pos)
+                    {
+                        if let Some(d) = self.deck_mut(deck) {
+                            d.seek_seconds(target);
+                        }
                     }
                 }
                 AudioCommand::KeyShift { deck, semitones } => {

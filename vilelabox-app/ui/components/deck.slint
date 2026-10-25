@@ -69,6 +69,8 @@ export component Deck inherits Rectangle {
     callback botao(string);
     callback cue_linha(int);
     callback seek_clicked(float);
+    callback grid_toggle();
+    in property <bool> grid_edit_active: false;
 
     property <bool> carregado: root.titulo != "" && root.titulo != "Not Loaded.";
     property <bool> espelho: root.numero == 2;
@@ -306,13 +308,26 @@ export component Deck inherits Rectangle {
 
     // ---------- CORPO (y 122..287) ----------
 
-    // ícone de alternância de painel (4 quadrados)
-    for q[i] in 4 : Rectangle {
-        x: root.dx(9 + mod(i, 2) * 8, 866 + mod(i, 2) * 8);
-        y: (157 + floor(i / 2) * 8) * 1px * s;
-        width: ((6px * s));
-        height: ((6px * s));
+    // Ícone de grade do painel GRID/PHRASE EDIT.
+    Rectangle {
+        x: root.dx(5, 860); y: 151px * s; width: 24px * s; height: 24px * s;
+        background: root.grid_edit_active ? #1769aa : #161616;
+        border-color: root.grid_edit_active ? #36a6ff : #333333;
+        border-width: 1px;
+    }
+    for q[i] in 6 : Rectangle {
+        x: root.dx(9 + i * 3, 864 + i * 3);
+        y: (i == 0 || i == 5 ? 158 : 155) * 1px * s;
+        width: 1px * s;
+        height: (i == 0 || i == 5 ? 10 : 16) * 1px * s;
         background: #e6e9f0;
+    }
+    TouchArea {
+        x: root.dx(5, 860);
+        y: ((151px * s));
+        width: ((24px * s));
+        height: ((24px * s));
+        clicked => { root.grid_toggle(); }
     }
 
     // lista de cues: 2 colunas x 4 linhas + rodapé

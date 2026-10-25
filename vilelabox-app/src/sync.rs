@@ -3,6 +3,8 @@
 //! `evidence/p6-2-sync-slip-quantize.md`).
 
 use crate::state::AppState;
+#[cfg(test)]
+use vilelabox_anlz::Beat;
 use vilelabox_anlz::RawCue;
 
 /// Tom em (semitom 0..12, menor). Aceita "Gm", "F#m", "Bb", "A".
@@ -49,7 +51,7 @@ pub fn key_sync_shift(own: &str, reference: &str) -> Option<i8> {
     let mut melhor: Option<i8> = None;
     for cand in [b, (b + 7).rem_euclid(12), (b + 5).rem_euclid(12)] {
         let d = ((cand - a + 6).rem_euclid(12) - 6) as i8;
-        if melhor.map_or(true, |m| (d as i32).abs() < (m as i32).abs()) {
+        if melhor.is_none_or(|m| (d as i32).abs() < (m as i32).abs()) {
             melhor = Some(d);
         }
     }
@@ -60,7 +62,9 @@ pub fn key_sync_shift(own: &str, reference: &str) -> Option<i8> {
 /// tela (p6-7, A +1 = `Bb`); as demais notas alteradas não foram observadas e
 /// ficam com sustenido.
 pub fn transpor(key: &str, n: i8) -> Option<String> {
-    const NOTAS: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+    const NOTAS: [&str; 12] = [
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B",
+    ];
     if n == 0 {
         return None;
     }
@@ -125,6 +129,49 @@ pub fn aplicar_sync(st: &mut AppState, i: usize) {
     }
 }
 
+/// Posição no áudio do deck escravo que casa com a fase e o número da batida
+/// atualmente ouvida no master. O andamento é tratado separadamente por
+/// `aplicar_sync`; aqui corrigimos a defasagem entre as duas grades.
+#[must_use]
+#[cfg(test)]
+pub fn posicao_sincronizada(
+    master: &[Beat],
+    master_pos_s: f64,
+    slave: &[Beat],
+    slave_pos_s: f64,
+) -> Option<f64> {
+    if master.len() < 2 || slave.len() < 2 {
+        return None;
+    }
+
+    let master_ms = master_pos_s.max(0.0) * 1000.0;
+    let mi = master
+        .iter()
+        .rposition(|b| f64::from(b.time_ms) <= master_ms)
+        .unwrap_or(0)
+        .min(master.len() - 2);
+    let ma = f64::from(master[mi].time_ms);
+    let mb = f64::from(master[mi + 1].time_ms);
+    if mb <= ma {
+        return None;
+    }
+    let fase = ((master_ms - ma) / (mb - ma)).clamp(0.0, 1.0);
+    let numero = master[mi].beat_number;
+    let slave_ms = slave_pos_s.max(0.0) * 1000.0;
+
+    // Casar também 1/2/3/4 evita uma defasagem de uma ou mais batidas.
+    let si = (0..slave.len() - 1)
+        .filter(|&i| slave[i].beat_number == numero)
+        .min_by(|&a, &b| {
+            (f64::from(slave[a].time_ms) - slave_ms)
+                .abs()
+                .total_cmp(&(f64::from(slave[b].time_ms) - slave_ms).abs())
+        })?;
+    let sa = f64::from(slave[si].time_ms);
+    let sb = f64::from(slave[si + 1].time_ms);
+    (sb > sa).then_some((sa + fase * (sb - sa)) / 1000.0)
+}
+
 /// MEMORY (p6-2): grava um memory cue na posição atual, na lista do app;
 /// nenhum método do deck foi chamado. O chamador persiste (`cues_store`).
 pub fn gravar_memory_cue(cues: &mut Vec<RawCue>, pos_s: f64) {
@@ -136,7 +183,10 @@ pub fn gravar_memory_cue(cues: &mut Vec<RawCue>, pos_s: f64) {
 /// Um cue por slot: o novo substitui o anterior.
 pub fn gravar_hot_cue(cues: &mut Vec<RawCue>, slot: u32, pos_s: f64) {
     cues.retain(|c| c.is_loop || c.hot_cue != slot);
-    cues.push(RawCue { hot_cue: slot, ..memory_cue(pos_s) });
+    cues.push(RawCue {
+        hot_cue: slot,
+        ..memory_cue(pos_s)
+    });
 }
 
 fn memory_cue(pos_s: f64) -> RawCue {
@@ -192,6 +242,37 @@ mod tests {
     }
 
     #[test]
+    fn beat_sync_alinha_fase_e_numero_da_batida() {
+        let mk = |n, ms| Beat {
+            beat_number: n,
+            bpm: 120.0,
+            time_ms: ms,
+        };
+        let master = [
+            mk(1, 1000),
+            mk(2, 1500),
+            mk(3, 2000),
+            mk(4, 2500),
+            mk(1, 3000),
+        ];
+        let slave = [
+            mk(1, 800),
+            mk(2, 1400),
+            mk(3, 2000),
+            mk(4, 2600),
+            mk(1, 3200),
+        ];
+
+        let alvo = posicao_sincronizada(&master, 1.625, &slave, 1.95).unwrap();
+        assert!((alvo - 1.55).abs() < 1e-9);
+    }
+
+    #[test]
+    fn beat_sync_sem_grade_nao_inventa_posicao() {
+        assert_eq!(posicao_sincronizada(&[], 1.0, &[], 2.0), None);
+    }
+
+    #[test]
     fn mt_desligado_tom_segue_a_velocidade() {
         // p6-7: deck 1 em A, sync com 172 BPM sobre faixa de 163, MT desligado -> Bb +1.
         let mut st = AppState::new();
@@ -229,8 +310,13 @@ mod tests {
     fn hot_cue_q_ligado_batida_anterior_desligado_posicao_exata() {
         use vilelabox_anlz::Beat;
         // 120 BPM: batidas em 1,0 / 1,5 / 2,0 s.
-        let g: Vec<Beat> =
-            [1000, 1500, 2000].map(|t| Beat { beat_number: 1, bpm: 120.0, time_ms: t }).into();
+        let g: Vec<Beat> = [1000, 1500, 2000]
+            .map(|t| Beat {
+                beat_number: 1,
+                bpm: 120.0,
+                time_ms: t,
+            })
+            .into();
         let mut cues = Vec::new();
         gravar_hot_cue(&mut cues, 1, crate::loops::quantizar_s(&g, 1.7, true));
         gravar_hot_cue(&mut cues, 2, crate::loops::quantizar_s(&g, 1.7, false));

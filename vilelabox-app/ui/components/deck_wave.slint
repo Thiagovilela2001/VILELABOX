@@ -33,10 +33,19 @@ export component DeckWave inherits Rectangle {
     in property <int> numero: 1;
     in property <[WaveTile]> tiles;
     in property <float> pos_s: 0.0;
+    // Segundos da mídia percorridos por segundo real. Compensa o pitch para
+    // que grades sincronizadas tenham o mesmo espaçamento visual.
+    in property <float> playback_rate: 1.0;
     in property <[Marca]> marcas;
+    in property <bool> audio_ready: false;
+    in property <bool> grid_editing: false;
+    callback seek_absolute(float);
+    callback scratch_begin();
+    callback scratch_to(float);
+    callback scratch_end();
 
     // 24 s x 150 colunas/s na largura da linha (waveform::JANELA_S).
-    property <length> px_col: self.width / (24 * 150);
+    property <length> px_col: self.width / (24 * 150 * max(0.01, root.playback_rate));
 
     background: #000000;
     clip: true;
@@ -103,7 +112,7 @@ export component DeckWave inherits Rectangle {
         x: parent.width / 2 - (1px * s);
         width: ((2px * s));
         height: parent.height;
-        background: #ffffff;
+        background: root.grid_editing ? #ef263b : #ffffff;
     }
 
     Text {
@@ -113,5 +122,58 @@ export component DeckWave inherits Rectangle {
         color: #6b6f7a;
         font_size: ((9px * s));
         font_weight: 700;
+    }
+
+    // A grade ampliada funciona como a superfície de um deck: pressionar
+    // segura a mídia e arrastar reproduz o caminho percorrido. A roda mantém
+    // a navegação por saltos curtos.
+    grid_touch := TouchArea {
+        enabled: root.audio_ready;
+        property <float> inicio_s;
+        property <float> sensibilidade: 1.0;
+        property <bool> arrastando: false;
+        mouse-cursor: self.pressed ? grabbing : grab;
+
+        function delta_segundos(px: length) -> float {
+            return px / self.width * 24 * root.playback_rate * self.sensibilidade;
+        }
+
+        pointer-event(e) => {
+            if e.button == PointerEventButton.left && e.kind == PointerEventKind.down {
+                // Shift reduz a sensibilidade a 15% para acertar transientes e
+                // linhas da grade sem exigir movimentos microscópicos.
+                self.sensibilidade = e.modifiers.shift ? 0.15 : 1.0;
+                self.arrastando = true;
+                self.inicio_s = root.pos_s;
+                root.scratch_begin();
+            } else if e.kind == PointerEventKind.up || e.kind == PointerEventKind.cancel {
+                if self.arrastando { root.scratch_end(); }
+                self.arrastando = false;
+            }
+        }
+        moved => {
+            if self.arrastando {
+                root.scratch_to(max(0, self.inicio_s - self.delta_segundos(self.mouse-x - self.pressed-x)));
+            }
+        }
+        // A roda funciona como jog. Com Shift, cada passo fica dez vezes mais
+        // fino; o gesto é consumido para não rolar a biblioteca por acidente.
+        scroll-event(e) => {
+            if e.delta-y != 0px {
+                root.seek_absolute(max(0, root.pos_s + e.delta-y / 120px * (e.modifiers.shift ? 0.05 : 0.5)));
+                return accept;
+            }
+            reject
+        }
+    }
+
+    Text {
+        visible: grid_touch.has-hover && root.audio_ready;
+        x: parent.width - self.preferred-width - (8px * s);
+        y: parent.height - self.preferred-height - (3px * s);
+        text: "SCRATCH  ·  SHIFT: FINO  ·  RODA: JOG";
+        color: #aeb4c0;
+        font_size: ((8px * s));
+        opacity: 0.75;
     }
 }

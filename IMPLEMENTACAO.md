@@ -1,5 +1,19 @@
 # Registro de implementação
 
+## Beatgrid, metrônomo e scratch na waveform — 2026-10-25
+
+| Campo | Resultado |
+| --- | --- |
+| Especificação | `spec/rekordbox/20-bpm-grid.md`: contrato GRID/PHRASE EDIT do rekordbox 7.2.8 (manual pp. 134–136) |
+| Editor de grade | `vilelabox-app/src/beatgrid.rs`: downbeat 1.1, deslocamento de 3 ms (1 ms fino), estreitar/alargar, ÷2/×2, TAP, modos inteiro/parcial e undo/redo com histórico de 64 estados |
+| Persistência | `vilelabox-app/src/grid_store.rs`: sidecar JSON atômico por faixa, incluindo o bloqueio de edição |
+| Interface | `ui/components/grid_edit.slint` operável por mouse; arrasto da waveform em `deck_wave.slint` com scratch/backspin bidirecional e `Shift` a 15% de sensibilidade |
+| Motor de áudio | clique de metrônomo com três volumes e acento no 1 gerado em `vilelabox-audio/src/deck.rs`; leitura bidirecional com interpolação linear durante o gesto |
+| Lacunas | âncora parcial e filtragem do TAP não recuperadas do binário (indexação Ghidra do executável de 573 MB excedeu a sessão); regras determinísticas documentadas como ADAPTAÇÃO |
+| Testes | `metronome_tests.rs` e `scratch_tests.rs` no `vilelabox-audio`; 170 testes aprovados na workspace |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados; lints do Rust 1.99.1 saneados no commit anterior |
+| Próximo gate | exportação USB (P2.3) e banco próprio `vilelabox-storage` (P3.1) |
+
 ## Medição da UI em execução — 2026-10-24
 
 | Campo | Resultado |

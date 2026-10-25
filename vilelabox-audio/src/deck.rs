@@ -89,6 +89,15 @@ pub struct Deck {
     /// SLIP (p6-6): posição em sombra, em frames, que segue andando durante
     /// um loop automático aberto com SLIP ligado; a saída do loop vai para ela.
     sombra: Option<f64>,
+    metronome_level: u8,
+    metronome_beats: Vec<(u64, u16)>,
+    metronome_next: usize,
+    metronome_click_left: u32,
+    metronome_click_len: u32,
+    metronome_accent: bool,
+    scratch_active: bool,
+    scratch_target_frame: f64,
+    scratch_resume_state: TransportState,
 }
 
 impl Default for Deck {
@@ -118,6 +127,15 @@ impl Deck {
             out_rate: 0,
             frac: 0.0,
             sombra: None,
+            metronome_level: 0,
+            metronome_beats: Vec::new(),
+            metronome_next: 0,
+            metronome_click_left: 0,
+            metronome_click_len: 0,
+            metronome_accent: false,
+            scratch_active: false,
+            scratch_target_frame: 0.0,
+            scratch_resume_state: TransportState::Stopped,
         }
     }
 
@@ -132,6 +150,9 @@ impl Deck {
         self.loop_range = None;
         self.loop_active = false;
         self.sombra = None;
+        self.scratch_active = false;
+        self.scratch_target_frame = cue as f64;
+        self.reset_metronome_cursor();
     }
 
     /// Descarrega o deck e redefine os parâmetros.
@@ -143,6 +164,7 @@ impl Deck {
         self.state = TransportState::Stopped;
         self.loop_range = None;
         self.loop_active = false;
+        self.scratch_active = false;
     }
 
     /// Inicia a reprodução (`Playing`).
@@ -218,6 +240,8 @@ impl Deck {
         let total = self.audio.as_ref().map_or(0, |a| a.total_frames);
         let clamped = frame.min(total);
         self.position_frames = clamped;
+        self.frac = 0.0;
+        self.reset_metronome_cursor();
         if self.state == TransportState::CueStandby && clamped != self.cue_frame {
             self.state = TransportState::Stopped;
         }
@@ -229,6 +253,36 @@ impl Deck {
             let frame = (seconds.max(0.0) * f64::from(audio.sample_rate)).round() as u64;
             self.seek_frame(frame);
         }
+    }
+
+    /// Segura virtualmente a mídia. O transporte passa a responder à mão,
+    /// inclusive produzindo áudio reverso quando o alvo recua.
+    pub fn scratch_begin(&mut self) {
+        if self.audio.is_none() || self.scratch_active {
+            return;
+        }
+        self.scratch_resume_state = self.state;
+        self.scratch_target_frame = self.position_frames as f64 + self.frac;
+        self.scratch_active = true;
+        self.metronome_click_left = 0;
+    }
+
+    pub fn scratch_to(&mut self, seconds: f64) {
+        let Some(audio) = &self.audio else { return };
+        if !self.scratch_active || !seconds.is_finite() {
+            return;
+        }
+        self.scratch_target_frame = (seconds.max(0.0) * f64::from(audio.sample_rate))
+            .clamp(0.0, audio.total_frames.saturating_sub(1) as f64);
+    }
+
+    pub fn scratch_end(&mut self) {
+        if !self.scratch_active {
+            return;
+        }
+        self.scratch_active = false;
+        self.state = self.scratch_resume_state;
+        self.reset_metronome_cursor();
     }
 
     /// Define e ativa um intervalo de loop em frames `[start, end)`.
@@ -255,6 +309,7 @@ impl Deck {
         let total = self.audio.as_ref().map_or(0, |a| a.total_frames);
         self.position_frames = frame.min(total);
         self.frac = 0.0;
+        self.reset_metronome_cursor();
         self.state = TransportState::Playing;
     }
 
@@ -298,6 +353,30 @@ impl Deck {
         self.quantize = on;
     }
 
+    /// Metrônomo audível sincronizado aos nós da beatgrid. O compasso 1 recebe
+    /// acento; os níveis 1..3 seguem o seletor de volume do painel.
+    pub fn set_metronome(&mut self, level: u8, beats: Vec<(u32, u16)>) {
+        self.metronome_level = level.min(3);
+        let sample_rate = self.audio.as_ref().map_or(44_100, |a| a.sample_rate);
+        self.metronome_beats = beats
+            .into_iter()
+            .map(|(ms, number)| {
+                (
+                    ((u64::from(ms) * u64::from(sample_rate)) + 500) / 1000,
+                    number,
+                )
+            })
+            .collect();
+        self.metronome_click_left = 0;
+        self.reset_metronome_cursor();
+    }
+
+    fn reset_metronome_cursor(&mut self) {
+        self.metronome_next = self
+            .metronome_beats
+            .partition_point(|(frame, _)| *frame < self.position_frames);
+    }
+
     /// BEAT SYNC (unit#22, p6-2). `master_bpm = None`: este deck é o master e
     /// nada muda além do estado (observado). Não master: assume o andamento do
     /// master (observado 130,00 -> 130,14 BPM). Desligar mantém o andamento atual
@@ -339,9 +418,8 @@ impl Deck {
     /// Multiplica o tamanho do loop por `num/den` mantendo o início (½ e ×2).
     pub fn loop_cut(&mut self, num: u64, den: u64) {
         if let Some((start, end)) = self.loop_range {
-            if den > 0 {
-                let len = ((end - start) * num / den).max(1);
-                self.loop_range = Some((start, start + len));
+            if let Some(len) = ((end - start) * num).checked_div(den) {
+                self.loop_range = Some((start, start + len.max(1)));
             }
         }
     }
@@ -369,8 +447,9 @@ impl Deck {
             return;
         };
 
-        let is_running =
-            self.state == TransportState::Playing || self.state == TransportState::CuePreview;
+        let is_running = self.scratch_active
+            || self.state == TransportState::Playing
+            || self.state == TransportState::CuePreview;
 
         if !is_running {
             out_l[..n_frames].fill(0.0);
@@ -385,23 +464,47 @@ impl Deck {
         } else {
             self.speed_ratio
         };
+        // Percorrer o caminho durante o bloco produz o gesto audível, em vez
+        // de uma sequência de saltos mudos. O sinal negativo é o backspin.
+        let scratch_step = if self.scratch_active {
+            let here = self.position_frames as f64 + self.frac;
+            ((self.scratch_target_frame - here) / n_frames.max(1) as f64).clamp(-64.0, 64.0)
+        } else {
+            0.0
+        };
         for i in 0..n_frames {
             // Verificar loop
-            if self.loop_active {
+            if !self.scratch_active && self.loop_active {
                 if let Some((loop_start, loop_end)) = self.loop_range {
                     if self.position_frames >= loop_end {
                         self.position_frames = loop_start;
+                        self.metronome_next = self
+                            .metronome_beats
+                            .partition_point(|(frame, _)| *frame < self.position_frames);
                     }
                 }
             }
 
             // Verificar fim da faixa
             if self.position_frames >= total {
-                self.position_frames = total;
-                self.state = TransportState::Stopped;
-                out_l[i..n_frames].fill(0.0);
-                out_r[i..n_frames].fill(0.0);
-                break;
+                if self.scratch_active && total > 0 {
+                    self.position_frames = total - 1;
+                    self.frac = 0.0;
+                } else {
+                    self.position_frames = total;
+                    self.state = TransportState::Stopped;
+                    out_l[i..n_frames].fill(0.0);
+                    out_r[i..n_frames].fill(0.0);
+                    break;
+                }
+            }
+
+            // Um vinil segurado não repete uma amostra DC enquanto o mouse
+            // está imóvel; ele fica silencioso até surgir novo movimento.
+            if self.scratch_active && scratch_step.abs() < 1e-6 {
+                out_l[i] = 0.0;
+                out_r[i] = 0.0;
+                continue;
             }
 
             // ponytail: interpolação linear; trocar por sinc/polifásico se o aliasing incomodar.
@@ -412,12 +515,59 @@ impl Deck {
             let f = self.frac as f32;
             out_l[i] = l0 + (l1 - l0) * f;
             out_r[i] = r0 + (r1 - r0) * f;
-            self.frac += step;
-            let avanco = self.frac.floor();
-            self.frac -= avanco;
-            self.position_frames += avanco as u64;
-            if let Some(s) = self.sombra.as_mut() {
-                *s = (*s + step).min(total as f64);
+            if !self.scratch_active && self.metronome_level > 0 {
+                while self
+                    .metronome_beats
+                    .get(self.metronome_next)
+                    .is_some_and(|(frame, _)| *frame <= self.position_frames)
+                {
+                    self.metronome_accent = self.metronome_beats[self.metronome_next].1 == 1;
+                    let click_rate = if self.out_rate > 0 {
+                        self.out_rate
+                    } else {
+                        audio.sample_rate
+                    };
+                    self.metronome_click_len = (click_rate / 35).max(1);
+                    self.metronome_click_left = self.metronome_click_len;
+                    self.metronome_next += 1;
+                }
+                if self.metronome_click_left > 0 {
+                    let elapsed = self.metronome_click_len - self.metronome_click_left;
+                    let frequency = if self.metronome_accent {
+                        1760.0
+                    } else {
+                        1100.0
+                    };
+                    let click_rate = if self.out_rate > 0 {
+                        self.out_rate
+                    } else {
+                        audio.sample_rate
+                    };
+                    let phase =
+                        std::f32::consts::TAU * frequency * elapsed as f32 / click_rate as f32;
+                    let envelope =
+                        self.metronome_click_left as f32 / self.metronome_click_len as f32;
+                    let gain = [0.0, 0.08, 0.16, 0.26][usize::from(self.metronome_level)];
+                    let accent = if self.metronome_accent { 1.25 } else { 1.0 };
+                    let click = phase.sin() * envelope * gain * accent;
+                    out_l[i] = (out_l[i] + click).clamp(-1.0, 1.0);
+                    out_r[i] = (out_r[i] + click).clamp(-1.0, 1.0);
+                    self.metronome_click_left -= 1;
+                }
+            }
+            if self.scratch_active {
+                let next = (self.position_frames as f64 + self.frac + scratch_step)
+                    .clamp(0.0, total.saturating_sub(1) as f64);
+                self.position_frames = next.floor() as u64;
+                self.frac = next.fract();
+            } else {
+                self.frac += step;
+                let avanco = self.frac.floor();
+                self.frac -= avanco;
+                self.position_frames += avanco as u64;
+                if let Some(s) = self.sombra.as_mut() {
+                    *s = (*s + step).min(total as f64);
+                }
             }
         }
     }

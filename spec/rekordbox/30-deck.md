@@ -67,6 +67,10 @@ Regras:
 - BEAT SYNC: velocidade = BPM do master ÷ BPM da faixa; a tela mostra o
   andamento resultante e a variação em porcentagem com uma casa (OBSERVADO:
   130,00 → 130,14 BPM, `+0,1 %`).
+- No VILELABOX, ligar BEAT SYNC ou iniciar um deck escravo já sincronizado casa
+  também o número e a fração da batida usando as posições do próprio callback
+  de áudio. A waveform compensa a velocidade de reprodução, para que grades
+  com BPM original diferente apareçam alinhadas na mesma escala temporal.
 - KEY SYNC: o destino é a tonalidade do outro deck, sua dominante (+7 semitons)
   ou sua subdominante (+5) — as três vizinhas no círculo de quintas — e vale o de
   menor deslocamento absoluto a partir do tom da própria faixa (INFERIDO de dois

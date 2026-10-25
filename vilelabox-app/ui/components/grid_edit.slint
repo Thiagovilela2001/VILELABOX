@@ -1,0 +1,110 @@
+component GridButton inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> text;
+    in property <bool> active: false;
+    in property <bool> enabled: true;
+    in property <bool> compact: false;
+    callback clicked();
+    background: !root.enabled ? #242424 : hit.pressed ? #464646 : root.active ? #1769aa : hit.has-hover ? #3b3b3b : #303030;
+    border-color: root.active ? #36a6ff : #242424;
+    border-width: 1px;
+    Text {
+        text: root.text;
+        color: root.enabled ? #eeeeee : #696969;
+        font-size: (root.compact ? 9px : 11px) * root.s;
+        font-weight: 650;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    hit := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+component GroupBox inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> title;
+    background: #292929;
+    border-color: #181818;
+    border-width: 1px;
+    Text { x: 6px * root.s; y: 3px * root.s; text: root.title; color: #858585; font-size: 8px * root.s; font-weight: 600; }
+}
+
+// Disposição observada no manual oficial do rekordbox 7.2.8, pp. 135-136.
+// O painel fica encaixado no corpo do deck selecionado, em três fileiras.
+export component GridEditPanel inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <int> deck: 1;
+    in property <string> bpm: "120.00";
+    in property <bool> partial: false;
+    in property <bool> locked: false;
+    in property <bool> can_undo: false;
+    in property <bool> can_redo: false;
+    in property <int> metronome: 0;
+    callback command(string, float);
+    background: #282828;
+    border-color: #111111;
+    border-width: 1px;
+
+    Rectangle { x: 0; y: 0; width: parent.width; height: 28px * root.s; background: #303030; }
+    Text { x: 12px * root.s; y: 5px * root.s; text: "GRID EDIT"; color: #a7a7a7; font-size: 15px * root.s; font-weight: 500; }
+    Rectangle {
+        x: 105px * root.s; y: 5px * root.s; width: 50px * root.s; height: 18px * root.s;
+        background: #1e1e1e; border-color: #444444; border-width: 1px;
+        Text { text: "DECK " + root.deck; color: #c9c9c9; font-size: 8px * root.s; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    GridButton { x: parent.width - 29px * root.s; y: 3px * root.s; width: 24px * root.s; height: 21px * root.s; s: root.s; text: "×"; compact: true; clicked => { root.command("close", 0); } }
+
+    GridButton { x: 12px * root.s; y: 33px * root.s; width: 88px * root.s; height: 36px * root.s; s: root.s; text: "1.1 Bars"; enabled: !root.locked; clicked => { root.command("downbeat", 0); } }
+    GroupBox { x: 12px * root.s; y: 74px * root.s; width: 88px * root.s; height: 78px * root.s; s: root.s; title: "AUTO GAIN";
+        Text { y: 20px * root.s; width: parent.width; height: 38px * root.s; text: "—"; color: #777777; font-size: 22px * root.s; horizontal-alignment: center; vertical-alignment: center; }
+    }
+
+    GridButton { x: 105px * root.s; y: 33px * root.s; width: 82px * root.s; height: 36px * root.s; s: root.s; text: "|<  1.1"; compact: true; clicked => { root.command("goto_downbeat", 0); } }
+    Rectangle {
+        x: 105px * root.s; y: 74px * root.s; width: 82px * root.s; height: 36px * root.s;
+        background: #181818; border-color: bpm_input.has-focus ? #298ed9 : #3d3d3d; border-width: 1px;
+        bpm_input := TextInput {
+            x: 5px * root.s; width: parent.width - 10px * root.s; height: parent.height;
+            text: root.bpm; color: root.locked ? #6b6b6b : #f0f0f0;
+            font-size: 14px * root.s; font-weight: 650; single-line: true; enabled: !root.locked;
+            horizontal-alignment: center;
+            accepted => { if self.text.is-float() { root.command("set_bpm", self.text.to-float()); } }
+        }
+    }
+    GridButton { x: 105px * root.s; y: 115px * root.s; width: 39px * root.s; height: 37px * root.s; s: root.s; text: ">"; clicked => { root.command("play", 0); } }
+    GridButton { x: 148px * root.s; y: 115px * root.s; width: 39px * root.s; height: 37px * root.s; s: root.s; text: "TAP"; compact: true; enabled: !root.locked; clicked => { root.command("tap", 0); } }
+
+    GroupBox { x: 193px * root.s; y: 33px * root.s; width: 238px * root.s; height: 36px * root.s; s: root.s; title: "SHIFT GRID"; }
+    GridButton { x: 195px * root.s; y: 45px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: "<<< |"; compact: true; enabled: !root.locked; clicked => { root.command("shift_left_3", 0); } }
+    GridButton { x: 253px * root.s; y: 45px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: "< |"; compact: true; enabled: !root.locked; clicked => { root.command("shift_left_1", 0); } }
+    GridButton { x: 313px * root.s; y: 45px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: "| >"; compact: true; enabled: !root.locked; clicked => { root.command("shift_right_1", 0); } }
+    GridButton { x: 371px * root.s; y: 45px * root.s; width: 58px * root.s; height: 22px * root.s; s: root.s; text: "| >>>"; compact: true; enabled: !root.locked; clicked => { root.command("shift_right_3", 0); } }
+
+    GroupBox { x: 193px * root.s; y: 74px * root.s; width: 238px * root.s; height: 36px * root.s; s: root.s; title: "GRID WIDTH"; }
+    GridButton { x: 195px * root.s; y: 86px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: ">> | <<"; compact: true; enabled: !root.locked; clicked => { root.command("narrow_3", 0); } }
+    GridButton { x: 253px * root.s; y: 86px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: "> | <"; compact: true; enabled: !root.locked; clicked => { root.command("narrow_1", 0); } }
+    GridButton { x: 313px * root.s; y: 86px * root.s; width: 56px * root.s; height: 22px * root.s; s: root.s; text: "< | >"; compact: true; enabled: !root.locked; clicked => { root.command("widen_1", 0); } }
+    GridButton { x: 371px * root.s; y: 86px * root.s; width: 58px * root.s; height: 22px * root.s; s: root.s; text: "<< | >>"; compact: true; enabled: !root.locked; clicked => { root.command("widen_3", 0); } }
+
+    GridButton { x: 193px * root.s; y: 115px * root.s; width: 56px * root.s; height: 37px * root.s; s: root.s; text: "× 2"; enabled: !root.locked; clicked => { root.command("double", 0); } }
+    GridButton { x: 253px * root.s; y: 115px * root.s; width: 56px * root.s; height: 37px * root.s; s: root.s; text: "× ½"; enabled: !root.locked; clicked => { root.command("half", 0); } }
+    GridButton { x: 313px * root.s; y: 115px * root.s; width: 73px * root.s; height: 37px * root.s; s: root.s; text: root.partial ? "WHOLE" : "FROM HERE"; compact: true; active: root.partial; enabled: !root.locked; clicked => { root.command("range", 0); } }
+    GridButton { x: 390px * root.s; y: 115px * root.s; width: 78px * root.s; height: 37px * root.s; s: root.s; text: "RESET"; compact: true; enabled: !root.locked; clicked => { root.command("reset", bpm_input.text.is-float() ? bpm_input.text.to-float() : 0); } }
+
+    GridButton { x: 438px * root.s; y: 33px * root.s; width: 49px * root.s; height: 36px * root.s; s: root.s; text: "UNDO"; compact: true; enabled: root.can_undo && !root.locked; clicked => { root.command("undo", 0); } }
+    GridButton { x: 491px * root.s; y: 33px * root.s; width: 49px * root.s; height: 36px * root.s; s: root.s; text: "REDO"; compact: true; enabled: root.can_redo && !root.locked; clicked => { root.command("redo", 0); } }
+    GridButton { x: 438px * root.s; y: 74px * root.s; width: 102px * root.s; height: 36px * root.s; s: root.s; text: root.locked ? "LOCKED" : "UNLOCKED"; compact: true; active: root.locked; clicked => { root.command("lock", 0); } }
+    GridButton { x: 472px * root.s; y: 115px * root.s; width: 68px * root.s; height: 37px * root.s; s: root.s; text: root.metronome == 0 ? "METRO" : "METRO  " + root.metronome; compact: true; active: root.metronome > 0; clicked => { root.command("metronome", 0); } }
+
+    Rectangle { x: 548px * root.s; y: 28px * root.s; width: 1px * root.s; height: parent.height - 28px * root.s; background: #151515; }
+    Text { x: 561px * root.s; y: 35px * root.s; text: "PHRASE EDIT"; color: #8a8a8a; font-size: 12px * root.s; }
+    GridButton { x: 561px * root.s; y: 55px * root.s; width: 94px * root.s; height: 28px * root.s; s: root.s; text: "CUT"; enabled: false; }
+    GridButton { x: 561px * root.s; y: 87px * root.s; width: 94px * root.s; height: 28px * root.s; s: root.s; text: "----"; enabled: false; }
+    GridButton { x: 561px * root.s; y: 119px * root.s; width: 94px * root.s; height: 28px * root.s; s: root.s; text: "CLEAR"; enabled: false; }
+
+    Text {
+        x: 671px * root.s; y: 44px * root.s;
+        width: parent.width - 685px * root.s; height: 94px * root.s;
+        text: root.locked ? "A grade está bloqueada.\nClique em LOCKED para editar." : "3 ms  ·  1 ms\nBPM " + root.bpm + "\nDeck " + root.deck;
+        color: #777777; font-size: 9px * root.s; wrap: word-wrap;
+    }
+}

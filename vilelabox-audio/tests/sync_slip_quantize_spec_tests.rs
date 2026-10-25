@@ -2,7 +2,7 @@
 //! BEAT SYNC, KEY SYNC e Q (rekordbox 7.2.8, dossiê
 //! `evidence/p6-2-sync-slip-quantize.md`).
 use std::sync::Arc;
-use vilelabox_audio::{AudioBuffer, Deck};
+use vilelabox_audio::{AudioBuffer, AudioCommand, AudioMixer, Deck};
 
 fn deck() -> Deck {
     let mut d = Deck::new();
@@ -26,6 +26,23 @@ fn beat_sync_nao_master_assume_andamento_do_master() {
     assert!((bpm - 130.14).abs() < 1e-9);
     // +0,1 % na tela
     assert_eq!(format!("{:+.1}", (d.speed_ratio - 1.0) * 100.0), "+0.1");
+}
+
+#[test]
+fn alinhamento_de_fase_usa_posicoes_atuais_do_motor() {
+    let mut mixer = AudioMixer::offline();
+    let audio = Arc::new(AudioBuffer::silence(1_000, 5_000));
+    mixer.deck1.load_audio(Arc::clone(&audio), None);
+    mixer.deck2.load_audio(audio, None);
+    mixer.deck1.seek_seconds(1.625);
+    mixer.deck2.seek_seconds(1.95);
+    mixer.apply(AudioCommand::AlignBeatPhase {
+        deck: 2,
+        master: 1,
+        master_beats: vec![(1_000, 1), (1_500, 2), (2_000, 3), (2_500, 4), (3_000, 1)],
+        slave_beats: vec![(800, 1), (1_400, 2), (2_000, 3), (2_600, 4), (3_200, 1)],
+    });
+    assert!((mixer.deck2.snapshot().position_seconds - 1.55).abs() < 0.001);
 }
 
 #[test]
