@@ -1,0 +1,351 @@
+import { Chevron, Theme } from "../theme.slint";
+
+export component TopMenuButton inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> text;
+    height: ((28px * s));
+    background: touch.has_hover ? Theme.bg_hover : transparent;
+    border-radius: ((3px * s));
+    touch := TouchArea { }
+    HorizontalLayout {
+        padding_left: ((10px * s));
+        padding_right: ((10px * s));
+        Text {
+            text: root.text;
+            color: touch.has_hover ? Theme.text_main : Theme.text_dim;
+            font_size: ((12px * s));
+            vertical_alignment: center;
+        }
+    }
+}
+
+export component HeaderPill inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> label;
+    in property <color> dot_color: Theme.accent;
+    in property <bool> active: false;
+    height: ((24px * s));
+    background: root.active ? Theme.bg_hover : Theme.bg_panel_alt;
+    border_color: root.active ? Theme.accent : Theme.border_strong;
+    border_width: ((1px * s));
+    border_radius: ((3px * s));
+    touch := TouchArea { }
+    HorizontalLayout {
+        padding_left: ((8px * s));
+        padding_right: ((8px * s));
+        spacing: ((6px * s));
+        Rectangle {
+            width: ((6px * s));
+            height: ((6px * s));
+            background: root.dot_color;
+            border_radius: ((3px * s));
+            y: (parent.height - self.height) / 2;
+        }
+        Text {
+            text: root.label;
+            color: Theme.text_main;
+            font_size: ((11px * s));
+            font_weight: 700;
+            vertical_alignment: center;
+        }
+    }
+}
+
+export component RailButton inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> glyph;
+    width: ((30px * s));
+    height: ((30px * s));
+    Text {
+        text: root.glyph;
+        color: #ffffff;
+        font_size: ((17px * s));
+    }
+}
+
+// Trilho de ícones do navegador (46): atalhos de fontes. Sem ação ainda.
+export component IconRail inherits Rectangle {
+    in property <float> s: 1.0;
+    width: ((46px * s));
+    background: #000000;
+    VerticalLayout {
+        padding_top: ((38px * s));
+        spacing: ((5px * s));
+        alignment: start;
+        for g in ["☆", "♪", "⊞", "◎", "♫", "◐", "⇩", "⚙"] : RailButton {
+            s: root.s;
+            x: ((8px * s));
+            glyph: g;
+        }
+    }
+}
+
+// Barra de menus (28). Itens e posições x medidos na captura do rekordbox
+// 7.2.8 (2026-10-24), unidades de 1920.
+export component MenuBar inherits Rectangle {
+    in property <float> s: 1.0;
+    height: ((28px * s));
+    background: #141414;
+
+    for item[i] in ["Ficheiro", "Ver", "Faixa", "Lista de reprodução", "Ajuda"] : Text {
+        x: [14, 105, 162, 233, 420][i] * 1px * root.s;
+        height: parent.height;
+        text: item;
+        color: #c8c8c8;
+        font_size: ((17px * s));
+        vertical_alignment: center;
+    }
+}
+
+// Ícone quadrado da barra global: só forma e cor, sem arte de terceiros.
+component ToolIcon inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> glyph;
+    in property <bool> aceso: false;
+    width: ((24px * s));
+    height: ((22px * s));
+    background: root.aceso ? #1f6fd1 : transparent;
+    border_radius: ((2px * s));
+    Text {
+        text: root.glyph;
+        color: #ffffff;
+        font_size: ((14px * s));
+        font_weight: 700;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+}
+
+// Barra global (36): modo, disposição, painéis, LINK e indicadores à direita.
+// Posições x medidas na captura do rekordbox 7.2.8, unidades de 1920.
+export component PerformanceToolbar inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> clock_text: "--:--";
+    height: ((36px * s));
+    background: #0a0a0a;
+
+    Text {
+        x: ((20px * s));
+        height: parent.height;
+        text: "PERFORMANCE";
+        color: #ffffff;
+        font_size: ((13px * s));
+        font_weight: 700;
+        vertical_alignment: center;
+    }
+    Chevron { s: root.s; x: ((148px * s)); y: ((15px * s)); }
+
+    // disposição: três traços + seta
+    for l in 3 : Rectangle {
+        x: ((172px * s));
+        y: (11 + l * 6) * 1px * root.s;
+        width: ((20px * s));
+        height: ((2px * s));
+        background: #ffffff;
+    }
+    Chevron { s: root.s; x: ((200px * s)); y: ((15px * s)); }
+
+    // painéis: FX, sampler (forma de onda), pads (grade), mixer (aceso), gravação
+    ToolIcon { s: root.s; x: ((244px * s)); y: ((7px * s)); glyph: "FX"; }
+    ToolIcon {
+        s: root.s;
+        x: ((290px * s));
+        y: ((7px * s));
+        for b[i] in [6, 12, 16, 10, 14, 8] : Rectangle {
+            x: (3 + i * 3.4) * 1px * root.s;
+            y: (11 - b / 2) * 1px * root.s;
+            width: ((2px * s));
+            height: b * 1px * root.s;
+            background: #ffffff;
+        }
+    }
+    ToolIcon {
+        s: root.s;
+        x: ((337px * s));
+        y: ((7px * s));
+        for c in 9 : Rectangle {
+            x: (4 + mod(c, 3) * 6) * 1px * root.s;
+            y: (3 + floor(c / 3) * 6) * 1px * root.s;
+            width: ((4px * s));
+            height: ((4px * s));
+            background: #ffffff;
+        }
+    }
+    ToolIcon {
+        s: root.s;
+        x: ((382px * s));
+        y: ((7px * s));
+        aceso: true;
+        for f[i] in [10, 4, 13] : Rectangle {
+            x: (5 + i * 6) * 1px * root.s;
+            y: ((3px * s));
+            width: ((2px * s));
+            height: ((16px * s));
+            background: #ffffff;
+            Rectangle { x: -((2px * s)); y: f * 1px * root.s - (2px * s); width: ((6px * s)); height: ((3px * s)); background: #ffffff; }
+        }
+    }
+    ToolIcon {
+        s: root.s;
+        x: ((430px * s));
+        y: ((7px * s));
+        Rectangle {
+            width: ((16px * s));
+            height: ((16px * s));
+            border_radius: ((8px * s));
+            border_color: #ffffff;
+            border_width: ((2px * s));
+            Rectangle { width: ((7px * s)); height: ((7px * s)); border_radius: ((3.5px * s)); background: #ffffff; }
+        }
+    }
+
+    Text {
+        x: ((503px * s));
+        height: parent.height;
+        text: "LINK";
+        color: #ffffff;
+        font_size: ((14px * s));
+        font_weight: 700;
+        vertical_alignment: center;
+    }
+    Rectangle { x: ((501px * s)); y: ((28px * s)); width: ((46px * s)); height: ((2px * s)); background: #3a3a3a; }
+
+    // indicadores à direita
+    for t[i] in ["PAD", "MIDI"] : Text {
+        x: [1342, 1392][i] * 1px * root.s;
+        height: parent.height;
+        text: t;
+        color: #3a3a3a;
+        font_size: ((13px * s));
+        font_weight: 700;
+        vertical_alignment: center;
+    }
+    Rectangle {
+        x: ((1452px * s));
+        y: ((9px * s));
+        width: ((18px * s));
+        height: ((18px * s));
+        border_radius: ((9px * s));
+        background: #ffffff;
+        Rectangle { x: ((8px * s)); y: ((4px * s)); width: ((6px * s)); height: ((6px * s)); border_radius: ((3px * s)); background: #e0262f; }
+    }
+    Rectangle {
+        x: ((1497px * s));
+        y: ((6px * s));
+        width: ((58px * s));
+        height: ((24px * s));
+        border_radius: ((3px * s));
+        background: #5a4a00;
+        Text { text: "Free"; color: #ffd400; font_size: ((14px * s)); font_weight: 700; }
+    }
+    Text {
+        x: ((1585px * s));
+        height: parent.height;
+        text: "⚙";
+        color: #ffffff;
+        font_size: ((18px * s));
+        vertical_alignment: center;
+    }
+    Rectangle {
+        x: ((1633px * s));
+        y: ((9px * s));
+        width: ((18px * s));
+        height: ((18px * s));
+        border_radius: ((9px * s));
+        border_color: #1f6fd1;
+        border_width: ((3px * s));
+    }
+    // medidores (nível e processador)
+    for m[i] in 2 : Rectangle {
+        x: [1665, 1790][i] * 1px * root.s;
+        y: ((16px * s));
+        width: [100, 42][i] * 1px * root.s;
+        height: ((3px * s));
+        background: #2a2a2a;
+    }
+    Text {
+        x: ((1862px * s));
+        height: parent.height;
+        text: root.clock_text;
+        color: #ffffff;
+        font_size: ((13px * s));
+        font_weight: 700;
+        vertical_alignment: center;
+    }
+}
+
+// Árvore de fontes no estilo do navegador de referência: linhas de 34, seta de
+// expansão e ícone de pasta desenhado. Só fontes que existem no VILELABOX
+// (playlists entram com o XML, U1.5).
+component TreeRow inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> text;
+    in property <int> nivel: 0;
+    in property <bool> aberto: false;
+    in property <bool> selecionado: false;
+    in property <bool> folha: false;
+    callback clicado();
+    height: ((34px * s));
+    TouchArea { clicked => { root.clicado(); } }
+    background: root.selecionado ? #24476b : transparent;
+    // seta de expansão desenhada (o caractere ▶ vira emoji em algumas fontes)
+    Path {
+        x: (14 + root.nivel * 22) * 1px * root.s;
+        y: ((12px * s));
+        width: ((10px * s));
+        height: ((10px * s));
+        viewbox-width: 10;
+        viewbox-height: 10;
+        visible: !root.folha;
+        commands: root.aberto ? "M 0 2 L 10 2 L 5 9 Z" : "M 2 0 L 9 5 L 2 10 Z";
+        fill: #ffffff;
+    }
+    // pasta
+    Rectangle {
+        x: (40 + root.nivel * 22) * 1px * root.s;
+        y: ((11px * s));
+        width: ((16px * s));
+        height: ((12px * s));
+        background: #8b8f99;
+        border_radius: ((1px * s));
+        Rectangle { x: 0; y: -((3px * s)); width: ((7px * s)); height: ((3px * s)); background: #8b8f99; }
+    }
+    Text {
+        x: (64 + root.nivel * 22) * 1px * root.s;
+        height: parent.height;
+        text: root.text;
+        color: #ffffff;
+        font_size: ((17px * s));
+        vertical_alignment: center;
+    }
+}
+
+export component NavigationSidebar inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <[string]> playlists;
+    in property <int> selecionada: -1;
+    callback escolhida(int);
+    background: #0f0f0f;
+    clip: true;
+    Flickable {
+        VerticalLayout {
+            alignment: start;
+            TreeRow {
+                s: root.s;
+                text: "Coleção";
+                aberto: true;
+                selecionado: root.selecionada < 0;
+                clicado => { root.escolhida(-1); }
+            }
+            TreeRow { s: root.s; text: "Listas de reprodução"; nivel: 1; aberto: root.playlists.length > 0; }
+            for nome[i] in root.playlists : TreeRow {
+                s: root.s;
+                text: nome;
+                nivel: 2;
+                folha: true;
+                selecionado: i == root.selecionada;
+                clicado => { root.escolhida(i); }
+            }
+        }
+    }
+}

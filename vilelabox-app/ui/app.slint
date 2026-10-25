@@ -1,0 +1,373 @@
+import { Bar, LinhaCue, Marca, Segment, TrackRow, Theme } from "theme.slint";
+import { Deck } from "components/deck.slint";
+import { DeckWave, WaveTile, WaveZoomColumn } from "components/deck_wave.slint";
+import { LibraryBrowser } from "components/library.slint";
+import { MixerBar, MixerStrip } from "components/mixer.slint";
+import { IconRail, MenuBar, PerformanceToolbar } from "components/navigation.slint";
+import { StatusBar } from "components/status.slint";
+
+export { Bar, Segment, TrackRow }
+
+// Geometria de referência: área de cliente do rekordbox 7.2.8 em 1920x1051 px
+// físicos (spec/rekordbox/evidence/p3-1-ui-medido.md), modo PERFORMANCE,
+// 2Deck Horizontal:
+//   menus 28 · barra global 36 · formas de onda 176 (2 x 88) ·
+//   decks e mixer 287 · faixa de monitoração 54 · navegador · status 35
+// Colunas da banda de decks: deck 890 | 3 | mixer 134 | 3 | deck 890.
+// Todas as medidas abaixo estão nessas unidades; `s` converte para a janela.
+export component AppWindow inherits Window {
+    title: "VILELABOX — Biblioteca e Decks";
+    preferred_width: 1536px;
+    preferred_height: 841px;
+    // Limites explícitos: impede que layoutinfo da janela dependa dos filhos (que dependem de `s`).
+    min_width: 960px;
+    min_height: 540px;
+    background: #000000;
+
+    // Escala: largura da janela / 1920 de referência. VLBX_ESCALA fixa outro valor.
+    in-out property <float> s: self.width / 1920px;
+
+    in property <[TrackRow]> track_rows;
+    in property <int> selected_row: 0;
+    in property <string> status: "Iniciando...";
+    in property <string> clock_text: "--:--";
+    in property <string> search_text: "";
+    in property <int> sort_col: 0;
+    in property <bool> sort_asc: true;
+
+    // Deck 1
+    in property <string> deck1_title: "Not Loaded.";
+    in property <string> deck1_artist: "";
+    in property <string> deck1_bpm: "—";
+    in property <string> deck1_key: "—";
+    in property <string> deck1_duration: "—";
+    in property <[Bar]> deck1_bars;
+    in property <[Segment]> deck1_phrases;
+    in property <bool> deck1_audio_ready: false;
+    in property <image> deck1_wave_overview;
+    in property <[WaveTile]> deck1_wave_tiles;
+    in property <float> deck1_wave_pos;
+    in property <[Marca]> deck1_marcas_detalhe;
+    in property <[Marca]> deck1_marcas_geral;
+    in property <[LinhaCue]> deck1_cues;
+    in property <float> deck1_pos_rel: 0.0;
+    in property <string> deck1_tempo_decorrido: "00:00.0";
+    in property <string> deck1_tempo_restante: "-00:00.0";
+    in property <bool> deck1_tocando: false;
+    in property <bool> deck1_cue_aceso: false;
+    in property <string> deck1_loop_tamanho: "4";
+    in property <bool> deck1_loop_ativo: false;
+    in property <bool> deck1_quantize: false;
+    in property <string> deck1_key_shift: "±0";
+    in property <string> deck1_pitch: "+0.0%";
+    in property <bool> deck1_master: true;
+    in property <bool> deck1_beat_sync: false;
+    in property <bool> deck1_key_sync: false;
+    in property <bool> deck1_slip: false;
+    in property <bool> deck1_mt: true;
+    in property <bool> deck1_loop_manual: false;
+
+    // Deck 2
+    in property <string> deck2_title: "Not Loaded.";
+    in property <string> deck2_artist: "";
+    in property <string> deck2_bpm: "—";
+    in property <string> deck2_key: "—";
+    in property <string> deck2_duration: "—";
+    in property <[Bar]> deck2_bars;
+    in property <[Segment]> deck2_phrases;
+    in property <bool> deck2_audio_ready: false;
+    in property <image> deck2_wave_overview;
+    in property <[WaveTile]> deck2_wave_tiles;
+    in property <float> deck2_wave_pos;
+    in property <[Marca]> deck2_marcas_detalhe;
+    in property <[Marca]> deck2_marcas_geral;
+    in property <[LinhaCue]> deck2_cues;
+    in property <float> deck2_pos_rel: 0.0;
+    in property <string> deck2_tempo_decorrido: "00:00.0";
+    in property <string> deck2_tempo_restante: "-00:00.0";
+    in property <bool> deck2_tocando: false;
+    in property <bool> deck2_cue_aceso: false;
+    in property <string> deck2_loop_tamanho: "4";
+    in property <bool> deck2_loop_ativo: false;
+    in property <bool> deck2_quantize: false;
+    in property <string> deck2_key_shift: "±0";
+    in property <string> deck2_pitch: "+0.0%";
+    in property <bool> deck2_master: false;
+    in property <bool> deck2_beat_sync: false;
+    in property <bool> deck2_key_sync: false;
+    in property <bool> deck2_slip: false;
+    in property <bool> deck2_mt: true;
+    in property <bool> deck2_loop_manual: false;
+
+    callback track_selected(int);
+    callback track_double_clicked(int);
+    callback load_deck(int, int);
+    callback load_selected_deck(int);
+    callback deck_play(int);
+    callback deck_cue(int, bool);
+    callback deck_loop_alternar(int);
+    callback deck_loop_metade(int);
+    callback deck_loop_dobro(int);
+    callback deck_quantize(int);
+    // MT, SLIP, BEAT SYNC, MASTER, KEY SYNC, AU/MA, MEMORY (evidence/p6-2).
+    callback deck_botao(int, string);
+    callback deck_cue_linha(int, int);
+    callback deck_seek(int, float);
+    callback search_edited(string);
+    callback sort_clicked(int);
+    callback playlist_selected(int);
+    in property <[string]> playlists;
+    in property <int> playlist_sel: -1;
+
+    // Arrasto biblioteca -> deck (-1 = sem arrasto).
+    property <int> drag_idx: -1;
+    property <length> drag_x;
+    property <length> drag_y;
+    property <int> drag_alvo: root.alvo(root.drag_x, root.drag_y);
+
+    Rectangle {
+    x: 0; y: 0; width: root.width; height: root.height;
+    VerticalLayout {
+        spacing: 0px;
+
+        MenuBar { s: root.s; height: ((28px * s)); }
+
+        PerformanceToolbar {
+            s: root.s;
+            height: ((36px * s));
+            clock_text: root.clock_text;
+        }
+
+        // ---------- FORMAS DE ONDA AMPLIADAS (176 = 2 x 88) ----------
+        // Uma linha por deck em largura total, coluna de zoom à esquerda
+        // (captura com faixa carregada, 2026-10-24).
+        HorizontalLayout {
+            height: ((176px * s));
+            spacing: 0px;
+
+            WaveZoomColumn { s: root.s; width: ((36px * s)); }
+
+            VerticalLayout {
+                spacing: 0px;
+                DeckWave {
+                    s: root.s;
+                    numero: 1;
+                    height: ((88px * s));
+                    tiles: root.deck1_wave_tiles;
+                    pos_s: root.deck1_wave_pos;
+                    marcas: root.deck1_marcas_detalhe;
+                }
+                DeckWave {
+                    s: root.s;
+                    numero: 2;
+                    height: ((88px * s));
+                    tiles: root.deck2_wave_tiles;
+                    pos_s: root.deck2_wave_pos;
+                    marcas: root.deck2_marcas_detalhe;
+                }
+            }
+        }
+
+        // ---------- DECKS E MIXER (287) ----------
+        HorizontalLayout {
+            height: ((287px * s));
+            spacing: ((3px * s));
+
+            deck1 := Deck {
+                s: root.s;
+                numero: 1;
+                width: ((890px * s));
+                clip: true;
+                titulo: root.deck1_title;
+                artista: root.deck1_artist;
+                duracao: root.deck1_duration;
+                bpm: root.deck1_bpm;
+                tom: root.deck1_key;
+                phrases: root.deck1_phrases;
+                bars: root.deck1_bars;
+                wave: root.deck1_wave_overview;
+                marcas: root.deck1_marcas_geral;
+                cues: root.deck1_cues;
+                audio_ready: root.deck1_audio_ready;
+                pos_rel: root.deck1_pos_rel;
+                tempo_decorrido: root.deck1_tempo_decorrido;
+                tempo_restante: root.deck1_tempo_restante;
+                tocando: root.deck1_tocando;
+                cue_aceso: root.deck1_cue_aceso;
+                load_clicked => {
+                    root.load_selected_deck(1);
+                }
+                play_clicked => {
+                    root.deck_play(1);
+                }
+                cue_pressed(p) => {
+                    root.deck_cue(1, p);
+                }
+                loop_tamanho: root.deck1_loop_tamanho;
+                loop_ativo: root.deck1_loop_ativo;
+                quantize: root.deck1_quantize;
+                key_shift: root.deck1_key_shift;
+                pitch: root.deck1_pitch;
+                master: root.deck1_master;
+                beat_sync: root.deck1_beat_sync;
+                key_sync: root.deck1_key_sync;
+                slip: root.deck1_slip;
+                mt: root.deck1_mt;
+                loop_manual: root.deck1_loop_manual;
+                botao(nome) => { root.deck_botao(1, nome); }
+                loop_alternar => { root.deck_loop_alternar(1); }
+                loop_metade => { root.deck_loop_metade(1); }
+                loop_dobro => { root.deck_loop_dobro(1); }
+                quantize_alternar => { root.deck_quantize(1); }
+                cue_linha(i) => { root.deck_cue_linha(1, i); }
+                seek_clicked(p) => {
+                    root.deck_seek(1, p);
+                }
+            }
+
+            MixerStrip {
+                s: root.s;
+                width: ((134px * s));
+                clip: true;
+                audio_ready: false;
+            }
+
+            deck2 := Deck {
+                s: root.s;
+                numero: 2;
+                horizontal_stretch: 1;
+                clip: true;
+                titulo: root.deck2_title;
+                artista: root.deck2_artist;
+                duracao: root.deck2_duration;
+                bpm: root.deck2_bpm;
+                tom: root.deck2_key;
+                phrases: root.deck2_phrases;
+                bars: root.deck2_bars;
+                wave: root.deck2_wave_overview;
+                marcas: root.deck2_marcas_geral;
+                cues: root.deck2_cues;
+                audio_ready: root.deck2_audio_ready;
+                pos_rel: root.deck2_pos_rel;
+                tempo_decorrido: root.deck2_tempo_decorrido;
+                tempo_restante: root.deck2_tempo_restante;
+                tocando: root.deck2_tocando;
+                cue_aceso: root.deck2_cue_aceso;
+                load_clicked => {
+                    root.load_selected_deck(2);
+                }
+                play_clicked => {
+                    root.deck_play(2);
+                }
+                cue_pressed(p) => {
+                    root.deck_cue(2, p);
+                }
+                loop_tamanho: root.deck2_loop_tamanho;
+                loop_ativo: root.deck2_loop_ativo;
+                quantize: root.deck2_quantize;
+                key_shift: root.deck2_key_shift;
+                pitch: root.deck2_pitch;
+                master: root.deck2_master;
+                beat_sync: root.deck2_beat_sync;
+                key_sync: root.deck2_key_sync;
+                slip: root.deck2_slip;
+                mt: root.deck2_mt;
+                loop_manual: root.deck2_loop_manual;
+                botao(nome) => { root.deck_botao(2, nome); }
+                loop_alternar => { root.deck_loop_alternar(2); }
+                loop_metade => { root.deck_loop_metade(2); }
+                loop_dobro => { root.deck_loop_dobro(2); }
+                quantize_alternar => { root.deck_quantize(2); }
+                cue_linha(i) => { root.deck_cue_linha(2, i); }
+                seek_clicked(p) => {
+                    root.deck_seek(2, p);
+                }
+            }
+        }
+
+        // ---------- MONITORAÇÃO E CROSSFADER (54) ----------
+        MixerBar { s: root.s; height: ((54px * s)); }
+
+        // ---------- NAVEGADOR ----------
+        HorizontalLayout {
+            vertical_stretch: 1;
+            spacing: 0px;
+
+            IconRail { s: root.s; width: ((46px * s)); }
+
+            LibraryBrowser {
+                horizontal_stretch: 1;
+                s: root.s;
+                track_rows: root.track_rows;
+                selected_row: root.selected_row;
+                status: root.status;
+                search_text: root.search_text;
+                sort_col: root.sort_col;
+                sort_asc: root.sort_asc;
+                track_selected(idx) => {
+                    root.track_selected(idx);
+                }
+                track_double_clicked(idx) => {
+                    root.track_double_clicked(idx);
+                }
+                drag_moved(idx, x, y) => {
+                    root.drag_idx = idx;
+                    root.drag_x = x;
+                    root.drag_y = y;
+                }
+                drag_ended(x, y) => {
+                    if root.drag_idx >= 0 && root.alvo(x, y) > 0 {
+                        root.load_deck(root.alvo(x, y), root.drag_idx);
+                    }
+                    root.drag_idx = -1;
+                }
+                search_edited(query) => {
+                    root.search_edited(query);
+                }
+                sort_clicked(col) => {
+                    root.sort_clicked(col);
+                }
+                playlists: root.playlists;
+                playlist_sel: root.playlist_sel;
+                playlist_selected(i) => {
+                    root.playlist_selected(i);
+                }
+                load_deck_requested(deck_num) => {
+                    root.load_selected_deck(deck_num);
+                }
+            }
+        }
+
+        StatusBar { s: root.s; height: ((35px * s)); status: root.status; }
+    }
+}
+
+    // Etiqueta que segue o ponteiro durante o arrasto.
+    if root.drag_idx >= 0 && root.drag_idx < root.track_rows.length: Rectangle {
+        x: root.drag_x + 14px;
+        y: root.drag_y + 6px;
+        width: etiqueta.preferred-width + 16px;
+        height: etiqueta.preferred-height + 8px;
+        background: root.drag_alvo > 0 ? #1f6fd1 : #2a2a2a;
+        border-radius: 3px;
+        opacity: 0.92;
+        etiqueta := Text {
+            text: root.track_rows[root.drag_idx].title + (root.drag_alvo > 0 ? "  ->  DECK " + root.drag_alvo : "");
+            color: #ffffff;
+            font_size: 13px;
+        }
+    }
+
+    // Deck sob o ponto (coordenadas da janela): 1, 2 ou 0.
+    function alvo(x: length, y: length) -> int {
+        if x >= deck1.absolute-position.x && x <= deck1.absolute-position.x + deck1.width
+            && y >= deck1.absolute-position.y && y <= deck1.absolute-position.y + deck1.height {
+            return 1;
+        }
+        if x >= deck2.absolute-position.x && x <= deck2.absolute-position.x + deck2.width
+            && y >= deck2.absolute-position.y && y <= deck2.absolute-position.y + deck2.height {
+            return 2;
+        }
+        return 0;
+    }
+}

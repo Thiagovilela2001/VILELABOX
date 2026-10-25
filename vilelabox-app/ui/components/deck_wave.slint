@@ -1,0 +1,117 @@
+import { Marca, Theme } from "../theme.slint";
+
+// Coluna de zoom à esquerda das formas de onda ampliadas: recolher, ampliar,
+// voltar ao zoom padrão (RST), reduzir e expandir. Sem ação até o P5.3.
+export component WaveZoomColumn inherits Rectangle {
+    in property <float> s: 1.0;
+    background: #000000;
+
+    for g[i] in ["∧", "+", "RST", "−", "∨"] : Text {
+        x: 0;
+        y: [((4px * s)), ((44px * s)), ((76px * s)), ((108px * s)), ((150px * s))][i];
+        width: parent.width;
+        height: ((20px * s));
+        text: g;
+        color: #c8ccd6;
+        font_size: i == 2 ? ((8px * s)) : ((14px * s));
+        font_weight: 700;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+}
+
+// Bloco da forma de onda ampliada: `colunas` entradas do PWV5 a partir de `inicio`.
+export struct WaveTile { img: image, inicio: int, colunas: int }
+
+// Forma de onda ampliada de um deck (uma linha de 88 em largura total).
+// A faixa inteira vem do Rust em blocos (`waveform::detail_blocks`): PWV5 em
+// cores RGB, espelhada no centro. Aqui só se desloca: janela de 24 s centrada
+// na agulha em `pos_s`. Grade e cues vêm como `Marca` relativas à mesma
+// janela (`marks.rs`).
+export component DeckWave inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <int> numero: 1;
+    in property <[WaveTile]> tiles;
+    in property <float> pos_s: 0.0;
+    in property <[Marca]> marcas;
+
+    // 24 s x 150 colunas/s na largura da linha (waveform::JANELA_S).
+    property <length> px_col: self.width / (24 * 150);
+
+    background: #000000;
+    clip: true;
+
+    for t in root.tiles : Image {
+        x: parent.width / 2 + (t.inicio - root.pos_s * 150) * root.px_col;
+        width: t.colunas * root.px_col;
+        visible: self.x + self.width > 0 && self.x < parent.width;
+        height: parent.height;
+        source: t.img;
+        image-fit: fill;
+    }
+
+    // loops: faixa translúcida entre início e fim
+    for m in root.marcas : Rectangle {
+        visible: m.tipo == 4;
+        x: parent.width * m.pos;
+        width: parent.width * (m.fim - m.pos);
+        height: parent.height;
+        background: m.cor.with_alpha(0.25);
+    }
+
+    // grade: compasso = linha cheia; batida = traços em cima e embaixo
+    for m in root.marcas : Rectangle {
+        visible: m.tipo <= 1;
+        x: parent.width * m.pos;
+        width: ((1px * s));
+        height: parent.height;
+        Rectangle { y: 0; width: parent.width; height: m.tipo == 1 ? parent.height : (6px * s); background: #ffffff; opacity: m.tipo == 1 ? 0.35 : 0.8; }
+        Rectangle { y: parent.height - (6px * s); width: parent.width; height: ((6px * s)); background: m.tipo == 1 ? #e0262f : #ffffff; opacity: 0.8; }
+    }
+
+    // cues: linha na cor do cue; hot cue com etiqueta da letra, memória com
+    // triângulo embaixo
+    for m in root.marcas : Rectangle {
+        visible: m.tipo >= 2;
+        x: parent.width * m.pos;
+        width: ((2px * s));
+        height: parent.height;
+        background: m.cor;
+        Rectangle {
+            visible: m.tipo == 2;
+            y: 0;
+            width: ((14px * s));
+            height: ((14px * s));
+            background: m.cor;
+            Text { text: m.letra; color: #000000; font_size: ((10px * s)); font_weight: 800; }
+        }
+        Path {
+            visible: m.tipo != 2;
+            x: -((5px * s));
+            y: parent.height - (8px * s);
+            width: ((12px * s));
+            height: ((8px * s));
+            viewbox-width: 12;
+            viewbox-height: 8;
+            commands: "M 0 8 L 6 0 L 12 8 Z";
+            fill: m.cor;
+        }
+    }
+
+    // agulha no centro
+    Rectangle {
+        x: parent.width / 2 - (1px * s);
+        width: ((2px * s));
+        height: parent.height;
+        background: #ffffff;
+    }
+
+    Text {
+        x: ((4px * s));
+        y: ((2px * s));
+        text: root.numero;
+        color: #6b6f7a;
+        font_size: ((9px * s));
+        font_weight: 700;
+    }
+}

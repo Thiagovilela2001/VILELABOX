@@ -1,0 +1,142 @@
+// Faixa de mixer (134 x 287), dois canais. Posições medidas na captura do
+// rekordbox 7.2.8 (2026-10-24), unidades de 1920: knobs centrados em x 36 e 101,
+// TRIM/HIGH/MID/LOW em y 22/63/104/146, CUE em y 186, fader de canal 214..275.
+// Sem ação até o motor de áudio (U4).
+export component MixerStrip inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <bool> audio_ready: false;
+    background: #0f0f0f;
+
+    // separador entre os canais
+    Rectangle { x: ((67px * s)); y: ((14px * s)); width: ((1px * s)); height: ((158px * s)); background: #2a2a2a; }
+
+    for ch in 2 : Rectangle {
+        x: [14, 79][ch] * 1px * root.s;
+        width: ((44px * s));
+        height: parent.height;
+
+        for k[i] in ["TRIM", "HIGH", "MID", "LOW"] : Rectangle {
+            y: [10, 51, 92, 134][i] * 1px * root.s;
+            width: parent.width;
+            height: ((40px * s));
+            // knob: anel aberto com indicador no topo (posição central)
+            Rectangle {
+                x: ((13px * s));
+                y: 0;
+                width: ((18px * s));
+                height: ((18px * s));
+                border_radius: ((9px * s));
+                border_color: #6b6b6b;
+                border_width: ((2px * s));
+                // indicador na posição central (meio-dia)
+                Rectangle { x: ((8px * s)); y: ((2px * s)); width: ((2px * s)); height: ((7px * s)); background: #ffffff; }
+            }
+            Text {
+                y: ((25px * s));
+                width: parent.width;
+                height: ((12px * s));
+                text: k;
+                color: #ffffff;
+                font_size: ((10px * s));
+                font_weight: 700;
+                horizontal_alignment: center;
+            }
+        }
+
+        Rectangle {
+            y: ((186px * s));
+            width: parent.width;
+            height: ((20px * s));
+            background: #1e1e1e;
+            Text { text: "CUE"; color: #ffffff; font_size: ((10px * s)); font_weight: 700; }
+        }
+
+        // fader do canal: trilho azul e cabeça no topo
+        Rectangle { x: ((21px * s)); y: ((214px * s)); width: ((2px * s)); height: ((61px * s)); background: #1f6fd1; }
+        Rectangle { x: ((10px * s)); y: ((214px * s)); width: ((24px * s)); height: ((3px * s)); background: #6b6b6b; }
+    }
+}
+
+// Seletor de deck 2x2 (1/2 em cima, 3/4 embaixo); os ativos ficam acesos.
+component DeckSelector inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <int> ativo_a: 1;
+    in property <int> ativo_b: 3;
+    width: ((44px * s));
+    height: ((40px * s));
+    for n[i] in [1, 2, 3, 4] : Rectangle {
+        x: mod(i, 2) * (22px * s);
+        y: floor(i / 2) * (20px * s);
+        width: ((21px * s));
+        height: ((19px * s));
+        background: n == root.ativo_a || n == root.ativo_b ? #1f6fd1 : transparent;
+        Text {
+            text: n;
+            color: #e6e9f0;
+            font_size: ((10px * s));
+            font_weight: 700;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+    }
+}
+
+// Faixa de 54 sob os decks, em largura total. Posições x medidas na captura
+// do rekordbox com faixa carregada (2026-10-24), unidades de 1920:
+// fone 568, MIX 620, LEVEL 698, seletor esquerdo 804, crossfader 904..1016,
+// seletor direito 1044. Sem ação até o motor de áudio (U4).
+export component MixerBar inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <bool> audio_ready: false;
+    background: #0a0a0a;
+
+    Text {
+        x: ((566px * s));
+        y: ((14px * s));
+        text: "🎧";
+        font_size: ((18px * s));
+        color: #c8ccd6;
+    }
+
+    for etq[i] in ["MIX", "LEVEL"] : Rectangle {
+        x: [((614px * s)), ((694px * s))][i];
+        y: ((15px * s));
+        width: ((76px * s));
+        height: ((22px * s));
+        Text { x: 0; text: "—"; color: #6b6f7a; font_size: ((10px * s)); vertical_alignment: center; height: parent.height; }
+        Rectangle {
+            x: ((14px * s));
+            width: ((20px * s));
+            height: ((20px * s));
+            border_radius: ((10px * s));
+            border_color: i == 1 ? #1f6fd1 : #3a3d45;
+            border_width: ((2px * s));
+        }
+        Text {
+            x: ((40px * s));
+            text: etq;
+            color: #8b8f99;
+            font_size: ((9px * s));
+            font_weight: 700;
+            vertical_alignment: center;
+            height: parent.height;
+        }
+    }
+
+    DeckSelector { s: root.s; x: ((804px * s)); y: ((7px * s)); ativo_a: 1; ativo_b: 3; }
+
+    // crossfader: trilho, marca central e cabeça
+    Rectangle { x: ((904px * s)); y: ((26px * s)); width: ((112px * s)); height: ((1px * s)); background: #3a3d45; }
+    Rectangle { x: ((904px * s)); y: ((14px * s)); width: ((1px * s)); height: ((24px * s)); background: #3a3d45; }
+    Rectangle { x: ((1015px * s)); y: ((14px * s)); width: ((1px * s)); height: ((24px * s)); background: #3a3d45; }
+    Rectangle {
+        x: ((957px * s));
+        y: ((11px * s));
+        width: ((5px * s));
+        height: ((30px * s));
+        background: #8b8f99;
+    }
+
+    DeckSelector { s: root.s; x: ((1044px * s)); y: ((7px * s)); ativo_a: 2; ativo_b: 4; }
+}
+

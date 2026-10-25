@@ -1,0 +1,86 @@
+export struct Bar {
+    pos: float,
+}
+
+export struct Segment {
+    start: float,
+    end: float,
+    color: color,
+    label: string,
+}
+
+// Marca sobre forma de onda. tipo: 0 batida, 1 compasso, 2 hot cue,
+// 3 memória, 4 loop. pos/fim relativos à largura (0..1).
+export struct Marca {
+    pos: float,
+    fim: float,
+    tipo: int,
+    cor: color,
+    letra: string,
+}
+
+// Linha da lista de cues de um deck.
+export struct LinhaCue {
+    letra: string,
+    texto: string,
+    cor: color,
+    e_loop: bool,
+}
+
+export struct TrackRow {
+    id: int,
+    title: string,
+    artist: string,
+    bpm: string,
+    key: string,
+    album: string,
+    genre: string,
+    stars: int,
+    duration: string,
+    bars_count: int,
+    alt: bool,
+}
+
+// Paleta azul dominante: única fonte de cores do app.
+export global Theme {
+    // Fundos, do mais fundo ao mais claro
+    out property <color> bg_deep: #07101a;
+    out property <color> bg_window: #0a1420;
+    out property <color> bg_panel: #101c2b;
+    out property <color> bg_panel_alt: #14243a;
+    out property <color> bg_hover: #1a2d47;
+    // Bordas
+    out property <color> border_panel: #1c2f45;
+    out property <color> border_strong: #2a4566;
+    // Texto
+    out property <color> text_main: #dceaff;
+    out property <color> text_dim: #7f9cba;
+    out property <color> text_mute: #4f6a88;
+    // Acento
+    out property <color> accent: #3fa9ff;
+    out property <color> accent_light: #7fd0ff;
+    out property <color> accent_dark: #1b4f7a;
+    out property <color> accent_blue: #3fa9ff;
+    // Cues, frases e marcadores (família azul)
+    out property <color> cue_1: #1b4f7a;
+    out property <color> cue_2: #3fa9ff;
+    out property <color> cue_3: #7fd0ff;
+    out property <color> cue_4: #bfe2ff;
+    out property <color> cue_5: #0f3355;
+    // Waveform: bass por baixo, mid no meio, treble em cima
+    out property <color> wave_bass: #1b4f7a;
+    out property <color> wave_mid: #3fa9ff;
+    out property <color> wave_treble: #bfe2ff;
+}
+
+// Seta "para baixo" desenhada (a fonte padrão não tem o caractere ⌄).
+export component Chevron inherits Path {
+    in property <float> s: 1.0;
+    width: ((9px * s));
+    height: ((6px * s));
+    viewbox-width: 10;
+    viewbox-height: 6;
+    commands: "M 1 1 L 5 5 L 9 1";
+    stroke: #ffffff;
+    stroke-width: ((1.6px * s));
+}

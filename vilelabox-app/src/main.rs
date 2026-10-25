@@ -1,997 +1,304 @@
-//! Primeiro marco visível do VILELABOX em Rust: interface completa
-//! inspirada no fluxo de trabalho do rekordbox, com iconografia desenhada
-//! para o VILELABOX: nenhum arquivo visual de terceiro é usado no crate.
+//! Aplicativo desktop do VILELABOX em Rust (Slint).
+//!
+//! Implementa a arquitetura de comandos e snapshots (U0) do `PLANO-UI-FUNCOES.md`.
+//! A thread da interface abre imediatamente sem bloquear no scan da biblioteca (U0.5).
 
+mod acoes;
+mod cues_store;
 mod library;
+mod loops;
+#[cfg(test)]
+mod loops_cues_e2e;
+mod marks;
+mod presentation;
+pub mod state;
+mod sync;
+mod waveform;
 
-use slint::{Color, ModelRc, SharedString, VecModel};
+use crate::state::{AppState, Command, DeckId, SortColumn};
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use vilelabox_audio::{start_audio_engine, AudioCommand, AudioController};
 
-slint::slint! {
-    import { ListView, ScrollView } from "std-widgets.slint";
+slint::include_modules!();
 
-    export struct Bar { pos: float, }
-    export struct Segment { start: float, end: float, color: color, label: string, }
-
-    export struct TrackRow {
-        id: int,
-        title: string,
-        artist: string,
-        bpm: string,
-        key: string,
-        duration: string,
-        bars_count: int,
-        alt: bool,
+fn decode_percent_encoded(s: &str) -> String {
+    let mut result = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(byte) =
+                u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or(""), 16)
+            {
+                result.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        result.push(bytes[i]);
+        i += 1;
     }
+    String::from_utf8_lossy(&result).into_owned()
+}
 
-    component TopMenuButton inherits Rectangle {
-        in property <float> s: 1.0;
-        in property <string> text;
-        height: ((28px * s));
-        background: touch.has_hover ? #1a1c24 : transparent;
-        border-radius: ((3px * s));
-        touch := TouchArea { }
-        HorizontalLayout {
-            padding_left: ((10px * s));
-            padding_right: ((10px * s));
-            Text {
-                text: root.text;
-                color: touch.has_hover ? #ffffff : #c5c9d6;
-                font_size: ((12px * s));
-                vertical_alignment: center;
+fn search_dir_recursive(dir: &std::path::Path, target_name: &str, depth: usize) -> Option<PathBuf> {
+    let direct = dir.join(target_name);
+    if direct.is_file() {
+        return Some(direct);
+    }
+    search_dir_match(dir, depth, &|name| name.eq_ignore_ascii_case(target_name))
+}
+
+fn search_dir_match(dir: &std::path::Path, depth: usize, ok: &dyn Fn(&str) -> bool) -> Option<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return None;
+    };
+    let mut subdirs = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            if path.file_name().and_then(|n| n.to_str()).is_some_and(ok) {
+                return Some(path);
+            }
+        } else if depth > 0 && path.is_dir() {
+            subdirs.push(path);
+        }
+    }
+    if depth > 0 {
+        for subdir in subdirs {
+            if let Some(found) = search_dir_match(&subdir, depth - 1, ok) {
+                return Some(found);
             }
         }
     }
+    None
+}
 
-    component HeaderPill inherits Rectangle {
-        in property <float> s: 1.0;
-        in property <string> label;
-        in property <color> dot_color: #00a2ff;
-        in property <bool> active: false;
-        height: ((24px * s));
-        background: root.active ? rgb(30, 34, 48) : #141620;
-        border_color: root.active ? #00a2ff : #2d3142;
-        border_width: ((1px * s));
-        border_radius: ((3px * s));
-        touch := TouchArea { }
-        HorizontalLayout {
-            padding_left: ((8px * s));
-            padding_right: ((8px * s));
-            spacing: ((6px * s));
-            Rectangle {
-                width: ((6px * s));
-                height: ((6px * s));
-                background: root.dot_color;
-                border_radius: ((3px * s));
-                y: (parent.height - self.height) / 2;
-            }
-            Text {
-                text: root.label;
-                color: #ffffff;
-                font_size: ((11px * s));
-                font_weight: 700;
-                vertical_alignment: center;
-            }
+const AUDIO_EXTS: [&str; 7] = ["mp3", "wav", "flac", "m4a", "aac", "aiff", "aif"];
+
+/// Nome comparável: sem extensão de áudio, sem numeração inicial ("01 - ",
+/// "01. ") e em minúsculas. `01 - X.mp3` casa com `X.wav`.
+fn nome_normalizado(name: &str) -> Option<String> {
+    let (stem, ext) = name.rsplit_once('.')?;
+    if !AUDIO_EXTS.iter().any(|e| e.eq_ignore_ascii_case(ext)) {
+        return None;
+    }
+    let s = stem.trim_start_matches(|c: char| c.is_ascii_digit() || " .-_".contains(c));
+    (!s.is_empty()).then(|| s.to_lowercase())
+}
+
+fn find_audio_file(raw_path: Option<&str>, title: &str) -> Option<PathBuf> {
+    // 1. Limpar esquemas de URL (file://localhost/ ou file:///)
+    if let Some(raw) = raw_path {
+        let clean = if let Some(stripped) = raw.strip_prefix("file://localhost/") {
+            decode_percent_encoded(stripped)
+        } else if let Some(stripped) = raw.strip_prefix("file:///") {
+            decode_percent_encoded(stripped)
+        } else if let Some(stripped) = raw.strip_prefix("file://") {
+            decode_percent_encoded(stripped)
+        } else {
+            raw.to_string()
+        };
+
+        let p = std::path::Path::new(&clean);
+        if p.is_file() {
+            return Some(p.to_path_buf());
+        }
+
+        // Tentar sem prefixo ?/ ou ?\
+        let stripped = clean.trim_start_matches(['?', '/', '\\']);
+        let p2 = std::path::Path::new(stripped);
+        if p2.is_file() {
+            return Some(p2.to_path_buf());
         }
     }
 
-    // ==========================================
-    // Componentes do layout (geometria do rekordbox 7.2.8)
-    // ==========================================
-
-    component RailButton inherits Rectangle {
-        in property <float> s: 1.0;
-        in property <string> glyph;
-        width: ((24px * s));
-        height: ((24px * s));
-        border_radius: ((3px * s));
-        background: #1b1d24;
-        border_width: ((1px * s));
-        border_color: #262933;
-        Text {
-            text: root.glyph;
-            color: #9aa1b5;
-            font_size: ((11px * s));
-            horizontal_alignment: center;
-            vertical_alignment: center;
-        }
-    }
-
-    component IconRail inherits Rectangle {
-        in property <float> s: 1.0;
-        width: ((36px * s));
-        background: #16171c;
-        border_color: #24262f;
-        border_width: ((1px * s));
-        VerticalLayout {
-            padding_top: ((8px * s));
-            padding_bottom: ((8px * s));
-            spacing: ((4px * s));
-            alignment: start;
-            RailButton { s: root.s; glyph: "↕"; }
-            RailButton { s: root.s; glyph: "⤢"; }
-            RailButton { s: root.s; glyph: "⊕"; }
-            RailButton { s: root.s; glyph: "⊖"; }
-            RailButton { s: root.s; glyph: "▤"; }
-            RailButton { s: root.s; glyph: "☰"; }
-            RailButton { s: root.s; glyph: "♫"; }
-            RailButton { s: root.s; glyph: "⊞"; }
-            RailButton { s: root.s; glyph: "◫"; }
-            RailButton { s: root.s; glyph: "≡"; }
-            RailButton { s: root.s; glyph: "⚙"; }
-        }
-    }
-
-    component MixerStrip inherits Rectangle {
-        in property <float> s: 1.0;
-        background: #0e1015;
-        border_color: #1e2130;
-        border_width: ((1px * s));
-
-        HorizontalLayout {
-            padding: ((4px * s));
-            spacing: ((4px * s));
-            alignment: center;
-
-            for lado in 2 : VerticalLayout {
-                spacing: ((6px * s));
-                alignment: center;
-                for i in 4 : VerticalLayout {
-                    spacing: ((1px * s));
-                    alignment: center;
-                    Rectangle {
-                        width: ((30px * s));
-                        height: ((30px * s));
-                        border_radius: ((15px * s));
-                        background: #23262f;
-                        border_color: #3a3f4d;
-                        border_width: ((1px * s));
-                        Rectangle { x: ((13px * s)); y: ((3px * s)); width: ((2px * s)); height: ((11px * s)); background: #8fd0ff; }
-                    }
-                    Text { text: ["TRIM", "HIGH", "MID", "LOW"][i]; color: #8b92a5; font_size: ((6px * s)); font_weight: 700; horizontal_alignment: center; }
-                }
-                Rectangle {
-                    width: ((18px * s));
-                    height: ((18px * s));
-                    border_radius: ((2px * s));
-                    background: #1b1e28;
-                    border_color: #3a4152;
-                    border_width: ((1px * s));
-                    Text { text: "CUE"; color: #8b92a5; font_size: ((6px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; }
-                }
+    // 2. Extrair o nome do arquivo a partir de raw_path ou de title
+    let candidate_names: Vec<String> = {
+        let mut list = Vec::new();
+        if let Some(raw) = raw_path {
+            let clean = if let Some(stripped) = raw.strip_prefix("file://localhost/") {
+                decode_percent_encoded(stripped)
+            } else if let Some(stripped) = raw.strip_prefix("file:///") {
+                decode_percent_encoded(stripped)
+            } else {
+                raw.to_string()
+            };
+            let name = clean
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or(&clean)
+                .trim_start_matches(['?', '/', '\\']);
+            if !name.is_empty() {
+                list.push(name.to_string());
             }
         }
-    }
-
-    component MixerBar inherits Rectangle {
-        in property <float> s: 1.0;
-        background: #0f1116;
-        border_color: #1e2130;
-        border_width: ((1px * s));
-
-        HorizontalLayout {
-            padding_left: ((10px * s));
-            padding_right: ((10px * s));
-            spacing: ((10px * s));
-            alignment: center;
-
-            Text { text: "🎧"; font_size: ((12px * s)); color: #8b92a5; }
-            for etq in 2 : VerticalLayout {
-                spacing: ((1px * s));
-                alignment: center;
-                Rectangle {
-                    width: ((30px * s));
-                    height: ((30px * s));
-                    border_radius: ((15px * s));
-                    background: #23262f;
-                    border_color: #3a3f4d;
-                    border_width: ((1px * s));
-                    Rectangle { x: ((13px * s)); y: ((3px * s)); width: ((2px * s)); height: ((11px * s)); background: #8fd0ff; }
-                }
-                Text { text: ["MIX", "LEVEL"][etq]; color: #8b92a5; font_size: ((6px * s)); font_weight: 700; horizontal_alignment: center; }
-            }
-
-            // faders de canal 1–4 com cap 24x14
-            for i in 4 : Rectangle {
-                width: ((26px * s));
-                height: ((34px * s));
-                Rectangle {
-                    x: ((10px * s));
-                    width: ((6px * s));
-                    height: ((34px * s));
-                    background: #06070a;
-                    border_color: #272b3c;
-                    border_width: ((1px * s));
-                }
-                Rectangle {
-                    x: ((1px * s));
-                    y: i == 0 ? ((17px * s)) : ((9px * s));
-                    width: ((24px * s));
-                    height: ((14px * s));
-                    border_radius: ((2px * s));
-                    background: #d6dae6;
-                }
-                Text { text: i + 1; y: ((36px * s)); width: ((26px * s)); color: #6d7488; font_size: ((6px * s)); font_weight: 700; horizontal_alignment: center; }
-            }
-
-            // crossfader
-            Rectangle {
-                width: ((150px * s));
-                height: ((10px * s));
-                background: #06070a;
-                border_color: #272b3c;
-                border_width: ((1px * s));
-                Rectangle { x: ((64px * s)); y: -((2px * s)); width: ((24px * s)); height: ((14px * s)); border_radius: ((2px * s)); background: #d6dae6; }
+        if !title.is_empty() {
+            let name = title.rsplit(['/', '\\']).next().unwrap_or(title);
+            if !list
+                .iter()
+                .any(|existing| existing.eq_ignore_ascii_case(name))
+            {
+                list.push(name.to_string());
             }
         }
+        list
+    };
+
+    // 3. Pastas onde procurar (Música do usuário, Downloads, pasta atual)
+    let mut search_dirs: Vec<PathBuf> = Vec::new();
+    if let Some(user_profile) = std::env::var_os("USERPROFILE") {
+        let base = PathBuf::from(user_profile);
+        search_dirs.push(base.join("Music"));
+        search_dirs.push(base.join("Músicas"));
+        search_dirs.push(base.join("Downloads"));
+        search_dirs.push(base.join("Desktop"));
+    }
+    if let Ok(cur) = std::env::current_dir() {
+        search_dirs.push(cur.clone());
+        search_dirs.push(cur.join("tests"));
     }
 
-    component StatusBar inherits Rectangle {
-        in property <float> s: 1.0;
-        background: #101117;
-        border_color: #24262f;
-        border_width: ((1px * s));
-        HorizontalLayout {
-            padding_left: ((12px * s));
-            padding_right: ((12px * s));
-            spacing: ((10px * s));
-            Text { text: "VILELABOX"; color: #7f879b; font_size: ((10px * s)); font_weight: 800; vertical_alignment: center; }
-            Rectangle { horizontal_stretch: 1; }
-            Text { text: root.status; color: #636b80; font_size: ((10px * s)); vertical_alignment: center; }
+    // Procurar os nomes de arquivo candidatos nas pastas de busca
+    for target in &candidate_names {
+        for base_dir in &search_dirs {
+            if let Some(found) = search_dir_recursive(base_dir, target, 3) {
+                return Some(found);
+            }
         }
-        in property <string> status: "pronto";
-    }
-
-
-    // ==========================================
-    // DECK — arranjo do rekordbox: cabeçalho (68) / onda (54) / corpo (163)
-    // ==========================================
-    component Deck inherits Rectangle {
-        in property <float> s: 1.0;
-        in property <int> numero: 1;
-        in property <string> titulo;
-        in property <string> artista;
-        in property <string> duracao;
-        in property <string> bpm;
-        in property <string> tom;
-        in property <[Segment]> phrases;
-        in property <[Bar]> bars;
-        in property <[string]> letras: ["A", "B", "C", "D", "E", "F", "G", "H"];
-        in property <[string]> nomes: ["INTRO", "VERSE", "CHORUS", "DROP", "BREAK", "BUILD", "OUTRO", "CUE"];
-        in property <[color]> cores: [#00a2ff, #00c46a, #ff8a00, #ff2d55, #7b61ff, #ffd400, #00c4b4, #8b92a5];
-        background: transparent;
-
-        VerticalLayout {
-            spacing: (0px * s);
-
-            // ---------- CABEÇALHO (68) ----------
-            Rectangle {
-                height: ((68px * s));
-                background: #0e1015;
-                border_color: #1e2130;
-                border_width: ((1px * s));
-
-                HorizontalLayout {
-                    padding_left: ((8px * s));
-                    padding_right: ((8px * s));
-                    spacing: ((8px * s));
-                    alignment: center;
-
-                    Rectangle {
-                        width: ((22px * s));
-                        height: ((22px * s));
-                        border_radius: ((3px * s));
-                        background: #00a2ff;
-                        Text { text: root.numero; color: #05070b; font_size: ((13px * s)); font_weight: 900; horizontal_alignment: center; vertical_alignment: center; }
+        // Se o nome não tiver extensão (.mp3/.wav/etc.), tentar com extensões comuns
+        if !target.contains('.') {
+            for ext in &AUDIO_EXTS {
+                let target_with_ext = format!("{target}.{ext}");
+                for base_dir in &search_dirs {
+                    if let Some(found) = search_dir_recursive(base_dir, &target_with_ext, 3) {
+                        return Some(found);
                     }
-
-                    Rectangle {
-                        width: ((30px * s));
-                        height: ((30px * s));
-                        background: #1a1d27;
-                        border_color: #2b3040;
-                        border_width: ((1px * s));
-                        border_radius: ((3px * s));
-                        Text { text: "♪"; color: #666d80; font_size: ((13px * s)); horizontal_alignment: center; vertical_alignment: center; }
-                    }
-
-                    VerticalLayout {
-                        vertical_stretch: 1;
-                        spacing: ((1px * s));
-                        alignment: center;
-                        Text { text: root.titulo == "" ? "Not Loaded." : root.titulo; color: root.titulo == "" ? #6d7488 : #ffffff; font_size: ((11px * s)); font_weight: 700; overflow: elide; }
-                        Text { text: root.artista; color: #78809a; font_size: ((9px * s)); overflow: elide; }
-                    }
-
-                    Text { text: root.duracao; color: #aeb6c8; font_size: ((10px * s)); font_weight: 700; }
-                    Text { text: "-00:00.0"; color: #6d7488; font_size: ((10px * s)); font_weight: 700; }
-
-                    Rectangle { width: ((62px * s)); height: ((22px * s)); border_radius: ((3px * s)); background: #171a23; border_color: #2b3040; border_width: ((1px * s));
-                        Text { text: "KEY SYNC"; color: #8b92a5; font_size: ((8px * s)); font_weight: 700; horizontal_alignment: center; vertical_alignment: center; } }
-                    Rectangle { width: ((62px * s)); height: ((22px * s)); border_radius: ((3px * s)); background: #171a23; border_color: #2b3040; border_width: ((1px * s));
-                        Text { text: "BEAT SYNC"; color: #8b92a5; font_size: ((8px * s)); font_weight: 700; horizontal_alignment: center; vertical_alignment: center; } }
-                    Rectangle { width: ((18px * s)); height: ((18px * s)); border_radius: ((9px * s)); background: #3a4152; border_color: #5a6478; border_width: ((1px * s)); }
-                }
-            }
-
-            // ---------- FAIXA DA FORMA DE ONDA (54) ----------
-            Rectangle {
-                height: ((54px * s));
-                background: #06070a;
-                border_color: #1e2130;
-                border_width: ((1px * s));
-                clip: true;
-
-                // frases reais do ANLZ (start/end normalizados 0..1)
-                for p in root.phrases : Rectangle {
-                    x: parent.width * p.start;
-                    width: parent.width * (p.end - p.start);
-                    height: parent.height;
-                    background: p.color.with_alpha(0.20);
-                    border_color: p.color.with_alpha(0.55);
-                    border_width: ((1px * s));
-                    Text { x: ((3px * s)); y: ((2px * s)); text: p.label; color: p.color.with_alpha(0.95); font_size: ((7px * s)); font_weight: 700; }
-                }
-
-                // batidas (downbeats)
-                for b in root.bars : Rectangle {
-                    x: parent.width * b.pos;
-                    y: parent.height * 0.42;
-                    width: ((1px * s));
-                    height: parent.height * 0.58;
-                    background: #ffffff;
-                    opacity: 0.18;
-                }
-
-                // linha central e cursor
-                Rectangle { y: parent.height * 0.5 - ((1px * s)); width: parent.width; height: ((1px * s)); background: #22283a; }
-                Rectangle { x: parent.width * 0.42; width: ((2px * s)); height: parent.height; background: #ff2d55; }
-            }
-
-            // ---------- CORPO (163) ----------
-            HorizontalLayout {
-                padding: ((5px * s));
-                spacing: ((6px * s));
-                vertical_stretch: 1;
-
-                // transporte: quadrados 30x30
-                VerticalLayout {
-                    spacing: ((4px * s));
-                    alignment: center;
-                    HorizontalLayout {
-                        spacing: ((4px * s));
-                        alignment: center;
-                        Rectangle { width: ((30px * s)); height: ((30px * s)); border_radius: ((15px * s)); background: #1b1e28; border_color: #00a2ff; border_width: ((2px * s));
-                            Text { text: "CUE"; color: #00a2ff; font_size: ((8px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                        Rectangle { width: ((30px * s)); height: ((30px * s)); border_radius: ((15px * s)); background: #1b1e28; border_color: #3a4152; border_width: ((1px * s));
-                            Text { text: "▶"; color: #c5c9d6; font_size: ((11px * s)); horizontal_alignment: center; vertical_alignment: center; } }
-                        Rectangle { width: ((30px * s)); height: ((30px * s)); border_radius: ((15px * s)); background: #1b1e28; border_color: #3a4152; border_width: ((1px * s));
-                            Text { text: "⟳"; color: #c5c9d6; font_size: ((13px * s)); horizontal_alignment: center; vertical_alignment: center; } }
-                    }
-                    Text { text: "4 BEAT"; color: #6d7488; font_size: ((8px * s)); font_weight: 700; horizontal_alignment: center; }
-                }
-
-                // pads A–H: botões 50x26, duas fileiras de quatro
-                VerticalLayout {
-                    spacing: ((4px * s));
-                    alignment: center;
-                    HorizontalLayout {
-                        spacing: ((4px * s));
-                        alignment: center;
-                        for i in 4 : Rectangle {
-                            width: ((46px * s));
-                            height: ((26px * s));
-                            border_radius: ((3px * s));
-                            background: #14161f;
-                            border_color: root.cores[i].with_alpha(0.55);
-                            border_width: ((1px * s));
-                            VerticalLayout {
-                                padding: ((2px * s));
-                                spacing: (0px * s);
-                                Text { text: root.letras[i] + "  " + root.nomes[i]; color: root.cores[i]; font_size: ((7px * s)); font_weight: 800; horizontal_alignment: center; }
-                                Text { text: "--:--"; color: #5c6376; font_size: ((7px * s)); horizontal_alignment: center; }
-                            }
-                        }
-                    }
-                    HorizontalLayout {
-                        spacing: ((4px * s));
-                        alignment: center;
-                        for i in 4 : Rectangle {
-                            width: ((46px * s));
-                            height: ((26px * s));
-                            border_radius: ((3px * s));
-                            background: #14161f;
-                            border_color: root.cores[i + 4].with_alpha(0.55);
-                            border_width: ((1px * s));
-                            VerticalLayout {
-                                padding: ((2px * s));
-                                spacing: (0px * s);
-                                Text { text: root.letras[i + 4] + "  " + root.nomes[i + 4]; color: root.cores[i + 4]; font_size: ((7px * s)); font_weight: 800; horizontal_alignment: center; }
-                                Text { text: "--:--"; color: #5c6376; font_size: ((7px * s)); horizontal_alignment: center; }
-                            }
-                        }
-                    }
-                }
-
-                // BPM: caixa 50x26 + leitura grande
-                VerticalLayout {
-                    spacing: ((3px * s));
-                    alignment: center;
-                    HorizontalLayout {
-                        spacing: ((4px * s));
-                        alignment: center;
-                        Rectangle { width: ((50px * s)); height: ((26px * s)); border_radius: ((3px * s)); background: #16202b; border_color: #2f6f96; border_width: ((1px * s));
-                            Text { text: "×1"; color: #9fd8ff; font_size: ((9px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                        Rectangle { width: ((44px * s)); height: ((26px * s)); border_radius: ((3px * s)); background: #171a23; border_color: #2b3040; border_width: ((1px * s));
-                            Text { text: root.tom; color: #d6dae6; font_size: ((10px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                    }
-                    Text { text: root.bpm; color: #00d0ff; font_size: ((17px * s)); font_weight: 900; horizontal_alignment: center; }
-                }
-
-                // SLIP / Q / MT: quadrados 30x30
-                VerticalLayout {
-                    spacing: ((4px * s));
-                    alignment: center;
-                    HorizontalLayout {
-                        spacing: ((4px * s));
-                        alignment: center;
-                        Rectangle { width: ((30px * s)); height: ((30px * s)); border_radius: ((3px * s)); background: #1b1e28; border_color: #3a4152; border_width: ((1px * s));
-                            Text { text: "SLIP"; color: #8b92a5; font_size: ((7px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                        Rectangle { width: ((30px * s)); height: ((30px * s)); border_radius: ((3px * s)); background: #1b1e28; border_color: #3a4152; border_width: ((1px * s));
-                            Text { text: "Q"; color: #8b92a5; font_size: ((9px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                    }
-                    Rectangle { width: ((30px * s)); height: ((26px * s)); border_radius: ((3px * s)); background: #1b1e28; border_color: #3a4152; border_width: ((1px * s));
-                        Text { text: "MT"; color: #8b92a5; font_size: ((8px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                }
-
-                // pitch: trilho com cap 24x14 e passos 14x15
-                VerticalLayout {
-                    spacing: ((4px * s));
-                    alignment: center;
-                    Rectangle { width: ((46px * s)); height: ((18px * s)); border_radius: ((2px * s)); background: #171a23; border_color: #2b3040; border_width: ((1px * s));
-                        Text { text: "±6%"; color: #8b92a5; font_size: ((8px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; } }
-                    Rectangle {
-                        width: ((8px * s));
-                        height: ((92px * s));
-                        background: #06070a;
-                        border_color: #272b3c;
-                        border_width: ((1px * s));
-                        border_radius: ((4px * s));
-                        Rectangle { y: parent.height * 0.5 - ((1px * s)); x: -((9px * s)); width: ((26px * s)); height: ((2px * s)); background: #00a2ff; }
-                        Image { source: @image-url("../assets/ui/ch_fader.svg"); y: parent.height * 0.5 - ((7px * s)); x: -((9px * s)); width: ((24px * s)); height: ((14px * s)); }
-                    }
-                    Text { text: "0.0%"; color: #00a2ff; font_size: ((9px * s)); font_weight: 800; horizontal_alignment: center; }
                 }
             }
         }
     }
 
-    export component AppWindow inherits Window {
-        title: "VILELABOX — Biblioteca e Decks";
-        preferred_width: ((1180px * s));
-        preferred_height: ((660px * s));
-        background: #090a0d;
-
-        // Escala global: 1.0 equivale à captura de referência 1917x1078
-        in-out property <float> s: 1.0;   // definido pelo Rust a partir do tamanho da janela
-
-        in property <[TrackRow]> track_rows;
-        in property <int> selected_row: 0;
-        in property <string> status: "2661 faixas carregadas";
-        in property <string> sel_title: "Nenhuma faixa selecionada";
-        in property <string> sel_artist: "Selecione uma faixa da biblioteca abaixo";
-        in property <string> sel_bpm: "128.00";
-        in property <string> sel_key: "8A";
-        in property <string> sel_duration: "03:45";
-        in property <string> sel_info: "Linha do tempo: compassos e frases do ANLZ";
-        in property <[Bar]> bars;
-        in property <[Segment]> phrases;
-
-        callback track_selected(int);
-
-        VerticalLayout {
-            spacing: ((0px * s));
-
-            // ==========================================
-            // 1. BARRA DE MENUS
-            // ==========================================
-            Rectangle {
-                height: ((28px * s));
-                background: #0c0d12;
-                border_color: #1a1c26;
-                border_width: ((1px * s));
-
-                HorizontalLayout {
-                    padding_left: ((14px * s));
-                    padding_right: ((14px * s));
-                    spacing: ((12px * s));
-
-                    // Marca VILELABOX — mesma caixa de 102x14 da barra original
-                    Rectangle {
-                        width: ((102px * s));
-                        height: ((14px * s));
-                        HorizontalLayout {
-                            alignment: start;
-                            spacing: ((6px * s));
-                            Image {
-                                source: @image-url("../assets/ui/mark.svg");
-                                width: ((12px * s));
-                                height: ((12px * s));
-                                vertical_alignment: center;
-                            }
-                            Text {
-                                text: "VILELABOX";
-                                color: #ffffff;
-                                font_size: ((13px * s));
-                                font_weight: 800;
-                                letter_spacing: ((1.4px * s));
-                                vertical_alignment: center;
-                            }
-                        }
-                    }
-
-                    Rectangle { width: ((1px * s)); height: ((18px * s)); background: #252836; y: (parent.height - self.height) / 2; }
-
-                    TopMenuButton { s: root.s; text: "Ficheiro"; }
-                    TopMenuButton { s: root.s; text: "Editar"; }
-                    TopMenuButton { s: root.s; text: "Ver"; }
-                    TopMenuButton { s: root.s; text: "Faixa"; }
-                    TopMenuButton { s: root.s; text: "Lista de reprodução"; }
-                    TopMenuButton { s: root.s; text: "Exportar"; }
-                    TopMenuButton { s: root.s; text: "Ajuda"; }
-
-                    Rectangle { horizontal_stretch: 1; }
-
-                    // Assinatura própria no canto direito — mesma caixa de 73x10
-                    Rectangle {
-                        width: ((73px * s));
-                        height: ((12px * s));
-                        background: #ff0000;
-                        HorizontalLayout {
-                            alignment: end;
-                            spacing: ((4px * s));
-                            Text {
-                                text: "vilelabox";
-                                color: #ffffff;
-                                font_size: ((8px * s));
-                                vertical_alignment: center;
-                            }
-                            Image {
-                                source: @image-url("../assets/ui/mark.svg");
-                                width: ((10px * s));
-                                height: ((10px * s));
-                                vertical_alignment: center;
-                            }
-                        }
-                    }
-                }
+    // Última tentativa: arquivo renomeado (sem a numeração) ou convertido.
+    for target in &candidate_names {
+        let Some(alvo) = nome_normalizado(target) else {
+            continue;
+        };
+        let ok = |name: &str| nome_normalizado(name).as_deref() == Some(alvo.as_str());
+        for base_dir in &search_dirs {
+            if let Some(found) = search_dir_match(base_dir, 3, &ok) {
+                return Some(found);
             }
-
-            // ==========================================
-            // 2. PERFORMANCE / GLOBAL CONTROL TOOLBAR
-            // ==========================================
-            Rectangle {
-                height: ((36px * s));
-                background: #111218;
-                border_color: rgb(30, 32, 44);
-                border_width: ((1px * s));
-
-                HorizontalLayout {
-                    padding_left: ((14px * s));
-                    padding_right: ((14px * s));
-                    spacing: ((10px * s));
-
-                    HeaderPill { s: root.s; label: "PERFORMANCE  ▾"; dot_color: #00a2ff; active: true; }
-
-                    Image {
-                        source: @image-url("../assets/ui/transport_bar.svg");
-                        width: ((90px * s));
-                        height: ((16px * s));
-                        vertical_alignment: center;
-                    }
-
-                    Rectangle { width: ((1px * s)); height: ((16px * s)); background: #222533; y: (parent.height - self.height) / 2; }
-
-                    HeaderPill { s: root.s; label: "FX"; dot_color: #ff9800; active: false; }
-                    HeaderPill { s: root.s; label: "SAMPLER"; dot_color: #9c27b0; active: false; }
-                    HeaderPill { s: root.s; label: "MIXER"; dot_color: #00bcd4; active: false; }
-
-                    // Pro DJ Link status
-                    Rectangle {
-                        height: ((24px * s));
-                        background: #102419;
-                        border_color: #10b981;
-                        border_width: ((1px * s));
-                        border_radius: ((3px * s));
-                        HorizontalLayout {
-                            padding_left: ((8px * s));
-                            padding_right: ((8px * s));
-                            spacing: ((6px * s));
-                            Rectangle { width: ((6px * s)); height: ((6px * s)); background: #10b981; border_radius: ((3px * s)); y: (parent.height - self.height) / 2; }
-                            Text { text: "LINK ATIVO"; color: #10b981; font_size: ((10px * s)); font_weight: 800; vertical_alignment: center; }
-                        }
-                    }
-
-                    Rectangle { horizontal_stretch: 1; }
-
-                    // Master output icon
-                    Image {
-                        source: @image-url("../assets/ui/master_out.svg");
-                        width: ((22px * s));
-                        height: ((22px * s));
-                        vertical_alignment: center;
-                    }
-
-                    Rectangle { width: ((1px * s)); height: ((16px * s)); background: #222533; y: (parent.height - self.height) / 2; }
-
-                    Text { text: "PAD    MIDI    Free    ⚙    10:24"; color: #727992; font_size: ((11px * s)); vertical_alignment: center; }
-                }
-            }
-
-            HorizontalLayout {
-                vertical_stretch: 1;
-                spacing: ((0px * s));
-
-                IconRail { s: root.s; height: 100%; }
-
-                VerticalLayout {
-                    spacing: ((0px * s));
-
-            // ==========================================
-            // 3. DECKS 1 e 2 + FAIXA DO MIXER  (339 = 285 + 54)
-            // ==========================================
-            Rectangle {
-                height: ((339px * s));
-                background: #0b0c10;
-                border_color: #1a1c27;
-                border_width: ((1px * s));
-
-                VerticalLayout {
-                    spacing: (0px * s);
-
-                    HorizontalLayout {
-                        spacing: (0px * s);
-                        vertical_stretch: 1;
-
-                        Deck {
-                            s: root.s;
-                            numero: 1;
-                            width: (853px * s);
-                            clip: true;
-                            titulo: root.sel_title;
-                            artista: root.sel_artist;
-                            duracao: root.sel_duration;
-                            bpm: root.sel_bpm;
-                            tom: root.sel_key;
-                            phrases: root.phrases;
-                            bars: root.bars;
-                        }
-
-                        MixerStrip { s: root.s; width: (133px * s); clip: true; }
-
-                        Deck {
-                            s: root.s;
-                            numero: 2;
-                            width: (887px * s);
-                            clip: true;
-                            titulo: root.sel_title;
-                            artista: root.sel_artist;
-                            duracao: root.sel_duration;
-                            bpm: root.sel_bpm;
-                            tom: root.sel_key;
-                            phrases: root.phrases;
-                            bars: root.bars;
-                        }
-                    }
-
-                    // barra do mixer: 555..1119 na captura
-                    HorizontalLayout {
-                        spacing: (0px * s);
-                        height: ((54px * s));
-                        Rectangle { width: 29%; height: ((54px * s)); }
-                        MixerBar { s: root.s; width: 29.4%; height: ((54px * s)); }
-                        Rectangle { horizontal_stretch: 1; height: ((54px * s)); }
-                    }
-                }
-            }
-
-            // ==========================================
-            // 4. BROWSER & COLLECTION SECTION
-            // ==========================================
-            Rectangle {
-                vertical_stretch: 1;
-                min-height: ((0px * s));
-                preferred-height: ((0px * s));
-                clip: true;
-                background: #0a0b0e;
-
-                VerticalLayout {
-                    spacing: ((0px * s));
-                    min-height: ((0px * s));
-
-                    // Browser Toolbar (Search & status)
-                    Rectangle {
-                        height: ((38px * s));
-                        background: #12141c;
-                        border_color: #1f2230;
-                        border_width: ((1px * s));
-
-                        HorizontalLayout {
-                            padding_left: ((12px * s));
-                            padding_right: ((12px * s));
-                            spacing: ((12px * s));
-
-                            Text { text: "ÁRVORE DE NAVEGAÇÃO"; color: #62697d; font_size: ((11px * s)); font_weight: 800; vertical_alignment: center; }
-
-                            Rectangle { width: ((1px * s)); height: ((16px * s)); background: #262a3c; y: (parent.height - self.height) / 2; }
-
-                            // Search bar
-                            Rectangle {
-                                width: ((360px * s));
-                                height: ((26px * s));
-                                background: #0a0b0f;
-                                border_color: #2d3247;
-                                border_width: ((1px * s));
-                                border_radius: ((3px * s));
-                                y: (parent.height - self.height) / 2;
-
-                                HorizontalLayout {
-                                    padding_left: ((8px * s));
-                                    padding_right: ((8px * s));
-                                    spacing: ((6px * s));
-                                    Image {
-                                        source: @image-url("../assets/ui/search.svg");
-                                        width: ((14px * s));
-                                        height: ((14px * s));
-                                        vertical_alignment: center;
-                                    }
-                                    Text {
-                                        text: "Procurar em Coleção / Análises...";
-                                        color: #626982;
-                                        font_size: ((11px * s));
-                                        vertical_alignment: center;
-                                    }
-                                }
-                            }
-
-                            Rectangle { horizontal_stretch: 1; }
-
-                            // Status badge
-                            Text {
-                                text: root.status;
-                                color: #00a2ff;
-                                font_size: ((11px * s));
-                                font_weight: 700;
-                                vertical_alignment: center;
-                            }
-                        }
-                    }
-
-                    // Split view: Left Navigation Sidebar & Right Track Grid
-                    HorizontalLayout {
-                        spacing: ((0px * s));
-                        vertical_stretch: 1;
-
-                        // LEFT: NAVIGATION TREE SIDEBAR
-                        Rectangle {
-                            width: ((250px * s));
-                            background: #0d0f15;
-                            border_color: #1a1c27;
-                            border_width: ((1px * s));
-
-                            VerticalLayout {
-                                padding: ((8px * s));
-                                spacing: ((2px * s));
-                                alignment: start;
-
-                                // Coleção (Selected)
-                                Rectangle {
-                                    height: ((28px * s));
-                                    background: rgb(0, 78, 138);
-                                    border_radius: ((3px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((8px * s));
-                                        spacing: ((8px * s));
-                                        Image { source: @image-url("../assets/ui/tree_track.svg"); width: ((16px * s)); height: ((16px * s)); vertical_alignment: center; }
-                                        Text { text: "Coleção de Faixas"; color: #ffffff; font_size: ((12px * s)); font_weight: 800; vertical_alignment: center; }
-                                    }
-                                }
-
-                                // Listas de reprodução
-                                Rectangle {
-                                    height: ((26px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((8px * s));
-                                        spacing: ((8px * s));
-                                        Image { source: @image-url("../assets/ui/tree_minus.svg"); width: ((10px * s)); height: ((10px * s)); vertical_alignment: center; }
-                                        Image { source: @image-url("../assets/ui/tree_folder.svg"); width: ((16px * s)); height: ((16px * s)); vertical_alignment: center; }
-                                        Text { text: "Listas de Reprodução"; color: #a4abbf; font_size: ((12px * s)); vertical_alignment: center; }
-                                    }
-                                }
-                                Rectangle {
-                                    height: ((22px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((36px * s));
-                                        spacing: ((6px * s));
-                                        Text { text: "★ Favoritas do Set"; color: rgb(136, 144, 176); font_size: ((11px * s)); vertical_alignment: center; }
-                                    }
-                                }
-                                Rectangle {
-                                    height: ((22px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((36px * s));
-                                        spacing: ((6px * s));
-                                        Text { text: "⚡ Drum & Bass / Jungle"; color: rgb(136, 144, 176); font_size: ((11px * s)); vertical_alignment: center; }
-                                    }
-                                }
-                                Rectangle {
-                                    height: ((22px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((36px * s));
-                                        spacing: ((6px * s));
-                                        Text { text: "🔥 Peak Time Techno"; color: rgb(136, 144, 176); font_size: ((11px * s)); vertical_alignment: center; }
-                                    }
-                                }
-
-                                // Dispositivos (USB/SD)
-                                Rectangle {
-                                    height: ((26px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((8px * s));
-                                        spacing: ((8px * s));
-                                        Image { source: @image-url("../assets/ui/tree_device.svg"); width: ((16px * s)); height: ((16px * s)); vertical_alignment: center; }
-                                        Text { text: "Dispositivos USB / SD"; color: #a4abbf; font_size: ((12px * s)); vertical_alignment: center; }
-                                    }
-                                }
-                                Rectangle {
-                                    height: ((22px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((36px * s));
-                                        spacing: ((6px * s));
-                                        Text { text: "💾 USB (FAT32)"; color: rgb(136, 144, 176); font_size: ((11px * s)); vertical_alignment: center; }
-                                    }
-                                }
-
-                                // Histórico
-                                Rectangle {
-                                    height: ((26px * s));
-                                    HorizontalLayout {
-                                        padding_left: ((8px * s));
-                                        spacing: ((8px * s));
-                                        Image { source: @image-url("../assets/ui/tree_playlist.svg"); width: ((16px * s)); height: ((16px * s)); vertical_alignment: center; }
-                                        Text { text: "Histórico de Sessões"; color: #a4abbf; font_size: ((12px * s)); vertical_alignment: center; }
-                                    }
-                                }
-                            }
-                        }
-
-                        // RIGHT: TRACK TABLE LIST
-                        VerticalLayout {
-                            horizontal_stretch: 1;
-                            spacing: ((0px * s));
-
-                            // Table Header Row
-                            Rectangle {
-                                height: ((26px * s));
-                                background: #131522;
-                                border_color: rgb(30, 33, 45);
-                                border_width: ((1px * s));
-
-                                HorizontalLayout {
-                                    padding_left: ((10px * s));
-                                    padding_right: ((10px * s));
-                                    spacing: ((8px * s));
-
-                                    Text { width: ((36px * s)); text: "#"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; vertical_alignment: center; }
-                                    Text { horizontal_stretch: 3; text: "TÍTULO DA FAIXA"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; vertical_alignment: center; }
-                                    Text { horizontal_stretch: 2; text: "ARTISTA"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; vertical_alignment: center; }
-                                    Text { width: ((75px * s)); text: "BPM"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; horizontal_alignment: right; vertical_alignment: center; }
-                                    Text { width: ((45px * s)); text: "TOM"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; horizontal_alignment: center; vertical_alignment: center; }
-                                    Text { width: ((60px * s)); text: "TEMPO"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; horizontal_alignment: right; vertical_alignment: center; }
-                                    Text { width: ((85px * s)); text: "COMPASSOS"; color: #5f667a; font_size: ((10px * s)); font_weight: 800; horizontal_alignment: right; vertical_alignment: center; }
-                                }
-                            }
-
-                            // Virtualized Track Rows
-                            ListView {
-                                vertical_stretch: 1;
-                                min-height: ((0px * s));
-                                for row[idx] in root.track_rows: Rectangle {
-                                    height: ((28px * s));
-                                    background: idx == root.selected_row ? rgb(0, 78, 138) : (row.alt ? #12141c : #0c0d13);
-
-                                    // Left selection neon blue indicator
-                                    if idx == root.selected_row: Rectangle {
-                                        x: ((0px * s));
-                                        width: ((3px * s));
-                                        height: parent.height;
-                                        background: #00a2ff;
-                                    }
-
-                                    HorizontalLayout {
-                                        padding_left: ((10px * s));
-                                        padding_right: ((10px * s));
-                                        spacing: ((8px * s));
-
-                                        Text {
-                                            width: ((36px * s));
-                                            text: row.id;
-                                            color: idx == root.selected_row ? #ffffff : #585f73;
-                                            font_size: ((11px * s));
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            horizontal_stretch: 3;
-                                            text: row.title;
-                                            color: idx == root.selected_row ? #ffffff : #e1e4ed;
-                                            font_size: ((12px * s));
-                                            font_weight: idx == root.selected_row ? 700 : 400;
-                                            overflow: elide;
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            horizontal_stretch: 2;
-                                            text: row.artist;
-                                            color: idx == root.selected_row ? #cfe4ff : #82899d;
-                                            font_size: ((11px * s));
-                                            overflow: elide;
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            width: ((75px * s));
-                                            text: row.bpm;
-                                            color: rgb(0, 229, 255);
-                                            font_size: ((11px * s));
-                                            font_weight: 700;
-                                            horizontal_alignment: right;
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            width: ((45px * s));
-                                            text: row.key;
-                                            color: #ff9800;
-                                            font_size: ((11px * s));
-                                            font_weight: 700;
-                                            horizontal_alignment: center;
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            width: ((60px * s));
-                                            text: row.duration;
-                                            color: #9aa1b5;
-                                            font_size: ((11px * s));
-                                            horizontal_alignment: right;
-                                            vertical_alignment: center;
-                                        }
-                                        Text {
-                                            width: ((85px * s));
-                                            text: row.bars_count > 0 ? row.bars_count + " comp." : "—";
-                                            color: #636b80;
-                                            font_size: ((10px * s));
-                                            horizontal_alignment: right;
-                                            vertical_alignment: center;
-                                        }
-                                    }
-
-                                    TouchArea {
-                                        clicked => {
-                                            root.track_selected(idx);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-                }
-            }
-
-            StatusBar { s: root.s; height: ((43px * s)); }
-
         }
     }
+
+    None
+}
+
+#[cfg(test)]
+mod busca_tests {
+    use super::nome_normalizado;
+
+    #[test]
+    fn ignora_numeracao_e_extensao() {
+        let a = nome_normalizado("01 - FAIXA PRETA ((FUNKHALL)).mp3");
+        assert_eq!(a, nome_normalizado("FAIXA PRETA ((FUNKHALL)).wav"));
+        assert_eq!(nome_normalizado("01. Brutalismus 3000 - Horime.flac").as_deref(), Some("brutalismus 3000 - horime"));
+        assert_eq!(nome_normalizado("capa.jpg"), None);
+    }
+}
+
+fn resolve_audio_buffer(
+    path: Option<&str>,
+    title: &str,
+) -> Result<Arc<vilelabox_audio::AudioBuffer>, String> {
+    // Sem substituto sintético: tocar um WAV de teste no lugar da faixa soava
+    // como "só estalos" e escondia o arquivo ausente.
+    let found = find_audio_file(path, title)
+        .ok_or_else(|| format!("Áudio não encontrado: {title}"))?;
+    vilelabox_audio::decode_audio(&found)
+        .map(Arc::new)
+        .map_err(|e| format!("Falha ao decodificar {}: {e}", found.display()))
+}
+
+/// Índice 0/1 do deck 1/2 vindo da UI.
+fn deck_idx(n: i32) -> Option<usize> {
+    match n {
+        1 => Some(0),
+        2 => Some(1),
+        _ => None,
+    }
+}
+
+/// Posição do deck `i` (0/1) no motor, em segundos.
+fn pos_s(ctrl: &AudioController, i: usize) -> f64 {
+    let snap = ctrl.get_snapshot();
+    if i == 0 { snap.deck1.position_seconds } else { snap.deck2.position_seconds }
+}
+
+fn render_ui(ui: &slint::Weak<AppWindow>, st: &AppState) {
+    if let Some(ui) = ui.upgrade() {
+        presentation::render(st, &ui);
+    }
+}
+
+/// Decodifica fora da thread da UI (symphonia leva segundos por faixa) e
+/// aplica no event loop; descarta se o deck trocou de faixa nesse meio-tempo.
+fn load_audio_async(
+    ctrl: &AudioController,
+    state: &Arc<Mutex<AppState>>,
+    ui: &slint::Weak<AppWindow>,
+    st: &AppState,
+    deck: DeckId,
+    track_idx: usize,
+) {
+    let Some(track) = st.tracks.get(track_idx) else {
+        return;
+    };
+    let (path, title) = (track.path.clone(), track.title.clone());
+    let (ctrl, state, ui) = (ctrl.clone(), state.clone(), ui.clone());
+    std::thread::spawn(move || {
+        let audio_buf = resolve_audio_buffer(path.as_deref(), &title);
+        let _ = slint::invoke_from_event_loop(move || {
+            let Ok(mut st) = state.lock() else {
+                return;
+            };
+            let atual = match deck {
+                DeckId::Deck1 => st.deck1.loaded_track_idx,
+                DeckId::Deck2 => st.deck2.loaded_track_idx,
+            };
+            if atual != Some(track_idx) {
+                return;
+            }
+            match audio_buf {
+                Ok(buf) => {
+                    apply_audio(&ctrl, &mut st, deck, buf);
+                }
+                Err(msg) => {
+                    // Silencia o deck (a faixa anterior não segue tocando) e avisa.
+                    ctrl.send(AudioCommand::LoadTrack {
+                        deck: if deck == DeckId::Deck1 { 1 } else { 2 },
+                        audio: Arc::new(vilelabox_audio::AudioBuffer::silence(44100, 1)),
+                        cue_frame: Some(0),
+                    });
+                    st.status_text = msg;
+                }
+            }
+            if let Some(ui) = ui.upgrade() {
+                presentation::render(&st, &ui);
+            }
+        });
+    });
+}
+
+fn apply_audio(
+    controller: &AudioController,
+    state: &mut AppState,
+    deck: DeckId,
+    audio_buf: Arc<vilelabox_audio::AudioBuffer>,
+) {
+    controller.send(acoes::carregar_audio(state, deck, audio_buf));
 }
 
 /// Pasta onde o rekordbox grava as análises (`.DAT`/`.EXT`). É um caminho de
@@ -1002,188 +309,544 @@ fn default_dir() -> PathBuf {
     PathBuf::from(appdata).join(r"Pioneer\rekordbox\share\PIONEER\USBANLZ")
 }
 
-fn phrase_color(kind: &str) -> Color {
-    let rgb = match kind {
-        "INTRO" => (0x2b, 0x5d, 0xa8),
-        "UP" | "VERSE" => (0x2e, 0x8b, 0x57),
-        "CHORUS" => (0xd9, 0x7a, 0x1e),
-        "DOWN" | "BRIDGE" => (0x7b, 0x4f, 0xa8),
-        "OUTRO" => (0x55, 0x5a, 0x63),
-        _ => (0x3c, 0x40, 0x46),
-    };
-    Color::from_rgb_u8(rgb.0, rgb.1, rgb.2)
-}
-
-fn split_artist_title(raw: &str) -> (String, String) {
-    let name = raw
-        .strip_suffix(".mp3")
-        .or_else(|| raw.strip_suffix(".flac"))
-        .or_else(|| raw.strip_suffix(".wav"))
-        .or_else(|| raw.strip_suffix(".aiff"))
-        .or_else(|| raw.strip_suffix(".m4a"))
-        .or_else(|| raw.strip_suffix(".MP3"))
-        .or_else(|| raw.strip_suffix(".FLAC"))
-        .unwrap_or(raw);
-
-    let clean = if let Some(rest) = name.strip_prefix(|c: char| c.is_ascii_digit()) {
-        let rest = rest.trim_start_matches(|c: char| c.is_ascii_digit());
-        let rest = rest.trim_start_matches(['.', '-', ' ']);
-        rest.trim()
-    } else {
-        name
-    };
-
-    if let Some((artist, title)) = clean.split_once(" - ") {
-        (artist.trim().to_string(), title.trim().to_string())
-    } else {
-        ("Vilelabox / Coleção".to_string(), clean.trim().to_string())
-    }
-}
-
-fn format_duration(grid: Option<&vilelabox_anlz::Grid>) -> String {
-    let Some(grid) = grid else {
-        return "—".into();
-    };
-    let Some(last) = grid.beats.last() else {
-        return "—".into();
-    };
-    let beat_ms = if grid.bpm > 0.0 {
-        60_000.0 / grid.bpm
-    } else {
-        0.0
-    };
-    let total_ms = last.time_ms as f64 + beat_ms;
-    let mins = (total_ms / 60000.0) as u32;
-    let secs = ((total_ms % 60000.0) / 1000.0) as u32;
-    format!("{:02}:{:02}", mins, secs)
-}
-
 fn main() -> Result<(), slint::PlatformError> {
-    let dir = std::env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(default_dir);
-    let tracks = Rc::new(library::scan(&dir));
+    // Argumento: pasta de análises, ou um documento XML (coleção, tom, cues e
+    // listas do XML; grade e formas de onda das análises em `default_dir`).
+    let arg = std::env::args_os().nth(1).map(PathBuf::from);
+    let xml = arg
+        .clone()
+        .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("xml")));
+    let dir = match (&xml, arg) {
+        (None, Some(d)) => d,
+        _ => default_dir(),
+    };
 
+    let mut initial_state = AppState::new();
+    initial_state.cues_dir = cues_store::dir_padrao();
+    initial_state.clock_text = presentation::system_clock_str();
+    initial_state.apply(Command::ScanStarted {
+        dir_display: dir.display().to_string(),
+    });
+
+    let (audio_controller, _stream) =
+        start_audio_engine().expect("falha ao inicializar motor de áudio");
+
+    let state = Arc::new(Mutex::new(initial_state));
     let ui = AppWindow::new()?;
 
-    // Fator de escala único: 1.0 = geometria de referência (1917x1078).
-    // VLBX_ESCALA permite reduzir o desenho inteiro (ex.: 0.62 para caber em 1180px).
+    // Sem VLBX_ESCALA, a escala acompanha a largura da janela (binding no Slint).
+    if let Ok(raw) = std::env::var("VLBX_ESCALA") {
+        ui.set_s(presentation::parse_scale(Some(&raw)));
+    }
+
+    // Renderiza snapshot inicial imediatamente (janela abre sem esperar o scan)
+    if let Ok(st) = state.lock() {
+        presentation::render(&st, &ui);
+    }
+
+    // U0.5: Varredura em thread de background com entrega via invoke_from_event_loop
     {
-        let s: f32 = std::env::var("VLBX_ESCALA")
-            .ok()
-            .and_then(|v| v.trim().parse::<f32>().ok())
-            .unwrap_or(1.0)
-            .clamp(0.35, 1.0);
-        ui.set_s(s);
-        eprintln!("escala {s} — geometria de referência 1917x1078");
-    }
-
-    let rows: Vec<TrackRow> = tracks
-        .iter()
-        .enumerate()
-        .map(|(idx, t)| {
-            let (artist, title) = split_artist_title(&t.title);
-            let bpm = t
-                .grid
-                .as_ref()
-                .map_or("—".into(), |g| format!("{:.2}", g.bpm));
-            let duration = format_duration(t.grid.as_ref());
-            let bars_count = t.grid.as_ref().map_or(0, |g| {
-                g.beats.iter().filter(|b| b.beat_number == 1).count() as i32
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let scan_dir = dir.clone();
+        std::thread::spawn(move || {
+            let (tracks, playlists, summary) = match &xml {
+                Some(x) => match std::fs::read_to_string(x)
+                    .map_err(|e| e.to_string())
+                    .and_then(|s| library::load_xml(&s, &scan_dir).map_err(|e| e.to_string()))
+                {
+                    Ok((t, p)) => {
+                        let com_analise = t.iter().filter(|t| t.ext.is_some()).count();
+                        let s = format!(
+                            "{} faixas ({} com análise), {} listas de {}",
+                            t.len(),
+                            com_analise,
+                            p.len(),
+                            x.display()
+                        );
+                        (t, p, s)
+                    }
+                    Err(e) => (Vec::new(), Vec::new(), format!("XML ilegível: {e}")),
+                },
+                None => {
+                    let t = library::scan(&scan_dir);
+                    let s = format!("{} faixas em {}", t.len(), scan_dir.display());
+                    (t, Vec::new(), s)
+                }
+            };
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(ui) = ui_weak.upgrade() {
+                    if let Ok(mut st) = state_ref.lock() {
+                        st.apply(Command::PlaylistsLoaded(playlists));
+                        st.apply(Command::ScanFinished { tracks, summary });
+                        presentation::render(&st, &ui);
+                    }
+                }
             });
-
-            TrackRow {
-                id: (idx + 1) as i32,
-                title: SharedString::from(title),
-                artist: SharedString::from(artist),
-                bpm: SharedString::from(bpm),
-                key: SharedString::from("8A"),
-                duration: SharedString::from(duration),
-                bars_count,
-                alt: idx % 2 == 1,
-            }
-        })
-        .collect();
-
-    ui.set_track_rows(ModelRc::new(VecModel::from(rows)));
-    ui.set_status(SharedString::from(format!(
-        "{} faixas em {}",
-        tracks.len(),
-        dir.display()
-    )));
-
-    // Load first track by default if available
-    if let Some(first_track) = tracks.first() {
-        let (artist, title) = split_artist_title(&first_track.title);
-        let bpm = first_track
-            .grid
-            .as_ref()
-            .map_or("—".into(), |g| format!("{:.2}", g.bpm));
-        let duration = format_duration(first_track.grid.as_ref());
-        let view = library::timeline(first_track);
-
-        ui.set_selected_row(0);
-        ui.set_sel_title(SharedString::from(title));
-        ui.set_sel_artist(SharedString::from(artist));
-        ui.set_sel_bpm(SharedString::from(bpm));
-        ui.set_sel_duration(SharedString::from(duration));
-        ui.set_sel_info(SharedString::from(view.info.as_str()));
-
-        let bars: Vec<Bar> = view.bars.iter().map(|&pos| Bar { pos }).collect();
-        let phrases: Vec<Segment> = view
-            .phrases
-            .iter()
-            .map(|p| Segment {
-                start: p.start,
-                end: p.end,
-                color: phrase_color(&p.kind),
-                label: SharedString::from(p.kind.as_str()),
-            })
-            .collect();
-        ui.set_bars(ModelRc::new(VecModel::from(bars)));
-        ui.set_phrases(ModelRc::new(VecModel::from(phrases)));
+        });
     }
 
-    let weak = ui.as_weak();
-    let lib = tracks.clone();
-    ui.on_track_selected(move |index| {
-        let (Some(ui), Some(track)) = (
-            weak.upgrade(),
-            usize::try_from(index).ok().and_then(|i| lib.get(i)),
-        ) else {
-            return;
+    // Timer do relógio (U3.2) a cada segundo
+    let clock_timer = slint::Timer::default();
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        clock_timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_secs(1),
+            move || {
+                let now_str = presentation::system_clock_str();
+                if let Ok(mut st) = state_ref.lock() {
+                    if st.clock_text != now_str {
+                        st.apply(Command::TickClock(now_str));
+                        if let Some(ui) = ui_weak.upgrade() {
+                            presentation::render(&st, &ui);
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    // Timer de sincronização do motor de áudio com a interface (40 FPS)
+    let audio_sync_timer = slint::Timer::default();
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        audio_sync_timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_millis(25),
+            move || {
+                let snap = ctrl.get_snapshot();
+                if let Ok(mut st) = state_ref.lock() {
+                    let d1_active = st.deck1.audio_ready
+                        && (snap.deck1.is_playing
+                            || st.deck1.is_playing
+                            || (st.deck1.pos_s - snap.deck1.position_seconds).abs() > 0.05);
+                    let d2_active = st.deck2.audio_ready
+                        && (snap.deck2.is_playing
+                            || st.deck2.is_playing
+                            || (st.deck2.pos_s - snap.deck2.position_seconds).abs() > 0.05);
+                    if d1_active || d2_active {
+                        st.apply(Command::SyncAudioSnapshots {
+                            deck1_pos_s: snap.deck1.position_seconds,
+                            deck1_playing: snap.deck1.is_playing,
+                            deck1_cue: snap.deck1.is_cue_standby,
+                            deck2_pos_s: snap.deck2.position_seconds,
+                            deck2_playing: snap.deck2.is_playing,
+                            deck2_cue: snap.deck2.is_cue_standby,
+                        });
+                        if let Some(ui) = ui_weak.upgrade() {
+                            presentation::render_transport(&st, &ui);
+                        }
+                    }
+                }
+            },
+        );
+    }
+
+    // Callbacks da interface (Command/Snapshot)
+    // 1. Seleção de faixa na biblioteca (U1.6: clique apenas seleciona)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        ui.on_track_selected(move |idx| {
+            if let Ok(idx) = usize::try_from(idx) {
+                if let Ok(mut st) = state_ref.lock() {
+                    st.apply(Command::SelectTrack(idx));
+                    if let Some(ui) = ui_weak.upgrade() {
+                        presentation::render(&st, &ui);
+                    }
+                }
+            }
+        });
+    }
+
+    // 1b. Duplo clique em faixa na biblioteca (carregamento inteligente)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl_load = audio_controller.clone();
+        ui.on_track_double_clicked(move |idx| {
+            if let Ok(idx) = usize::try_from(idx) {
+                if let Ok(mut st) = state_ref.lock() {
+                    st.apply(Command::SelectTrack(idx));
+                    let target_deck = if st.deck1.loaded_track_idx.is_none() {
+                        DeckId::Deck1
+                    } else if st.deck2.loaded_track_idx.is_none()
+                        || (st.deck1.is_playing && !st.deck2.is_playing)
+                    {
+                        DeckId::Deck2
+                    } else {
+                        DeckId::Deck1
+                    };
+                    st.apply(Command::LoadToDeck {
+                        deck: target_deck,
+                        filtered_index: idx,
+                    });
+                    let track_opt = match target_deck {
+                        DeckId::Deck1 => st.deck1.loaded_track_idx,
+                        DeckId::Deck2 => st.deck2.loaded_track_idx,
+                    };
+                    if let Some(t_idx) = track_opt {
+                        load_audio_async(&ctrl_load, &state_ref, &ui_weak, &st, target_deck, t_idx);
+                    }
+                    if let Some(ui) = ui_weak.upgrade() {
+                        presentation::render(&st, &ui);
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Carregar seleção em um deck (U0.4 / U1.6)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl_load = audio_controller.clone();
+        ui.on_load_selected_deck(move |deck_num| {
+            let deck = match deck_num {
+                1 => DeckId::Deck1,
+                2 => DeckId::Deck2,
+                _ => return,
+            };
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::LoadSelectedToDeck(deck));
+                let track_opt = match deck {
+                    DeckId::Deck1 => st.deck1.loaded_track_idx,
+                    DeckId::Deck2 => st.deck2.loaded_track_idx,
+                };
+                if let Some(t_idx) = track_opt {
+                    load_audio_async(&ctrl_load, &state_ref, &ui_weak, &st, deck, t_idx);
+                }
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
+
+    // 3. Carregar faixa específica em um deck
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl_load = audio_controller.clone();
+        ui.on_load_deck(move |deck_num, filtered_idx| {
+            let deck = match deck_num {
+                1 => DeckId::Deck1,
+                2 => DeckId::Deck2,
+                _ => return,
+            };
+            if let Ok(filtered_idx) = usize::try_from(filtered_idx) {
+                if let Ok(mut st) = state_ref.lock() {
+                    st.apply(Command::LoadToDeck {
+                        deck,
+                        filtered_index: filtered_idx,
+                    });
+                    let track_opt = match deck {
+                        DeckId::Deck1 => st.deck1.loaded_track_idx,
+                        DeckId::Deck2 => st.deck2.loaded_track_idx,
+                    };
+                    if let Some(t_idx) = track_opt {
+                        load_audio_async(&ctrl_load, &state_ref, &ui_weak, &st, deck, t_idx);
+                    }
+                    if let Some(ui) = ui_weak.upgrade() {
+                        presentation::render(&st, &ui);
+                    }
+                }
+            }
+        });
+    }
+
+    // 4. Controles de transporte dos Decks (Play/Pause, CUE, Seek)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_play(move |deck_num| {
+            let deck = match deck_num {
+                1 => DeckId::Deck1,
+                2 => DeckId::Deck2,
+                _ => return,
+            };
+            ctrl.send(AudioCommand::PlayPause {
+                deck: deck_num as u8,
+            });
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::PlayPause(deck));
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
+
+    {
+        // CUE: pressionar e soltar vão ao motor (spec/rekordbox/30-deck.md); a
+        // posição e o estado voltam pelo timer de sincronização.
+        let ctrl = audio_controller.clone();
+        ui.on_deck_cue(move |deck_num, pressionado| {
+            if !(1..=2).contains(&deck_num) {
+                return;
+            }
+            let deck = deck_num as u8;
+            ctrl.send(if pressionado {
+                AudioCommand::CueDown { deck }
+            } else {
+                AudioCommand::CueUp { deck }
+            });
+        });
+    }
+
+    // Loops, quantize e linhas de cue (spec/rekordbox/32-loops-cues.md).
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_loop_alternar(move |n| {
+            let Some(i) = deck_idx(n) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            if let Some(cmd) = acoes::loop_alternar(&mut st, i, pos_s(&ctrl, i)) {
+                ctrl.send(cmd);
+            }
+            render_ui(&ui_weak, &st);
+        });
+    }
+    for dobro in [false, true] {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        let f = move |n: i32| {
+            let Some(i) = deck_idx(n) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            let Some(cmd) = acoes::loop_cut(&mut st, i, dobro) else { return };
+            ctrl.send(cmd);
+            render_ui(&ui_weak, &st);
         };
+        if dobro {
+            ui.on_deck_loop_dobro(f);
+        } else {
+            ui.on_deck_loop_metade(f);
+        }
+    }
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_quantize(move |n| {
+            let Some(i) = deck_idx(n) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            ctrl.send(acoes::quantize(&mut st, i));
+            render_ui(&ui_weak, &st);
+        });
+    }
+    // Demais botões do deck (spec/rekordbox/30-deck.md, 32-loops-cues.md;
+    // dossiê evidence/p6-2-sync-slip-quantize.md).
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_botao(move |n, nome| {
+            let Some(i) = deck_idx(n) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            let deck = n as u8;
+            match nome.as_str() {
+                // MT (unit#15): alterna.
+                "mt" => {
+                    st.master_tempo[i] = !st.master_tempo[i];
+                    ctrl.send(AudioCommand::SetMasterTempo { deck, on: st.master_tempo[i] });
+                }
+                // SLIP (unit#14): só o estado; a sombra é DESCONHECIDA.
+                "slip" => {
+                    st.slip[i] = !st.slip[i];
+                    ctrl.send(AudioCommand::SetSlip { deck, on: st.slip[i] });
+                }
+                // BEAT SYNC (unit#22): o não master assume o andamento do master.
+                "beat_sync" => {
+                    st.beat_sync[i] = !st.beat_sync[i];
+                    let master_bpm = sync::bpm_do_master(&st, i);
+                    ctrl.send(AudioCommand::BeatSync {
+                        deck,
+                        on: st.beat_sync[i],
+                        own_bpm: sync::bpm_base(&st, i),
+                        master_bpm,
+                    });
+                    sync::aplicar_sync(&mut st, i);
+                }
+                // MASTER: estado do app (nenhuma chamada na vtable do deck);
+                // decks em sync passam a seguir o novo master.
+                "master" => {
+                    st.master = i;
+                    let j = 1 - i;
+                    if st.beat_sync[j] {
+                        ctrl.send(AudioCommand::BeatSync {
+                            deck: (j + 1) as u8,
+                            on: true,
+                            own_bpm: sync::bpm_base(&st, j),
+                            master_bpm: sync::bpm_do_master(&st, j),
+                        });
+                        sync::aplicar_sync(&mut st, j);
+                    }
+                }
+                // KEY SYNC (unit#45): desloca o tom para o do outro deck
+                // (na captura, o deck 1 casou com o deck 2). Desligar só apaga
+                // o indicador: o que o rekordbox faz ao desligar não foi observado.
+                "key_sync" => {
+                    st.key_sync[i] = !st.key_sync[i];
+                    if st.key_sync[i] {
+                        let (own, refe) = if i == 0 {
+                            (&st.deck1.key, &st.deck2.key)
+                        } else {
+                            (&st.deck2.key, &st.deck1.key)
+                        };
+                        match sync::key_sync_shift(own, refe) {
+                            Some(s) => {
+                                st.key_shift[i] = s;
+                                ctrl.send(AudioCommand::KeyShift { deck, semitones: s });
+                            }
+                            None => st.status_text = "KEY SYNC: tons sem regra observada".into(),
+                        }
+                    }
+                }
+                "loop_modo" => acoes::loop_modo(&mut st, i),
+                "memory" => acoes::memory(&mut st, i, pos_s(&ctrl, i)),
+                _ => return,
+            }
+            render_ui(&ui_weak, &st);
+        });
+    }
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_cue_linha(move |n, linha| {
+            let (Some(i), Ok(linha)) = (deck_idx(n), usize::try_from(linha)) else { return };
+            let Ok(mut st) = state_ref.lock() else { return };
+            if let Some(cmd) = acoes::cue_linha(&mut st, i, linha, pos_s(&ctrl, i)) {
+                ctrl.send(cmd);
+            }
+            render_ui(&ui_weak, &st);
+        });
+    }
 
-        let (artist, title) = split_artist_title(&track.title);
-        let bpm = track
-            .grid
-            .as_ref()
-            .map_or("—".into(), |g| format!("{:.2}", g.bpm));
-        let duration = format_duration(track.grid.as_ref());
-        let view = library::timeline(track);
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        let ctrl = audio_controller.clone();
+        ui.on_deck_seek(move |deck_num, pos_rel| {
+            let deck = match deck_num {
+                1 => DeckId::Deck1,
+                2 => DeckId::Deck2,
+                _ => return,
+            };
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::Seek(deck, f64::from(pos_rel)));
+                let dur = match deck {
+                    DeckId::Deck1 => st.deck1.dur_s,
+                    DeckId::Deck2 => st.deck2.dur_s,
+                };
+                let sec = f64::from(pos_rel).clamp(0.0, 1.0) * dur;
+                ctrl.send(AudioCommand::SeekSeconds {
+                    deck: deck_num as u8,
+                    seconds: sec,
+                });
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
 
-        ui.set_selected_row(index);
-        ui.set_sel_title(SharedString::from(title));
-        ui.set_sel_artist(SharedString::from(artist));
-        ui.set_sel_bpm(SharedString::from(bpm));
-        ui.set_sel_duration(SharedString::from(duration));
-        ui.set_sel_info(SharedString::from(view.info.as_str()));
+    // 4. Busca por texto (U1.1)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        ui.on_search_edited(move |query| {
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::Search(query.to_string()));
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
 
-        let bars: Vec<Bar> = view.bars.iter().map(|&pos| Bar { pos }).collect();
-        let phrases: Vec<Segment> = view
-            .phrases
-            .iter()
-            .map(|p| Segment {
-                start: p.start,
-                end: p.end,
-                color: phrase_color(&p.kind),
-                label: SharedString::from(p.kind.as_str()),
-            })
-            .collect();
-        ui.set_bars(ModelRc::new(VecModel::from(bars)));
-        ui.set_phrases(ModelRc::new(VecModel::from(phrases)));
-    });
+    // 6. Lista de reprodução na árvore (-1 = coleção inteira)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        ui.on_playlist_selected(move |idx| {
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::SelectPlaylist(usize::try_from(idx).ok()));
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
+
+    // 5. Ordenação por coluna (U1.2)
+    {
+        let ui_weak = ui.as_weak();
+        let state_ref = state.clone();
+        ui.on_sort_clicked(move |col_idx| {
+            let col = match col_idx {
+                0 => SortColumn::Id,
+                1 => SortColumn::Title,
+                2 => SortColumn::Artist,
+                3 => SortColumn::Bpm,
+                4 => SortColumn::Duration,
+                5 => SortColumn::Bars,
+                _ => return,
+            };
+            if let Ok(mut st) = state_ref.lock() {
+                st.apply(Command::SortBy(col));
+                if let Some(ui) = ui_weak.upgrade() {
+                    presentation::render(&st, &ui);
+                }
+            }
+        });
+    }
+
+    // VLBX_CAPTURA=<arquivo.ppm>: abre no cliente de referência (1920x1051, o
+    // mesmo do rekordbox maximizado), espera o scan e grava a tela em PPM.
+    // Ferramenta de comparação de layout; não afeta o uso normal.
+    let capture_timer = slint::Timer::default();
+    if let Some(out) = std::env::var_os("VLBX_CAPTURA") {
+        ui.window().set_size(slint::PhysicalSize::new(1920, 1051));
+        let ui_weak = ui.as_weak();
+        // VLBX_CAPTURA_BUSCA=<texto>: busca e carrega o primeiro resultado no deck 1.
+        let busca = std::env::var("VLBX_CAPTURA_BUSCA").ok();
+        let state_ref = state.clone();
+        capture_timer.start(
+            slint::TimerMode::SingleShot,
+            std::time::Duration::from_secs(8),
+            move || {
+                let Some(ui) = ui_weak.upgrade() else { return };
+                if let (Some(b), Ok(mut st)) = (busca.clone(), state_ref.lock()) {
+                    st.apply(Command::Search(b));
+                    st.apply(Command::LoadToDeck {
+                        deck: DeckId::Deck1,
+                        filtered_index: 0,
+                    });
+                    presentation::render(&st, &ui);
+                }
+                match ui.window().take_snapshot() {
+                    Ok(buf) => {
+                        let mut ppm =
+                            format!("P6\n{} {}\n255\n", buf.width(), buf.height()).into_bytes();
+                        ppm.extend(buf.as_slice().iter().flat_map(|p| [p.r, p.g, p.b]));
+                        if let Err(e) = std::fs::write(&out, ppm) {
+                            eprintln!("captura: {e}");
+                        }
+                    }
+                    Err(e) => eprintln!("captura: {e}"),
+                }
+                let _ = slint::quit_event_loop();
+            },
+        );
+    }
 
     ui.run()
 }

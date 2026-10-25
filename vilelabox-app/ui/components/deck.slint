@@ -1,0 +1,535 @@
+import { Bar, Chevron, LinhaCue, Marca, Segment } from "../theme.slint";
+
+// Botão retangular de texto, desenhado só com borda e cor (sem ativos de terceiros).
+component DeckButton inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> text;
+    in property <bool> aceso: false;
+    in property <color> cor_acesa: #1f6fd1;
+    in property <length> tamanho: 9px;
+    callback clicked();
+    background: root.aceso ? root.cor_acesa : #1e1e1e;
+    border_radius: ((2px * s));
+    Text {
+        text: root.text;
+        color: #e6e9f0;
+        font_size: root.tamanho * s;
+        font_weight: 700;
+        horizontal_alignment: center;
+        vertical_alignment: center;
+    }
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+// Corpo do deck no modo PERFORMANCE, 2Deck Horizontal. Coordenadas locais em
+// unidades de 1920, medidas na captura do rekordbox 7.2.8 com faixa carregada
+// (2026-10-24); deck de 890 x 287. O cabeçalho é igual nos dois decks; o corpo
+// do deck 2 tem posições próprias (lista de cues à direita, transporte à esquerda).
+export component Deck inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <int> numero: 1;
+    in property <string> titulo;
+    in property <string> artista;
+    in property <string> duracao;
+    in property <string> bpm;
+    in property <string> tom;
+    in property <[Segment]> phrases;
+    in property <[Bar]> bars;
+    in property <bool> audio_ready: false;
+    in property <image> wave;
+    in property <[Marca]> marcas;
+    in property <[LinhaCue]> cues;
+    in property <float> pos_rel: 0.0;
+    in property <string> tempo_decorrido: "00:00.0";
+    in property <string> tempo_restante: "-00:00.0";
+    in property <bool> tocando: false;
+    in property <bool> cue_aceso: false;
+
+    callback load_clicked();
+    callback play_clicked();
+    callback cue_pressed(bool);
+    // Loops e cues (spec/rekordbox/32-loops-cues.md)
+    in property <string> loop_tamanho: "4";
+    in property <bool> loop_ativo: false;
+    in property <bool> quantize: false;
+    callback loop_alternar();
+    callback loop_metade();
+    callback loop_dobro();
+    callback quantize_alternar();
+    // Botões de evidence/p6-2-sync-slip-quantize.md; `botao` recebe o nome:
+    // "mt", "slip", "beat_sync", "master", "key_sync", "loop_modo", "memory".
+    in property <string> key_shift: "±0";
+    in property <string> pitch: "+0.0%";
+    in property <bool> master: false;
+    in property <bool> beat_sync: false;
+    in property <bool> key_sync: false;
+    in property <bool> slip: false;
+    in property <bool> mt: true;
+    in property <bool> loop_manual: false;
+    callback botao(string);
+    callback cue_linha(int);
+    callback seek_clicked(float);
+
+    property <bool> carregado: root.titulo != "" && root.titulo != "Not Loaded.";
+    property <bool> espelho: root.numero == 2;
+    // Deck 1 mostra a lista de memória; deck 2, os disparos rápidos (como na captura).
+    property <bool> lista_hot: root.numero == 2;
+
+    // x local: posição medida no deck 1 ou no deck 2. O corpo do deck 2 não é
+    // espelho exato: ordem INT/CUE, prato, SLIP/Q/MT, loop, lista de cues.
+    pure function dx(x1: float, x2: float) -> length {
+        return (root.espelho ? x2 : x1) * 1px * root.s;
+    }
+
+    background: #0f0f0f;
+
+    // ---------- CABEÇALHO ----------
+    Text {
+        x: ((12px * s));
+        y: ((10px * s));
+        text: root.numero;
+        color: #e6e9f0;
+        font_size: ((11px * s));
+        font_weight: 700;
+    }
+
+    // capa / botão LOAD circular
+    Rectangle {
+        x: ((30px * s));
+        y: ((14px * s));
+        width: ((42px * s));
+        height: ((42px * s));
+        background: load_art_touch.has_hover ? (root.numero == 1 ? #2e6bb0 : #c05c2a) : (root.carregado ? #1e1e1e : (root.numero == 1 ? #14273d : #3a1c10));
+        border_radius: ((21px * s));
+        border_width: ((1px * s));
+        border_color: root.numero == 1 ? #2b598f : #8c4220;
+        if root.carregado: Rectangle {
+            width: ((10px * s));
+            height: ((10px * s));
+            border_radius: ((5px * s));
+            background: #0f0f0f;
+        }
+        if !root.carregado: Text {
+            text: "LOAD";
+            color: #ffffff;
+            font_size: ((9px * s));
+            font_weight: 700;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+        load_art_touch := TouchArea { clicked => { root.load_clicked(); } }
+    }
+
+    // Área do título / Not Loaded (clicar carrega a faixa selecionada)
+    Rectangle {
+        x: ((80px * s));
+        y: ((10px * s));
+        width: ((420px * s));
+        height: ((48px * s));
+        background: transparent;
+
+        Text {
+            x: 0px;
+            y: ((2px * s));
+            width: parent.width;
+            text: root.carregado ? root.titulo : "Not Loaded — clique para carregar";
+            color: root.carregado ? #ffffff : (title_touch.has_hover ? #4fa3ff : #5a5a5a);
+            font_size: ((19px * s));
+            font_weight: 700;
+            overflow: elide;
+        }
+        Text {
+            x: 0px;
+            y: ((30px * s));
+            width: ((130px * s));
+            text: root.artista;
+            color: #9a9a9a;
+            font_size: ((14px * s));
+            overflow: elide;
+            visible: root.carregado;
+        }
+        title_touch := TouchArea {
+            clicked => { root.load_clicked(); }
+        }
+    }
+    Text {
+        x: ((232px * s));
+        y: ((40px * s));
+        text: root.bpm + "  " + root.tom;
+        color: #e6e9f0;
+        font_size: ((14px * s));
+        visible: root.carregado;
+    }
+
+    // tempo restante e decorrido
+    Text {
+        x: ((516px * s));
+        y: ((36px * s));
+        text: root.carregado ? root.tempo_restante : "-00:00.0";
+        color: root.carregado ? #ffffff : #3a3a3a;
+        font_size: ((17px * s));
+    }
+    Text {
+        x: ((587px * s));
+        y: ((36px * s));
+        text: root.carregado ? root.tempo_decorrido : "00:00.0";
+        color: root.carregado ? #9a9a9a : #3a3a3a;
+        font_size: ((17px * s));
+    }
+
+    // KEY SYNC e ajuste de tom
+    DeckButton {
+        s: root.s;
+        x: ((690px * s));
+        y: ((12px * s));
+        width: ((80px * s));
+        height: ((16px * s));
+        text: "KEY SYNC";
+        aceso: root.key_sync;
+        clicked => { root.botao("key_sync"); }
+    }
+    Text {
+        x: ((690px * s));
+        y: ((42px * s));
+        width: ((80px * s));
+        text: root.carregado ? "‹  " + root.tom + "   " + root.key_shift + "  ›" : "‹              ›";
+        color: root.carregado ? #e6e9f0 : #3a3a3a;
+        font_size: ((12px * s));
+        horizontal_alignment: center;
+    }
+
+    // BEAT SYNC e MASTER
+    Rectangle {
+        x: ((793px * s));
+        y: ((10px * s));
+        width: ((56px * s));
+        height: ((28px * s));
+        background: root.beat_sync ? #1f6fd1 : #1e1e1e;
+        TouchArea { clicked => { root.botao("beat_sync"); } }
+        Text {
+            text: "BEAT\nSYNC";
+            color: #e6e9f0;
+            font_size: ((9px * s));
+            font_weight: 700;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+    }
+    Rectangle {
+        x: ((793px * s));
+        y: ((42px * s));
+        width: ((87px * s));
+        height: ((16px * s));
+        background: #1e1e1e;
+        border_color: root.master && root.carregado ? #1f6fd1 : #4a4a4a;
+        TouchArea { clicked => { root.botao("master"); } }
+        border_width: ((1px * s));
+        Text {
+            text: "MASTER";
+            color: #e6e9f0;
+            font_size: ((9px * s));
+            font_weight: 700;
+            horizontal_alignment: center;
+            vertical_alignment: center;
+        }
+    }
+
+    // ---------- FORMA DE ONDA GERAL (y 68..112) ----------
+    Rectangle {
+        x: 0;
+        y: ((68px * s));
+        width: parent.width;
+        height: ((44px * s));
+        background: #000000;
+        clip: true;
+
+        // PWV4 em cores RGB, ancorada embaixo (Rust: `waveform::render_preview`)
+        Image {
+            width: parent.width;
+            height: parent.height;
+            source: root.wave;
+            image-fit: fill;
+        }
+        for b in root.bars : Rectangle {
+            x: parent.width * b.pos;
+            y: parent.height - (4px * s);
+            width: ((1px * s));
+            height: ((4px * s));
+            background: #ffffff;
+            opacity: 0.35;
+        }
+        // cues na faixa inteira: hot cue = etiqueta em cima, memória = triângulo embaixo
+        for m in root.marcas : Rectangle {
+            x: parent.width * m.pos;
+            width: ((1px * s));
+            height: parent.height;
+            background: m.cor.with_alpha(0.6);
+            Rectangle {
+                visible: m.tipo == 2;
+                y: 0;
+                width: ((13px * s));
+                height: ((12px * s));
+                background: m.cor;
+                Text { text: m.letra; color: #000000; font_size: ((9px * s)); font_weight: 800; }
+            }
+            Path {
+                visible: m.tipo != 2;
+                x: -((6px * s));
+                y: parent.height - (10px * s);
+                width: ((13px * s));
+                height: ((10px * s));
+                viewbox-width: 12;
+                viewbox-height: 10;
+                commands: "M 0 10 L 6 0 L 12 10 Z";
+                fill: #f5a623;
+            }
+        }
+
+        // agulha da posição
+        Rectangle {
+            x: parent.width * root.pos_rel;
+            width: ((2px * s));
+            height: parent.height;
+            background: #ff8a00;
+            visible: root.carregado;
+        }
+
+        TouchArea {
+            enabled: root.audio_ready;
+            clicked => {
+                if (parent.width > 0px) {
+                    root.seek_clicked(self.mouse-x / parent.width);
+                }
+            }
+        }
+    }
+
+    // ---------- CORPO (y 122..287) ----------
+
+    // ícone de alternância de painel (4 quadrados)
+    for q[i] in 4 : Rectangle {
+        x: root.dx(9 + mod(i, 2) * 8, 866 + mod(i, 2) * 8);
+        y: (157 + floor(i / 2) * 8) * 1px * s;
+        width: ((6px * s));
+        height: ((6px * s));
+        background: #e6e9f0;
+    }
+
+    // lista de cues: 2 colunas x 4 linhas + rodapé
+    for c[i] in 8 : Rectangle {
+        x: root.dx(48 + floor(i / 4) * 236, 372 + floor(i / 4) * 236);
+        y: (132 + mod(i, 4) * 26) * 1px * s;
+        width: ((233px * s));
+        height: ((24px * s));
+        background: #1e1e1e;
+        TouchArea {
+            enabled: root.audio_ready;
+            clicked => { root.cue_linha(i); }
+        }
+        // deck 1: memória (até 8, na ordem do tempo); deck 2: A..H
+        property <bool> tem: i < root.cues.length;
+        property <LinhaCue> c: root.cues[i];
+        Rectangle {
+            visible: parent.tem && parent.c.texto != "";
+            x: 0;
+            width: ((4px * s));
+            height: parent.height;
+            background: parent.c.cor;
+        }
+        Text {
+            x: ((14px * s));
+            visible: parent.tem && parent.c.letra != "";
+            text: parent.c.letra;
+            color: parent.c.texto != "" ? parent.c.cor : #6b6b6b;
+            font_size: ((12px * s));
+            font_weight: 700;
+            vertical_alignment: center;
+            height: parent.height;
+        }
+        Text {
+            x: root.lista_hot ? (34px * s) : (14px * s);
+            visible: parent.tem;
+            text: parent.c.texto;
+            color: #e6e9f0;
+            font_size: ((12px * s));
+            vertical_alignment: center;
+            height: parent.height;
+        }
+        // ícone de loop desenhado (a fonte não tem ↻)
+        Path {
+            x: root.lista_hot ? (120px * s) : (90px * s);
+            y: ((6px * s));
+            width: ((12px * s));
+            height: ((12px * s));
+            visible: parent.tem && parent.c.e_loop;
+            viewbox-width: 12;
+            viewbox-height: 12;
+            commands: "M 10 6 A 4 4 0 1 1 6 2 M 4 0 L 7 2 L 4 4";
+            stroke: #f5a623;
+            stroke-width: ((1.6px * s));
+        }
+    }
+    Rectangle {
+        x: root.dx(48, 372);
+        y: ((242px * s));
+        width: ((470px * s));
+        height: ((3px * s));
+        background: #2a2a2a;
+    }
+    Text {
+        x: root.dx(52, 762);
+        y: ((252px * s));
+        width: ((100px * s));
+        text: root.lista_hot ? "HOT CUE" : "MEMORY CUE";
+        color: #e6e9f0;
+        font_size: ((10px * s));
+        font_weight: 700;
+    }
+    DeckButton {
+        s: root.s;
+        x: root.dx(430, 430);
+        y: ((248px * s));
+        width: ((78px * s));
+        height: ((22px * s));
+        text: "MEMORY";
+        visible: !root.lista_hot;
+        clicked => { if root.audio_ready { root.botao("memory"); } }
+    }
+
+    // loop: tamanho, metade/dobro, AU (auto) e MA (manual)
+    // MA: IN/OUT/EXIT no lugar do tamanho. Só o IN teve chamada observada
+    // (unit#53), sem efeito descrito; os três ficam sem ação (p6-2).
+    if root.loop_manual: Rectangle {
+        x: root.dx(530, 274);
+        y: ((136px * s));
+        width: ((74px * s));
+        height: ((36px * s));
+        background: #1e1e1e;
+        Text { text: "IN  OUT  EXIT"; color: #e6e9f0; font_size: ((9px * s)); font_weight: 700; }
+    }
+    if !root.loop_manual: Rectangle {
+        x: root.dx(530, 274);
+        y: ((136px * s));
+        width: ((74px * s));
+        height: ((36px * s));
+        background: root.loop_ativo ? #f5a623 : #1e1e1e;
+        Text { text: root.loop_tamanho; color: root.loop_ativo ? #000000 : #e6e9f0; font_size: ((14px * s)); font_weight: 700; }
+        TouchArea { enabled: root.audio_ready; clicked => { root.loop_alternar(); } }
+    }
+    for l[i] in ["‹", "›"] : Rectangle {
+        x: root.dx(530 + i * 38, 274 + i * 44);
+        y: ((178px * s));
+        width: ((36px * s));
+        height: ((36px * s));
+        background: #1e1e1e;
+        Text { text: l; color: #e6e9f0; font_size: ((18px * s)); }
+        TouchArea {
+            enabled: root.audio_ready;
+            clicked => { if i == 0 { root.loop_metade(); } else { root.loop_dobro(); } }
+        }
+    }
+    DeckButton { s: root.s; x: root.dx(530, 274); y: ((222px * s)); width: ((38px * s)); height: ((22px * s)); text: "AU"; aceso: !root.loop_manual; clicked => { if root.loop_manual { root.botao("loop_modo"); } } }
+    DeckButton { s: root.s; x: root.dx(572, 318); y: ((222px * s)); width: ((38px * s)); height: ((22px * s)); text: "MA"; aceso: root.loop_manual; border_color: #6b6b6b; border_width: ((1px * s)); clicked => { if !root.loop_manual { root.botao("loop_modo"); } } }
+
+    // modo de cue (INT)
+    Chevron { s: root.s; x: root.dx(658, 48); y: ((143px * s)); }
+    Chevron { s: root.s; x: root.dx(150, 834); y: ((257px * s)); }
+    Text {
+        x: root.dx(628, 18);
+        y: ((138px * s));
+        text: "INT";
+        color: #e6e9f0;
+        font_size: ((10px * s));
+        font_weight: 700;
+    }
+
+    // CUE e reproduzir
+    Rectangle {
+        x: root.dx(629, 15);
+        y: ((170px * s));
+        width: ((44px * s));
+        height: ((44px * s));
+        border_radius: ((22px * s));
+        background: root.cue_aceso ? #f5a623 : (root.audio_ready ? #201a0e : #141414);
+        border_color: root.cue_aceso ? #ffffff : (root.audio_ready ? #f5a623 : #6b5426);
+        border_width: ((2px * s));
+        Text {
+            text: "CUE";
+            color: root.cue_aceso ? #000000 : (root.audio_ready ? #e6e9f0 : #6b6b6b);
+            font_size: ((10px * s));
+            font_weight: 700;
+        }
+        // Pressionar e soltar são ações distintas (spec/rekordbox/30-deck.md):
+        // segurar em espera no cue toca a prévia; soltar volta ao cue.
+        TouchArea {
+            enabled: root.audio_ready;
+            pointer-event(e) => {
+                if e.button == PointerEventButton.left && e.kind == PointerEventKind.down {
+                    root.cue_pressed(true);
+                } else if e.button == PointerEventButton.left && e.kind == PointerEventKind.up {
+                    root.cue_pressed(false);
+                }
+            }
+        }
+    }
+    Rectangle {
+        x: root.dx(629, 15);
+        y: ((228px * s));
+        width: ((44px * s));
+        height: ((44px * s));
+        border_radius: ((22px * s));
+        background: root.tocando ? #2bb34a : (root.audio_ready ? #0d2414 : #141414);
+        border_color: root.tocando ? #ffffff : (root.audio_ready ? #2bb34a : #1e5a2a);
+        border_width: ((2px * s));
+        Text {
+            text: root.tocando ? "❚❚" : "▶";
+            color: root.tocando ? #ffffff : (root.audio_ready ? #2bb34a : #4a4a4a);
+            font_size: ((12px * s));
+            font_weight: 700;
+        }
+        TouchArea {
+            enabled: root.audio_ready;
+            clicked => { root.play_clicked(); }
+        }
+    }
+
+    // prato: anel, BPM e ajuste de andamento
+    Rectangle {
+        x: root.dx(692, 81);
+        y: ((140px * s));
+        width: ((124px * s));
+        height: ((124px * s));
+        border_radius: ((62px * s));
+        border_color: root.carregado ? #e6e9f0 : #2a2a2a;
+        border_width: ((4px * s));
+        background: root.carregado ? #000000 : #141414;
+        Rectangle {
+            width: ((108px * s));
+            height: ((108px * s));
+            border_radius: ((54px * s));
+            border_color: root.carregado ? #1f6fd1 : #1e1e1e;
+            border_width: ((2px * s));
+        }
+        Text {
+            y: ((40px * s));
+            width: parent.width;
+            text: root.carregado ? root.bpm : "00.00";
+            color: root.carregado ? #ffffff : #3a3a3a;
+            font_size: ((20px * s));
+            horizontal_alignment: center;
+        }
+        Text {
+            y: ((72px * s));
+            width: parent.width;
+            text: root.pitch + "  ±10";
+            color: root.carregado ? #e6e9f0 : #3a3a3a;
+            font_size: ((9px * s));
+            horizontal_alignment: center;
+        }
+    }
+
+    // SLIP, Q (quantize) e MT (master tempo)
+    DeckButton { s: root.s; x: root.dx(840, 222); y: ((136px * s)); width: ((40px * s)); height: ((20px * s)); text: "SLIP"; aceso: root.slip; clicked => { root.botao("slip"); } }
+    DeckButton { s: root.s; x: root.dx(842, 224); y: ((170px * s)); width: ((36px * s)); height: ((20px * s)); text: "Q"; aceso: root.quantize; clicked => { root.quantize_alternar(); } }
+    DeckButton { s: root.s; x: root.dx(842, 224); y: ((250px * s)); width: ((36px * s)); height: ((20px * s)); text: "MT"; aceso: root.mt; clicked => { root.botao("mt"); } }
+}

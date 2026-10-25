@@ -1,0 +1,267 @@
+import { ListView } from "std-widgets.slint";
+import { Chevron, TrackRow } from "../theme.slint";
+import { NavigationSidebar } from "navigation.slint";
+
+// Coluna da tabela: largura e cabeçalho medidos no rekordbox 7.2.8
+// (spec/rekordbox/evidence/p3-1-ui-medido.md), unidades de 1920.
+// `ordem` é o índice de SortColumn; -1 = coluna sem ordenação ainda.
+export struct Coluna {
+    titulo: string,
+    largura: float,
+    ordem: int,
+    direita: bool,
+}
+
+// Navegador: árvore de fontes (405) | tabela de faixas (1461). Linha de abas
+// de lista em cima (32), cabeçalho de colunas (33) e linhas de 34.
+export component LibraryBrowser inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <[TrackRow]> track_rows;
+    in property <int> selected_row: 0;
+    in property <string> status;
+    in property <string> search_text: "";
+    in property <int> sort_col: 0;
+    in property <bool> sort_asc: true;
+
+    callback track_selected(int);
+    callback track_double_clicked(int);
+    // Arrasto de faixa: posição do ponteiro em coordenadas da janela.
+    callback drag_moved(int, length, length);
+    callback drag_ended(length, length);
+    callback search_edited(string);
+    callback sort_clicked(int);
+    callback load_deck_requested(int);
+    callback playlist_selected(int);
+    in property <[string]> playlists;
+    in property <int> playlist_sel: -1;
+
+    property <[Coluna]> colunas: [
+        { titulo: "", largura: 38, ordem: 0, direita: false },
+        { titulo: "Pré-visualização", largura: 250, ordem: -1, direita: false },
+        { titulo: "Ilustração", largura: 100, ordem: -1, direita: false },
+        { titulo: "Título da Faixa", largura: 160, ordem: 1, direita: false },
+        { titulo: "Intérprete", largura: 160, ordem: 2, direita: false },
+        { titulo: "Álbum", largura: 160, ordem: -1, direita: false },
+        { titulo: "Género", largura: 160, ordem: -1, direita: false },
+        { titulo: "BPM", largura: 100, ordem: 3, direita: true },
+        { titulo: "Classificação", largura: 112, ordem: -1, direita: false },
+        { titulo: "Tempo", largura: 100, ordem: 4, direita: true },
+        { titulo: "Tonalidade", largura: 160, ordem: -1, direita: false },
+    ];
+
+    min-height: 0px;
+    preferred-height: 0px;
+    clip: true;
+    background: #000000;
+
+    HorizontalLayout {
+        spacing: ((7px * s));
+
+        // ---------- ÁRVORE (405) ----------
+        VerticalLayout {
+            width: ((405px * s));
+            spacing: 0px;
+
+            // barra da árvore: recolher, alternâncias de exibição
+            Rectangle {
+                height: ((32px * s));
+                background: #0a0a0a;
+                Text { x: ((8px * s)); height: parent.height; text: "›"; color: #8b8f99; font_size: ((18px * s)); vertical_alignment: center; }
+                for v[i] in 4 : Rectangle {
+                    x: (60 + i * 35) * 1px * root.s;
+                    y: ((10px * s));
+                    width: ((28px * s));
+                    height: ((12px * s));
+                    border_color: #8b8f99;
+                    border_width: ((1px * s));
+                    background: i == 1 ? #8b8f99 : transparent;
+                }
+            }
+            Rectangle { height: ((6px * s)); background: #000000; }
+            NavigationSidebar {
+                s: root.s;
+                vertical_stretch: 1;
+                playlists: root.playlists;
+                selecionada: root.playlist_sel;
+                escolhida(i) => { root.playlist_selected(i); }
+            }
+        }
+
+        // ---------- TABELA (1461) ----------
+        VerticalLayout {
+            horizontal_stretch: 1;
+            spacing: 0px;
+
+            // quatro abas de lista ("blank list") + alternância de paleta
+            Rectangle {
+                height: ((32px * s));
+                background: #0a0a0a;
+                for a in 4 : Rectangle {
+                    x: (a * 357) * 1px * root.s;
+                    width: ((355px * s));
+                    height: parent.height;
+                    background: #1a1a1a;
+                    Text {
+                        x: ((30px * s));
+                        height: parent.height;
+                        text: "blank list";
+                        color: #8b8f99;
+                        font_size: ((16px * s));
+                        font_weight: 700;
+                        vertical_alignment: center;
+                    }
+                }
+            }
+            Rectangle { height: ((6px * s)); background: #000000; }
+
+            // título da lista atual, busca e carga nos decks
+            Rectangle {
+                height: ((32px * s));
+                background: #141414;
+                Text {
+                    x: ((12px * s));
+                    height: parent.height;
+                    text: root.playlist_sel >= 0 ? root.playlists[root.playlist_sel] : "Coleção";
+                    color: #ffffff;
+                    font_size: ((17px * s));
+                    vertical_alignment: center;
+                }
+                Rectangle {
+                    x: ((560px * s));
+                    y: ((4px * s));
+                    width: ((320px * s));
+                    height: ((24px * s));
+                    background: #000000;
+                    border_color: busca.has_focus ? #1f6fd1 : #3a3a3a;
+                    border_width: ((1px * s));
+                    if busca.text == "": Text {
+                        x: ((8px * s));
+                        height: parent.height;
+                        text: "Procurar";
+                        color: #6b6b6b;
+                        font_size: ((13px * s));
+                        vertical_alignment: center;
+                    }
+                    busca := TextInput {
+                        x: ((8px * s));
+                        width: parent.width - (16px * s);
+                        height: parent.height;
+                        text: root.search_text;
+                        color: #ffffff;
+                        font_size: ((13px * s));
+                        vertical_alignment: center;
+                        single_line: true;
+                        edited => { root.search_edited(self.text); }
+                    }
+                }
+                for d[i] in [1, 2] : Rectangle {
+                    x: (900 + i * 64) * 1px * root.s;
+                    y: ((4px * s));
+                    width: ((58px * s));
+                    height: ((24px * s));
+                    background: carga.has_hover ? #1f6fd1 : #1e1e1e;
+                    Text { text: "DECK " + d; color: #ffffff; font_size: ((11px * s)); font_weight: 700; }
+                    carga := TouchArea { clicked => { root.load_deck_requested(d); } }
+                }
+            }
+
+            // cabeçalho de colunas (33)
+            Rectangle {
+                height: ((33px * s));
+                background: #000000;
+                for c[i] in root.colunas : Rectangle {
+                    x: root.inicio(i);
+                    width: c.largura * 1px * root.s;
+                    height: parent.height;
+                    border_color: #1e1e1e;
+                    border_width: ((1px * s));
+                    Text {
+                        x: ((8px * s));
+                        width: parent.width - (16px * s);
+                        height: parent.height;
+                        text: c.titulo + (c.ordem >= 0 && c.ordem == root.sort_col && c.titulo != "" ? (root.sort_asc ? " ▲" : " ▼") : "");
+                        color: c.ordem >= 0 && c.ordem == root.sort_col ? #4fa3ff : #ffffff;
+                        font_size: ((17px * s));
+                        font_weight: 700;
+                        overflow: elide;
+                        vertical_alignment: center;
+                    }
+                    TouchArea {
+                        enabled: c.ordem >= 0;
+                        clicked => { root.sort_clicked(c.ordem); }
+                    }
+                }
+            }
+
+            if root.track_rows.length == 0: Rectangle {
+                vertical_stretch: 1;
+                background: #0f0f0f;
+                Text {
+                    text: root.search_text != "" ? "Nenhuma faixa encontrada." : "Nenhuma faixa.";
+                    color: #6b6b6b;
+                    font_size: ((15px * s));
+                }
+            }
+
+            if root.track_rows.length > 0: ListView {
+                vertical_stretch: 1;
+                min-height: 0px;
+                for row[idx] in root.track_rows: Rectangle {
+                    height: ((34px * s));
+                    background: idx == root.selected_row ? #24476b : (row.alt ? #0f0f0f : #1e1e1e);
+
+                    // atributo, título, intérprete, BPM, tempo e tonalidade nas colunas medidas
+                    Text { x: root.inicio(0) + (8px * s); height: parent.height; text: row.id; color: #6b6b6b; font_size: ((13px * s)); vertical_alignment: center; }
+                    for t[k] in [
+                        { col: 3, valor: row.title },
+                        { col: 4, valor: row.artist },
+                        { col: 5, valor: row.album },
+                        { col: 6, valor: row.genre },
+                        { col: 7, valor: row.bpm },
+                        { col: 9, valor: row.duration },
+                        { col: 10, valor: row.key },
+                    ] : Text {
+                        x: root.inicio(t.col) + (8px * s);
+                        width: root.colunas[t.col].largura * 1px * root.s - (16px * s);
+                        height: parent.height;
+                        text: t.valor;
+                        color: #ffffff;
+                        font_size: ((17px * s));
+                        overflow: elide;
+                        horizontal_alignment: root.colunas[t.col].direita ? right : left;
+                        vertical_alignment: center;
+                    }
+                    // classificação: estrelas cheias + vazias (0..5)
+                    Text {
+                        x: root.inicio(8) + (8px * s);
+                        height: parent.height;
+                        text: ["☆☆☆☆☆", "★☆☆☆☆", "★★☆☆☆", "★★★☆☆", "★★★★☆", "★★★★★"][max(0, min(5, row.stars))];
+                        color: #8b8f99;
+                        font_size: ((15px * s));
+                        vertical_alignment: center;
+                    }
+
+                    TouchArea {
+                        clicked => { root.track_selected(idx); }
+                        double-clicked => { root.track_double_clicked(idx); }
+                        moved => {
+                            if self.pressed && (abs(self.mouse-x - self.pressed-x) > 6px || abs(self.mouse-y - self.pressed-y) > 6px) {
+                                root.drag_moved(idx, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                            }
+                        }
+                        pointer-event(e) => {
+                            if e.kind == PointerEventKind.up {
+                                root.drag_ended(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // x inicial da coluna i (soma das larguras anteriores).
+    pure function inicio(i: int) -> length {
+        return [0, 38, 288, 388, 548, 708, 868, 1028, 1128, 1240, 1340][i] * 1px * root.s;
+    }
+}

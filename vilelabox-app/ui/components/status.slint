@@ -1,0 +1,14 @@
+// Barra de status (35): resumo à direita, como no navegador de referência.
+export component StatusBar inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <string> status: "pronto";
+    background: #000000;
+    Text {
+        x: parent.width - self.width - (90px * s);
+        height: parent.height;
+        text: root.status;
+        color: #c8c8c8;
+        font_size: ((14px * s));
+        vertical_alignment: center;
+    }
+}
