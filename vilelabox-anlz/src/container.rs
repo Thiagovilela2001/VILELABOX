@@ -90,6 +90,22 @@ pub fn parse_ppth(payload: &[u8]) -> Option<String> {
     Some(text.trim_matches('\0').to_string())
 }
 
+/// Monta um contêiner ANLZ mínimo (PMAI + tags) para testes.
+#[cfg(test)]
+pub(crate) fn build_anlz_container(sections: &[(&[u8; 4], &[u8])]) -> Vec<u8> {
+    let mut buf = b"PMAI".to_vec();
+    buf.extend(12u32.to_be_bytes());
+    let total: usize = 12 + sections.iter().map(|(_, p)| 12 + p.len()).sum::<usize>();
+    buf.extend((total as u32).to_be_bytes());
+    for (tag, payload) in sections {
+        buf.extend(*tag);
+        buf.extend(12u32.to_be_bytes());
+        buf.extend(((12 + payload.len()) as u32).to_be_bytes());
+        buf.extend_from_slice(payload);
+    }
+    buf
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

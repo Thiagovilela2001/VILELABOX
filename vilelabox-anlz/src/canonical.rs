@@ -1,4 +1,7 @@
-use crate::{parse_cues, parse_pqtz, parse_pssi, sections, AnlzError, FourCc, RawCue, RawPhrase};
+use crate::{
+    all_sections, parse_cues, parse_pqtz, parse_pssi, sections, AnlzError, FourCc, RawCue,
+    RawPhrase,
+};
 use std::collections::HashMap;
 use vilelabox_reference::{ReferenceCue, ReferencePhrase, ReferenceTrack, SCHEMA_VERSION};
 
@@ -70,6 +73,13 @@ pub fn canonical_cues(raw: &[RawCue]) -> Vec<ReferenceCue> {
             .total_cmp(&right.position_s)
             .then_with(|| left.type_name.cmp(&right.type_name))
             .then_with(|| left.hotcue.cmp(&right.hotcue))
+            .then_with(|| right.label.is_some().cmp(&left.label.is_some()))
+            .then_with(|| right.color.is_some().cmp(&left.color.is_some()))
+    });
+    cues.dedup_by(|a, b| {
+        a.type_name == b.type_name
+            && a.position_s.total_cmp(&b.position_s).is_eq()
+            && a.hotcue == b.hotcue
     });
     cues
 }
@@ -84,6 +94,30 @@ pub fn cue_payloads<'a>(
         .collect()
 }
 
+pub fn cue_sources<'a>(dat: &[(FourCc, &'a [u8])], ext: &[(FourCc, &'a [u8])]) -> Vec<RawCue> {
+    let collect_tag = |items: &[(FourCc, &'a [u8])], tag: FourCc| -> Vec<RawCue> {
+        items
+            .iter()
+            .filter(|(fourcc, _)| *fourcc == tag)
+            .flat_map(|(_, payload)| parse_cues(payload))
+            .collect()
+    };
+
+    let pco2_ext = collect_tag(ext, *b"PCO2");
+    if !pco2_ext.is_empty() {
+        return pco2_ext;
+    }
+    let pco2_dat = collect_tag(dat, *b"PCO2");
+    if !pco2_dat.is_empty() {
+        return pco2_dat;
+    }
+    let pcob_dat = collect_tag(dat, *b"PCOB");
+    if !pcob_dat.is_empty() {
+        return pcob_dat;
+    }
+    collect_tag(ext, *b"PCOB")
+}
+
 pub fn track_from_anlz(
     dat: &[u8],
     ext: Option<&[u8]>,
@@ -92,6 +126,8 @@ pub fn track_from_anlz(
 ) -> Result<ReferenceTrack, AnlzError> {
     let dat_sections = sections(dat);
     let ext_sections = ext.map(sections).unwrap_or_default();
+    let dat_all = all_sections(dat);
+    let ext_all = ext.map(all_sections).unwrap_or_default();
     let grid = dat_sections
         .get(b"PQTZ")
         .and_then(|payload| parse_pqtz(payload));
@@ -103,10 +139,7 @@ pub fn track_from_anlz(
         Vec::new()
     };
 
-    let raw_cues: Vec<_> = cue_payloads(&dat_sections, &ext_sections)
-        .into_iter()
-        .flat_map(parse_cues)
-        .collect();
+    let raw_cues = cue_sources(&dat_all, &ext_all);
 
     let track = ReferenceTrack {
         schema_version: SCHEMA_VERSION,
@@ -231,5 +264,86 @@ mod tests {
             (track.bpm, track.tempo_type.as_str(), track.phrases.len()),
             (None, "fixed", 0)
         );
+    }
+
+    use crate::container::build_anlz_container;
+
+    type Pco2TestEntry<'a> = (u32, u8, u32, u32, &'a str, Option<(u8, u8, u8)>);
+
+    fn pco2_payload(entries: &[Pco2TestEntry<'_>]) -> Vec<u8> {
+        let mut payload = vec![0u8; 8];
+        payload[4..6].copy_from_slice(&(entries.len() as u16).to_be_bytes());
+        for &(hot_cue, kind, time_ms, loop_ms, comment, rgb) in entries {
+            let mut comment_bytes = Vec::new();
+            if !comment.is_empty() {
+                for code_unit in comment.encode_utf16() {
+                    comment_bytes.extend(code_unit.to_be_bytes());
+                }
+                comment_bytes.extend(0u16.to_be_bytes());
+            }
+            let mut entry = vec![0u8; 32];
+            entry[0..4].copy_from_slice(&hot_cue.to_be_bytes());
+            entry[4] = kind;
+            entry[6..8].copy_from_slice(&1000u16.to_be_bytes());
+            entry[8..12].copy_from_slice(&time_ms.to_be_bytes());
+            entry[12..16].copy_from_slice(&loop_ms.to_be_bytes());
+            entry[30..32].copy_from_slice(&(comment_bytes.len() as u16).to_be_bytes());
+            entry.extend(comment_bytes);
+            if let Some((r, g, b)) = rgb {
+                entry.extend([1u8, r, g, b]);
+            }
+            payload.extend(b"PCP2");
+            payload.extend(16u32.to_be_bytes());
+            payload.extend(((12 + entry.len()) as u32).to_be_bytes());
+            payload.extend(entry);
+        }
+        payload
+    }
+
+    fn pcob_payload(entries: &[(u32, u8, u32, u32)]) -> Vec<u8> {
+        let mut payload = vec![0u8; 12];
+        for &(hot_cue, kind, time_ms, loop_ms) in entries {
+            payload.extend(b"PCPT");
+            payload.extend(28u32.to_be_bytes());
+            payload.extend(56u32.to_be_bytes());
+            let mut entry = vec![0u8; 44];
+            entry[0..4].copy_from_slice(&hot_cue.to_be_bytes());
+            entry[4..8].copy_from_slice(&1u32.to_be_bytes());
+            entry[16] = kind;
+            entry[20..24].copy_from_slice(&time_ms.to_be_bytes());
+            entry[24..28].copy_from_slice(&loop_ms.to_be_bytes());
+            payload.extend(entry);
+        }
+        payload
+    }
+
+    #[test]
+    fn duas_tags_pco2_somam_hot_e_memory() {
+        let dat = build_anlz_container(&[]);
+        let pco2_hot = pco2_payload(&[(1, 1, 1500, 0, "Drop", Some((0x30, 0x5a, 0xff)))]);
+        let pco2_mem = pco2_payload(&[
+            (0, 1, 500, 0, "Intro", None),
+            (0, 2, 4000, 8000, "Loop", Some((0x00, 0xff, 0x00))),
+        ]);
+        let ext = build_anlz_container(&[(b"PCO2", &pco2_hot), (b"PCO2", &pco2_mem)]);
+        let track = track_from_anlz(&dat, Some(&ext), &"b".repeat(64), "x/ANLZ0000.DAT").unwrap();
+        assert_eq!(track.cues.len(), 3);
+        assert_eq!(track.cues[0].label.as_deref(), Some("Intro"));
+        assert_eq!(track.cues[1].label.as_deref(), Some("Drop"));
+        assert_eq!(track.cues[1].color, Some(0x305aff));
+        assert_eq!(track.cues[2].label.as_deref(), Some("Loop"));
+        assert_eq!(track.cues[2].length_s, Some(4.0));
+    }
+
+    #[test]
+    fn pcob_vazia_no_ext_nao_esconde_dat() {
+        let pcob_dat = pcob_payload(&[(1, 1, 2000, 0)]);
+        let pcob_ext_empty = pcob_payload(&[]);
+        let dat = build_anlz_container(&[(b"PCOB", &pcob_dat)]);
+        let ext = build_anlz_container(&[(b"PCOB", &pcob_ext_empty)]);
+        let track = track_from_anlz(&dat, Some(&ext), &"c".repeat(64), "x/ANLZ0000.DAT").unwrap();
+        assert_eq!(track.cues.len(), 1);
+        assert_eq!(track.cues[0].position_s, 2.0);
+        assert_eq!(track.cues[0].hotcue, Some(0));
     }
 }

@@ -8,6 +8,7 @@ description = "Leitor de análises ANLZ do rekordbox para o esquema canônico do
 
 [dependencies]
 vilelabox-reference = { path = "../vilelabox-reference" }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
 sha2 = "0.10"
