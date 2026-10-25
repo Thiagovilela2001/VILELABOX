@@ -42,16 +42,30 @@ pub fn key_sync_shift(own: &str, reference: &str) -> Option<i8> {
     (ma == mb).then(|| ((b - a + 6).rem_euclid(12) - 6) as i8)
 }
 
-/// Tom deslocado `n` semitons, na grafia com sustenido: `Gm` -2 = `Fm`.
-/// A grafia do rekordbox para as notas alteradas não foi observada.
+/// Tom deslocado `n` semitons: `Gm` -2 = `Fm`. Grafia: `Bb` observado na
+/// tela (p6-7, A +1 = `Bb`); as demais notas alteradas não foram observadas e
+/// ficam com sustenido.
 pub fn transpor(key: &str, n: i8) -> Option<String> {
-    const NOTAS: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const NOTAS: [&str; 12] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
     if n == 0 {
         return None;
     }
     let (t, menor) = tom(key)?;
     let nota = NOTAS[(t + i32::from(n)).rem_euclid(12) as usize];
     Some(format!("{nota}{}", if menor { "m" } else { "" }))
+}
+
+/// Deslocamento de tom exibido no deck `i`: o do KEY SYNC mais, com MT
+/// desligado, o efeito da velocidade arredondado ao semitom (p6-7: A a
+/// 172/163 = `Bb +1`).
+pub fn shift_exibido(st: &AppState, i: usize) -> i8 {
+    let v = st.velocidade[i];
+    let pela_velocidade = if !st.master_tempo[i] && v > 0.0 {
+        (12.0 * v.log2()).round() as i8
+    } else {
+        0
+    };
+    st.key_shift[i].saturating_add(pela_velocidade)
 }
 
 /// Texto do deslocamento como na tela: "±0", "-2", "+3".
@@ -147,6 +161,19 @@ mod tests {
         aplicar_sync(&mut st, 0);
         assert_eq!(st.velocidade[0], 1.0);
         assert_eq!(rotulo_pitch(130.14 / 130.0), "+0.1%");
+    }
+
+    #[test]
+    fn mt_desligado_tom_segue_a_velocidade() {
+        // p6-7: deck 1 em A, sync com 172 BPM sobre faixa de 163, MT desligado -> Bb +1.
+        let mut st = AppState::new();
+        st.velocidade[0] = 172.0 / 163.0;
+        st.master_tempo[0] = false;
+        assert_eq!(shift_exibido(&st, 0), 1);
+        assert_eq!(transpor("A", 1).as_deref(), Some("Bb"));
+        assert_eq!(rotulo_shift(1), "+1");
+        st.master_tempo[0] = true; // MT ligado: tom preso
+        assert_eq!(shift_exibido(&st, 0), 0);
     }
 
     #[test]

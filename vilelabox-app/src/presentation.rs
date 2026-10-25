@@ -270,8 +270,9 @@ fn render_botoes(st: &AppState, ui: &AppWindow) {
         } else {
             crate::state::fmt_bpm(sync::bpm_efetivo(st, i))
         };
-        let tom = sync::transpor(&d.key, st.key_shift[i]).unwrap_or_else(|| d.key.clone());
-        let shift = sync::rotulo_shift(st.key_shift[i]);
+        let n = sync::shift_exibido(st, i);
+        let tom = sync::transpor(&d.key, n).unwrap_or_else(|| d.key.clone());
+        let shift = sync::rotulo_shift(n);
         let pitch = sync::rotulo_pitch(st.velocidade[i]);
         if i == 0 {
             ui.set_deck1_bpm(bpm.into());
