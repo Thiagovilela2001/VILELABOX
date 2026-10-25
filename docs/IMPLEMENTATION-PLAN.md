@@ -6,8 +6,9 @@ Status de referência: 2026-10-24.
 
 Reconstruir em Rust o comportamento tecnicamente observado no programa de
 referência, usando como fonte primária a engenharia reversa, a decompilação no
-Ghidra e artefatos reais autorizados. O resultado deve ser um aplicativo de DJ
-independente, sem dependência de outro aplicativo em tempo de execução.
+Ghidra, a análise assistida pelo REA e artefatos reais autorizados. O resultado
+deve ser um aplicativo de DJ independente, sem dependência de outro aplicativo
+em tempo de execução.
 
 O plano avança por unidades verticais verificáveis. Cada pacote precisa entregar
 código, testes, documentação e evidência antes que o pacote dependente comece.
@@ -19,9 +20,10 @@ código, testes, documentação e evidência antes que o pacote dependente comec
 - Toda tarefa de código deve apontar para uma especificação em
   `spec/rekordbox/`; toda afirmação dessa especificação deve apontar para
   evidência de decompilação, estrutura binária ou observação reproduzível.
-- O Ghidra é a fonte primária para fluxo, estruturas, constantes, tabelas,
-  estados e relações entre funções; testes diferenciais confirmam o
-  comportamento que a análise estática não consegue provar sozinha.
+- REA e Ghidra são usados em conjunto para recuperar fluxo, estruturas,
+  constantes, tabelas, estados e relações entre funções; o implementador pode
+  consultar diretamente as evidências nesta fase do port. Testes diferenciais
+  confirmam o comportamento que a análise estática não consegue provar sozinha.
 - Pseudocódigo decompilado é evidência, não código-fonte original. A tradução
   para Rust preserva comportamento e invariantes, sem copiar nomes ou estruturas
   sem confirmação.
@@ -29,6 +31,9 @@ código, testes, documentação e evidência antes que o pacote dependente comec
   memória, persistência própria ou adaptação de API — é registrada como
   `ADAPTAÇÃO`, com justificativa e limite claramente separados do que foi
   observado.
+- A separação de papéis *clean-room* é uma etapa futura, após a disponibilização
+  pública do aplicativo. Ela não é pré-requisito para o port atual; as regras
+  de proveniência, verificação e proteção dos artefatos reais continuam valendo.
 - Dados reais são copiados para uma pasta ignorada antes de qualquer teste.
 - Nenhum teste escreve em catálogos, dispositivos ou perfis reais.
 - Formatos externos entram por adaptadores e não definem o modelo interno.
@@ -50,8 +55,8 @@ Nenhum pacote entra em implementação antes de completar este ciclo:
 
 ```text
 artefato identificado e hash registrado
-  → função/recurso localizado no Ghidra
-    → pseudocódigo, chamadas, dados e constantes documentados
+  → função/recurso localizado com REA e Ghidra
+    → pseudocódigo, assembly, chamadas, dados e constantes documentados
       → observações, inferências e lacunas separadas
         → especificação aprovada em spec/rekordbox
           → fixtures e oráculos diferenciais preparados
@@ -140,7 +145,8 @@ vilelabox-app/
 
 **Tarefas:**
 
-1. localizar no Ghidra a composição da tela, modelos, eventos e estados usados;
+1. localizar com REA e Ghidra a composição da tela, modelos, eventos e estados
+   usados;
 2. registrar a correspondência entre controles recuperados e componentes Slint;
 3. adicionar `slint-build` como dependência de build;
 4. mover structs e componentes visuais para arquivos `.slint` seguindo a
@@ -167,7 +173,7 @@ vilelabox-app/
 **Objetivo:** produzir referências canônicas diretamente pelo leitor Rust.
 
 **Origem obrigatória:** rotinas de enumeração, associação DAT/EXT, resolução de
-caminhos e serialização recuperadas no Ghidra e confrontadas com o exportador
+caminhos e serialização recuperadas com REA e Ghidra e confrontadas com o exportador
 já observado. O formato JSON canônico é uma `ADAPTAÇÃO` interna documentada.
 
 **Arquivos previstos:**
@@ -236,7 +242,7 @@ label e cor.
 
 ### P2.1 — Catálogo principal
 
-1. localizar no Ghidra abertura, consultas, transformação de registros e
+1. localizar com REA e Ghidra abertura, consultas, transformação de registros e
    relações do catálogo;
 2. concluir e aprovar `spec/rekordbox/10-master-db.md` com essa evidência;
 3. decidir como fixtures descriptografadas e minimizadas serão produzidas sem
@@ -274,7 +280,7 @@ label e cor.
 
 ### P3.1 — `vilelabox-storage`
 
-- recuperar no Ghidra entidades, relações, índices, transações e ciclo de vida
+- recuperar com REA e Ghidra entidades, relações, índices, transações e ciclo de vida
   dos dados antes de definir o esquema;
 - banco SQLite próprio com migrations versionadas, tratado como `ADAPTAÇÃO`
   quando o armazenamento de referência não puder ser reproduzido diretamente;
@@ -331,7 +337,7 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P4.1 — Infraestrutura DSP
 
-- recuperar no Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes,
+- recuperar com REA e Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes,
   encadeamento e tratamento de bordas;
 - criar `vilelabox-dsp` com contrato PCM explícito;
 - leitura em blocos produz o mesmo resultado independentemente do tamanho do
@@ -392,7 +398,7 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 
 ### P6.1 — Decodificação e transporte
 
-- recuperar no Ghidra o grafo do transporte, estados, relógios, buffers e regras
+- recuperar com REA e Ghidra o grafo do transporte, estados, relógios, buffers e regras
   de seek antes de escolher APIs Rust;
 - criar `vilelabox-audio`;
 - decodificação para PCM interno;
@@ -443,19 +449,19 @@ equipamento real.
 
 Ordem recomendada para as próximas entregas:
 
-1. **G0/P0.1:** documentar no Ghidra a hierarquia e os estados da interface;
+1. **G0/P0.1:** documentar com REA e Ghidra a hierarquia e os estados da interface;
 2. **P0.1:** modularizar a interface conforme a evidência recuperada;
 3. **G0/P1.1:** documentar o fluxo de exportação e associação ANLZ;
 4. **P1.1:** traduzir esse fluxo para o exportador ANLZ em Rust;
 5. **G0/P1.2:** recuperar labels, cores e variantes de cues;
 6. **P1.2:** implementar as variantes conforme as evidências;
-7. **G0/P2.1:** mapear no Ghidra o catálogo principal e suas consultas.
+7. **G0/P2.1:** mapear com REA e Ghidra o catálogo principal e suas consultas.
 
 ## Definition of Done
 
 Uma tarefa só está concluída quando:
 
-- possui dossiê G0 com identidade do artefato e rastreabilidade até o Ghidra;
+- possui dossiê G0 com identidade do artefato e rastreabilidade até REA/Ghidra;
 - separa explicitamente `OBSERVADO`, `INFERIDO`, `DESCONHECIDO` e `ADAPTAÇÃO`;
 - a especificação necessária está aprovada;
 - entradas válidas, limites, truncamento e erros possuem testes;

@@ -12,9 +12,11 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 - [x] interpretar cues e loops `PCOB`/`PCPT`;
 - [x] converter ANLZ para o esquema canônico;
 - [x] comparar o leitor com 40 cópias de análises reais;
-- [ ] implementar o exportador ANLZ em Rust;
-- [ ] interpretar labels e cores das variantes de cues;
-- [ ] especificar e implementar catálogo, XML e exportação USB.
+- [x] implementar o exportador ANLZ em Rust;
+- [x] interpretar labels e cores das variantes de cues;
+- [x] especificar o catálogo principal (`10-master-db.md` + G0/P2.1);
+- [x] implementar `vilelabox-xml` (leitura, escrita e integração ao app; G0/P2.2);
+- [ ] implementar `vilelabox-catalog` e exportação USB.
 
 ## C3 — Análise
 
@@ -30,10 +32,10 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 
 ## C5 — Interface
 
-- dividir a interface Slint em componentes menores;
-- composição das telas;
-- navegador da biblioteca;
-- waveform e interação de preparação.
+- [x] dividir a interface Slint em componentes menores (`G0/P0.1` + `P0.1`);
+- [ ] composição das telas;
+- [ ] navegador da biblioteca;
+- [ ] waveform e interação de preparação.
 
 ## C4 — Áudio
 
