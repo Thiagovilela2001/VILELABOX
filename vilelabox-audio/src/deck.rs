@@ -86,6 +86,9 @@ pub struct Deck {
     pub out_rate: u32,
     /// Fração de frame entre `position_frames` e o seguinte (interpolação).
     frac: f64,
+    /// SLIP (p6-6): posição em sombra, em frames, que segue andando durante
+    /// um loop automático aberto com SLIP ligado; a saída do loop vai para ela.
+    sombra: Option<f64>,
 }
 
 impl Default for Deck {
@@ -114,6 +117,7 @@ impl Deck {
             generation: 0,
             out_rate: 0,
             frac: 0.0,
+            sombra: None,
         }
     }
 
@@ -127,6 +131,7 @@ impl Deck {
         self.state = TransportState::CueStandby;
         self.loop_range = None;
         self.loop_active = false;
+        self.sombra = None;
     }
 
     /// Descarrega o deck e redefine os parâmetros.
@@ -253,6 +258,13 @@ impl Deck {
         self.state = TransportState::Playing;
     }
 
+    /// IN do loop manual (p6-5): o ponto de cue passa a ser `frame`; o
+    /// transporte segue como está.
+    pub fn set_cue_point(&mut self, frame: u64) {
+        let total = self.audio.as_ref().map_or(0, |a| a.total_frames);
+        self.cue_frame = frame.min(total);
+    }
+
     /// Define o ponto de cue e fica parado nele (chamada de memory cue).
     pub fn set_cue_and_standby(&mut self, frame: u64) {
         if self.audio.is_none() {
@@ -271,10 +283,13 @@ impl Deck {
         self.master_tempo = on;
     }
 
-    /// SLIP (unit#14, p6-2): só o estado. A reprodução em sombra e a volta ao
-    /// soltar são DESCONHECIDAS e ficam fora do escopo.
+    /// SLIP (unit#14, p6-2; sombra em p6-6). Desligar no meio de um loop:
+    /// DESCONHECIDO; descarta a sombra (a saída do loop não salta).
     pub fn set_slip(&mut self, on: bool) {
         self.slip = on;
+        if !on {
+            self.sombra = None;
+        }
     }
 
     /// Q (unit#9, p6-2): troca o objeto de comportamento; os argumentos de
@@ -315,6 +330,10 @@ impl Deck {
     /// Loop automático de `len` frames a partir de `start` (já quantizado pelo app).
     pub fn auto_loop_at(&mut self, start: u64, len: u64) {
         self.set_loop(start, start + len.max(1));
+        // SLIP ligado (p6-6): a reprodução segue em sombra a partir daqui.
+        if self.slip && self.loop_active {
+            self.sombra = Some(self.position_frames as f64 + self.frac);
+        }
     }
 
     /// Multiplica o tamanho do loop por `num/den` mantendo o início (½ e ×2).
@@ -327,10 +346,16 @@ impl Deck {
         }
     }
 
-    /// Remove o loop.
+    /// Remove o loop. Com sombra do SLIP, a reprodução vai para onde estaria
+    /// sem o loop (p6-6: saiu em 20,17 s após 7 s de loop iniciado em 13,31 s).
     pub fn clear_loop(&mut self) {
         self.loop_range = None;
         self.loop_active = false;
+        if let Some(s) = self.sombra.take() {
+            let total = self.audio.as_ref().map_or(0, |a| a.total_frames);
+            self.position_frames = (s.floor() as u64).min(total);
+            self.frac = s.fract();
+        }
     }
 
     /// Processa um bloco de áudio estéreo, preenchendo os buffers de saída `(L, R)`.
@@ -391,6 +416,9 @@ impl Deck {
             let avanco = self.frac.floor();
             self.frac -= avanco;
             self.position_frames += avanco as u64;
+            if let Some(s) = self.sombra.as_mut() {
+                *s = (*s + step).min(total as f64);
+            }
         }
     }
 

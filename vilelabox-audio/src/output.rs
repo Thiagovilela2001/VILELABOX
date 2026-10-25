@@ -57,6 +57,11 @@ pub enum AudioCommand {
         deck: u8,
         frame: u64,
     },
+    /// Ponto de cue sem mexer no transporte (IN do loop manual, p6-5).
+    SetCuePoint {
+        deck: u8,
+        frame: u64,
+    },
     /// Memory cue: define o cue e para nele.
     SetCueAndStandby {
         deck: u8,
@@ -253,6 +258,11 @@ impl AudioMixer {
                 AudioCommand::JumpAndPlay { deck, frame } => match deck {
                     1 => self.deck1.jump_and_play(frame),
                     2 => self.deck2.jump_and_play(frame),
+                    _ => {}
+                },
+                AudioCommand::SetCuePoint { deck, frame } => match deck {
+                    1 => self.deck1.set_cue_point(frame),
+                    2 => self.deck2.set_cue_point(frame),
                     _ => {}
                 },
                 AudioCommand::SetCueAndStandby { deck, frame } => match deck {
