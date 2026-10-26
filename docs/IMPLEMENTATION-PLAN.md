@@ -388,8 +388,9 @@ das faixas importadas.
 ### P4.1 — Infraestrutura DSP — EM ANDAMENTO
 
 Primeira rodada da A1.1 em 2026-10-26 (`evidence/p4-1-analise-batida.md`):
-`vilelabox-dsp` criado só com as primitivas recuperadas. O contrato PCM e a
-FFT ficam suspensos até a origem dos buffers `i16` do motor ser recuperada.
+`vilelabox-dsp` criado só com as primitivas recuperadas. A A1.1b localizou o
+detector legado, com entrada `f32` planar misturada em mono `f64`. A FFT segue
+sem evidência até as passadas A/B e C/D serem abertas (A1.1c).
 
 - recuperar com REA e Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes,
   encadeamento e tratamento de bordas;

@@ -90,33 +90,83 @@ O objeto `obj` das somas **não** é o mesmo de `0x14247a210`: lá, `+0x70` e
 - `getFirstBeatPos` (`0x141130000`) usa 6 000 000,0 (`0x1434e4180`) dividido
   pelo BPM × 100, ou seja o intervalo de batida em ms.
 
+## Quem usa as somas e o refinador (A1.1b)
+
+- `0x14107c340` (refinador do motor 2) só é chamado por
+  `highPrecisionBeatAnalyze`. O refinamento de grade pertence ao caminho de
+  alta precisão.
+- As somas de janela são chamadas por `0x142470b60` e pelo refinador gêmeo
+  `0x14245c630` (mesma assinatura de `0x14247a210`, grava `interval.csv` a
+  `interval5.csv`), sempre com `obj = motor+0x640`.
+
+## Posição de entrada (`0x142470b60`)
+
+Comportamento completo; portado em `vilelabox-dsp::posicao_de_entrada`.
+
+1. Com a lista de batidas em `motor+0x58` (registros de 24 bytes, posição no
+   primeiro `i32`) e `n` batidas, calcula para as `n - 1` primeiras a soma de
+   meia batida em `motor+0x640` com o BPM `motor+0x48`. Um −1,0 (fora do
+   sinal) é trocado pelo valor anterior, exceto na primeira batida.
+2. Normaliza pelo máximo, com piso 0, se `|máximo| > DBL_EPSILON`. Os primeiros
+   `m - m % 16` valores são divididos (laço vetorial, só quando `m > 15`); os
+   demais são multiplicados por `1 / máximo`.
+3. `d[i] = x[i] - x[i-1]` para `1 <= i <= n - 2`; `d[0] = d[n-1] = 0`.
+4. Máquina de estados de `i = 0` até `n - 3`, com limiares 0,4
+   (`0x145415250`), 0,2 (`0x1454151e0`), 0,15 (`0x1454151a8`) e −0,4
+   (`0x1435aeb80`): uma subida (`x > 0,2` e `d > 0,15`) abre candidato se não
+   houve nenhum antes ou se passaram mais de 32 trechos quietos; batidas fortes
+   seguidas somam; mais de 12 encerram e fixam o candidato na última subida;
+   trecho quieto (`x` < 0,2 em três batidas, ou `d < -0,4` seguido de duas
+   `d` < 0,2) zera a contagem.
+5. Grava `(60 / bpm) * (índice - 4) * motor+0x14` em `motor+0x50`, com
+   negativos virando 0.
+
+## Detector legado sobre o PCM (`CBeatAnalyzeThread`)
+
+- A thread `0x1410b3cb0` cria o analisador de 0x1d80 bytes (`0x14116f000`) e o
+  inicializa em `0x141170020` com o total de frames, a taxa de amostragem e um
+  terceiro valor ainda não identificado. Taxas tratadas no fluxo: 32 000,
+  44 100, 48 000, 88 200, 96 000, 176 400 e 192 000.
+- O init grava `taxa/2`, `taxa/8` e `taxa/32` (`0x143537e90` = 0,5,
+  `0x143537e98` = 0,125, `0x1454150c0` = 0,03125), o estado 1 e o bloco de
+  leitura `(int)(taxa * 1,70667 + 0,5)` frames (`0x143537e80`), ou seja
+  75 264 frames a 44,1 kHz. Portado em `frames_por_bloco`.
+- Entrada de PCM (`0x1411705c0`): dois canais **`f32` planares** e a
+  contagem, misturados em mono **`f64`** como
+  `b * 0,01/32768 + a * 0,99/32768` (`0x143537e70`, `0x143537e78`). A escala
+  supõe amostras em ±32768. Portado em `mixar_mono`.
+- Duas passadas por bloco: `0x1411702d0` (estados 1 e 2, "A/B", fecha com
+  `0x141195480` e `0x141195ed0`) e `0x141170430` (estados 3 e 4, "C/D", fecha
+  com `0x141197d60`). Estado −1 é erro e 5 é concluído.
+
+## Alta precisão (`0x141134550`)
+
+Decodifica o arquivo para buffers `f32`, roda inferência em blocos
+(`0x141134390`, `0x14113fda0`) e devolve o JSON `beatList`. Depende de um
+modelo treinado do programa de referência e fica fora do escopo clean-room.
+
 ## Classificação
 
 - **OBSERVADO:** encadeamento do job, escolha do modo, tabela de faixas de
-  BPM, arredondamento do BPM × 100, layout das batidas do motor e da saída,
-  buffers `i16` e a soma de janela por batida.
-- **INFERIDO:** os buffers `i16` de `obj` são um sinal derivado do áudio e não
-  o PCM bruto, porque o índice de início é a posição dividida por 4. A taxa em
-  `obj+0xc` seria a taxa desse sinal. Não há prova ainda.
-- **INFERIDO:** os índices 1..10 da tabela correspondem às opções de faixa de
-  BPM das preferências de análise.
-- **DESCONHECIDO:** que objeto é `obj` e como o áudio vira os buffers `i16`;
-  quem produz a lista de batidas que entra em `0x14247a210`; o refinamento
-  feito ali; o motor 1; o significado das tabelas de razões em
-  `0x143b107b8`–`0x143b10880` (0,008 a 2,23) usadas por `0x14247a210`; as
-  rotinas de dobrar e dividir a grade (`0x1411308c0`, `0x141130d90`); o modo
-  de alta precisão por dentro de `0x141134550`; a análise de tom.
-- **Não observado:** nenhuma FFT nem janela de Hann apareceu até aqui no
-  caminho do motor 2. O contrato `f32` com FFT do plano A1.2/A1.3 não tem
-  evidência e fica suspenso.
+  BPM, arredondamento do BPM × 100, layout das batidas, soma de janela,
+  posição de entrada, contrato de entrada do detector legado (`f32` planar
+  misturado em mono `f64`), tamanho de bloco e laço de duas passadas.
+- **INFERIDO:** o sinal `i16` em `motor+0x640` é derivado do áudio, porque o
+  índice de início é a posição dividida por 4. Os índices 1..10 da tabela de
+  faixas são as opções de faixa de BPM das preferências. A posição de entrada
+  marca o início da parte com energia.
+- **DESCONHECIDO:** qual canal entra com peso 0,99; o terceiro argumento do
+  init; o conteúdo das passadas A/B e C/D (`0x1411953b0`, `0x141195480`,
+  `0x141195ed0`, `0x1411965b0`, `0x141197d60`); quem preenche `motor+0x640`;
+  o motor 1; as tabelas de razões em `0x143b107b8`–`0x143b10880`; as rotinas
+  de dobrar e dividir a grade (`0x1411308c0`, `0x141130d90`); a análise de
+  tom.
+- **Não observado:** FFT ou janela de Hann, até aqui. O detector legado ainda
+  não foi aberto por dentro, então isso não descarta FFT nas passadas.
 
 ## Próximos alvos
 
-1. Chamadores de `0x142476a40` e `0x1424768e0`, para identificar `obj` e quem
-   preenche `obj+0x78` e `obj+0x80`.
-2. Quem chama `0x14107c340` antes de `legacyBeatAnalyze` com a lista de
-   batidas de entrada, ou seja o detector que roda sobre o PCM.
-3. `0x142473620`, `0x142473710` e `0x142475700`, chamados com a lista de
-   batidas e 900 × taxa.
-4. Teste diferencial: rodar a análise numa fixture WAV conhecida e comparar a
-   grade do `.DAT` com a soma de janela reimplementada.
+1. Passada A/B: `0x1411953b0` (por bloco), `0x141195480` e `0x141195ed0`.
+2. Passada C/D: `0x1411965b0` e `0x141197d60` (~2 000 linhas).
+3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
+4. Teste diferencial com fixture WAV analisada pelo programa de referência.

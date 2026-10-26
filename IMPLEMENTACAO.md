@@ -1,5 +1,17 @@
 # Registro de implementação
 
+## Detector legado de BPM e posição de entrada (P4.1, A1.1b) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Evidência | `spec/rekordbox/evidence/p4-1-analise-batida.md`, seções novas de A1.1b |
+| Recuperado | refinador de grade só no caminho de alta precisão; alta precisão = inferência de modelo (fora do escopo); detector legado na `CBeatAnalyzeThread` com duas passadas por bloco; entrada `f32` planar misturada em mono `f64` (0,99/32768 e 0,01/32768); bloco de `round(taxa · 1,70667)` frames; algoritmo completo da posição de entrada |
+| Correção | a conclusão anterior "buffers `i16`, não `f32`" valia só para as somas de janela; a entrada do detector é `f32` |
+| Crate | `vilelabox-dsp`: `posicao_de_entrada`, `mixar_mono`, `frames_por_bloco`, `PESO_CANAL_A`/`B` |
+| Testes | 2 unitários novos; workspace com 214 testes |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | A1.1c: passadas A/B (`0x1411953b0`, `0x141195480`, `0x141195ed0`) e C/D (`0x1411965b0`, `0x141197d60`) |
+
 ## Análise de BPM: dossiê p4-1 e `vilelabox-dsp` (P4.1, A1.1a) — 2026-10-26
 
 | Campo | Resultado |

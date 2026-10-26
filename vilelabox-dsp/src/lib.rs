@@ -99,6 +99,130 @@ pub fn soma_meia_batida(sinal: &[i16], comprimento: i32, taxa: i32, bpm: f32, po
     soma_janela(sinal, comprimento, taxa, bpm, pos, 30.0)
 }
 
+/// Pesos da mistura para mono do detector legado (`0x1411705c0`):
+/// 0,99/32768 para o canal do 1º ponteiro e 0,01/32768 para o do 2º
+/// (`0x143537e78` e `0x143537e70`). A escala supõe amostras em ±32768.
+pub const PESO_CANAL_A: f64 = 3.021240234375e-05;
+pub const PESO_CANAL_B: f64 = 3.0517578125e-07;
+
+/// Mistura dois canais planares `f32` em mono `f64`:
+/// `b[i] * PESO_CANAL_B + a[i] * PESO_CANAL_A` (`0x1411705c0`). Usa o menor
+/// comprimento.
+///
+/// DESCONHECIDO: qual canal (L ou R) o original passa em `a`.
+pub fn mixar_mono(a: &[f32], b: &[f32]) -> Vec<f64> {
+    a.iter()
+        .zip(b)
+        .map(|(&a, &b)| b as f64 * PESO_CANAL_B + a as f64 * PESO_CANAL_A)
+        .collect()
+}
+
+/// Frames por bloco de leitura do detector legado:
+/// `(int)(taxa * 1.7066666666666668 + 0.5)` (`0x141170020`, `0x143537e80`).
+pub fn frames_por_bloco(taxa: i32) -> i32 {
+    (taxa as f64 * 1.706_666_666_666_666_8 + 0.5) as i32
+}
+
+/// Posição (em amostras da taxa do motor) onde o nível por batida "entra",
+/// recuperada de `0x142470b60`, que grava o resultado em `motor+0x50`.
+///
+/// Entradas: `posicoes` = primeiro `i32` de cada batida da lista em
+/// `motor+0x58`; `bpm` = `motor+0x48`; `taxa_motor` = `motor+0x14`; `sinal`,
+/// `comprimento` e `taxa_sinal` = o objeto em `motor+0x640` das somas.
+///
+/// INFERIDO: o significado musical (início da parte com energia). O cálculo é
+/// OBSERVADO; ver `evidence/p4-1-analise-batida.md`.
+pub fn posicao_de_entrada(
+    sinal: &[i16],
+    comprimento: i32,
+    taxa_sinal: i32,
+    bpm: f32,
+    posicoes: &[i32],
+    taxa_motor: i32,
+) -> u32 {
+    let n = posicoes.len();
+    if n == 0 {
+        return 0;
+    }
+    let m = n - 1;
+    // Nível por batida (meia batida), com -1,0 substituído pelo anterior.
+    let mut x = vec![0.0f64; n];
+    for i in 0..m {
+        let v = soma_meia_batida(sinal, comprimento, taxa_sinal, bpm, posicoes[i]);
+        x[i] = if i != 0 && v < 0.0 { x[i - 1] } else { v };
+    }
+    // Normalização pelo máximo (piso 0). O original divide em blocos de 16 e
+    // multiplica pelo inverso no resto; o arredondamento difere, então é mantido.
+    let max = x[..m]
+        .iter()
+        .fold(0.0f64, |a, &b| if b > a { b } else { a });
+    if max.abs() > f64::EPSILON {
+        let vetorial = if m > 15 { m - m % 16 } else { 0 };
+        let inv = 1.0 / max;
+        for (i, v) in x[..m].iter_mut().enumerate() {
+            *v = if i < vetorial { *v / max } else { inv * *v };
+        }
+    }
+    // Diferença entre batidas vizinhas; d[0] e d[n-1] ficam 0.
+    let mut d = vec![0.0f64; n];
+    for i in 1..n.saturating_sub(1) {
+        d[i] = x[i] - x[i - 1];
+    }
+    let (mut ultimo, mut candidato) = (-1i32, -1i32);
+    let (mut ligado, mut contagem, mut quietos) = (false, 0i32, 0i32);
+    let mut i = 0usize;
+    while i + 2 < n {
+        let conta = if i == 0 {
+            if x[0] > 0.4 {
+                ligado = true;
+                candidato = 0;
+                ultimo = 0;
+                true
+            } else {
+                false
+            }
+        } else if ligado {
+            x[i] > 0.4 || (x[i] > 0.2 && x[i + 1] > 0.2 && x[i + 2] > 0.2)
+        } else if x[i] > 0.2 && d[i] > 0.15 {
+            if ultimo < 0 || quietos > 32 {
+                candidato = i as i32;
+            }
+            ligado = true;
+            quietos = 0;
+            ultimo = i as i32;
+            true
+        } else {
+            false
+        };
+        if conta {
+            contagem += 1;
+        }
+        if contagem > 12 {
+            break;
+        }
+        if (x[i] < 0.2 && x[i + 1] < 0.2 && x[i + 2] < 0.2)
+            || (d[i] < -0.4 && d[i + 1] < 0.2 && d[i + 2] < 0.2)
+        {
+            quietos += 1;
+            ligado = false;
+            contagem = 0;
+        }
+        i += 1;
+    }
+    if contagem > 12 {
+        candidato = ultimo;
+    }
+    let idx = candidato.max(0);
+    let pos = (60.0 / bpm as f64) * (idx - 4) as f64 * taxa_motor as f64;
+    // `(uint)` do original via 64 bits; negativo vira 0.
+    let pos = pos as i64 as i32;
+    if pos < 0 {
+        0
+    } else {
+        pos as u32
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,5 +275,36 @@ mod tests {
         assert_eq!(soma_batida(&sinal, 100, 1, 1000.0, 0), 0.0);
         // Leitura no índice `comprimento` (aceita pelo original) fica fora da fatia.
         assert_eq!(soma_batida(&sinal[..6], 6, 10, 120.0, 8), -1.0);
+    }
+
+    #[test]
+    fn entrada_acha_a_primeira_subida_sustentada() {
+        // Sinal a taxa 4 (1 amostra por batida a 240 BPM: n = 30/240*4 = 0,5 -> 1).
+        // Batidas de 4 em 4 posições -> início = pos/4 = índice da batida.
+        let mut sinal = vec![10i16; 40];
+        for v in &mut sinal[20..] {
+            *v = 1000;
+        }
+        let posicoes: Vec<i32> = (0..40).map(|b| b * 4).collect();
+        // Subida na batida 20; 13 batidas fortes fecham a contagem.
+        // Resultado: (60/240) * (20 - 4) * taxa_motor 100 = 400.
+        assert_eq!(
+            posicao_de_entrada(&sinal, 40, 4, 240.0, &posicoes, 100),
+            400
+        );
+        // Forte desde o começo: índice 0 -> (0 - 4) negativo -> 0.
+        let alto = vec![1000i16; 40];
+        assert_eq!(posicao_de_entrada(&alto, 40, 4, 240.0, &posicoes, 100), 0);
+        assert_eq!(posicao_de_entrada(&alto, 40, 4, 240.0, &[], 100), 0);
+    }
+
+    #[test]
+    fn mistura_e_bloco_do_detector_legado() {
+        let m = mixar_mono(&[32768.0, 0.0], &[0.0, 32768.0, 5.0]);
+        assert_eq!(m.len(), 2);
+        assert!((m[0] - 0.99).abs() < 1e-12);
+        assert!((m[1] - 0.01).abs() < 1e-12);
+        assert_eq!(frames_por_bloco(44100), 75264);
+        assert_eq!(frames_por_bloco(48000), 81920);
     }
 }
