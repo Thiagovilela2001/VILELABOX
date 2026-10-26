@@ -167,6 +167,23 @@ Portados em `vilelabox-dsp::filtro`.
   passa-baixa em `fs/32 · 0,4` com ÷32; buffers de `40 s` por banda
   (`0x145415608` = 40). Depois chama `0x141173370` com as três taxas.
 
+## Filtros do envelope (`0x14118aea0`, `0x141188560`)
+
+Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
+
+- Passa-baixa de 200 Hz (`ω` = 1256,637 = 2π·200, `0x1434e55f0`) em
+  `+0x280`, ordem gravada em `+0x360`:
+  - 4ª ordem (duas seções, `a1 = 2·cos(i·π/4 + π/8)·Ω`, copiadas para
+    `+0x2f0`) quando `fs` está a ±0,01 de 4000, 5512,5 ou 6000, isto é, áudio
+    a 32, 44,1 ou 48 kHz;
+  - 2ª ordem (`a1 = √2·Ω`, `0x1454153e8`) perto de 1000, 1378,125 ou 1500,
+    isto é, 8, 11,025 ou 12 kHz;
+  - nenhum filtro nas demais taxas.
+- Passa-baixa de 10 Hz de 2ª ordem em `+0x368` (`0x143538160` = 2π·10).
+- Passa-baixa de 100 Hz de 2ª ordem em `+0x3a0` (`0x1434e55e8` = 2π·100).
+- `0x14118aea0` também grava seus argumentos em `+0x268`, `+0x270` e
+  `+0x278`; o fechamento da passada A passa 0, 0 e 0,0001 (`0x145414da0`).
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
@@ -213,7 +230,7 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 ## Próximos alvos
 
 1. Estágios do fechamento da passada A, na ordem listada acima, começando
-   por `0x14118aea0` e `0x14118b160`.
+   por `0x14118b160`.
 2. `0x141173370` (fechamento da passada B) e a passada C/D (`0x1411965b0`,
    `0x141197d60`).
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.

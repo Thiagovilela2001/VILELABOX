@@ -144,6 +144,82 @@ pub fn filtro_passada_a(fs: f64) -> Option<Butterworth8> {
     Butterworth8::passa_baixa(fs * 0.125 * 0.4, fs, 8)
 }
 
+/// Pré-distorção `0x141165dc0` com `ω` já em rad/s.
+fn pre_distorcao(w: f64, fs: f64) -> f64 {
+    let dois_fs = fs + fs;
+    (w / dois_fs).tan() * dois_fs
+}
+
+/// Passa-baixa Butterworth de 2ª ordem (`a1 = √2·Ω`, `0x1454153e8`).
+fn passa_baixa_2(w: f64, fs: f64) -> Biquad {
+    let o = pre_distorcao(w, fs);
+    Biquad::bilinear(
+        0.0,
+        0.0,
+        o * o,
+        1.0,
+        o * std::f64::consts::SQRT_2,
+        o * o,
+        fs,
+    )
+}
+
+/// Filtros do envelope projetados à taxa decimada `fs` (`0x14118aea0`,
+/// `0x141188560`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FiltrosEnvelope {
+    /// Passa-baixa de 200 Hz (`+0x280`): 4 seções de 2ª ordem formando a 4ª
+    /// ordem em duas cascatas idênticas (`+0x280` e `+0x2f0`), 1 seção ou
+    /// nenhuma, conforme a taxa. `ordem` é o campo `+0x360`.
+    pub passa_baixa_200: Vec<Biquad>,
+    pub ordem: u8,
+    /// Passa-baixa de 10 Hz, 2ª ordem (`+0x368`).
+    pub passa_baixa_10: Biquad,
+    /// Passa-baixa de 100 Hz, 2ª ordem (`+0x3a0`, `0x141188560`).
+    pub passa_baixa_100: Biquad,
+}
+
+/// Taxa dentro de `alvo ± margem`, com as margens abertas do original.
+fn perto(fs: f64, inf: f64, sup: f64) -> bool {
+    inf < fs && fs < sup
+}
+
+impl FiltrosEnvelope {
+    /// `fs` = taxa decimada (`motor+0x98` = taxa/8). `None` para `fs <= 0`.
+    pub fn novo(fs: f64) -> Option<Self> {
+        if fs.is_nan() || fs <= 0.0 {
+            return None;
+        }
+        let w200 = 1_256.637_061_435_917_3; // 0x1434e55f0 = 2π·200
+        let o = pre_distorcao(w200, fs);
+        let quarta = perto(fs, 5512.49, 5512.51)
+            || perto(fs, 5999.99, 6000.01)
+            || perto(fs, 3999.99, 4000.01);
+        let segunda = perto(fs, 1378.115, 1378.135)
+            || perto(fs, 1499.99, 1500.01)
+            || perto(fs, 999.99, 1000.01);
+        let (passa_baixa_200, ordem) = if quarta {
+            let secao = |i: i32| {
+                let k =
+                    (i as f64 * std::f64::consts::FRAC_PI_4 + std::f64::consts::FRAC_PI_8).cos();
+                Biquad::bilinear(0.0, 0.0, o * o, 1.0, (k + k) * o, o * o, fs)
+            };
+            let (a, b) = (secao(0), secao(1));
+            (vec![a.clone(), b.clone(), a, b], 4)
+        } else if segunda {
+            (vec![passa_baixa_2(w200, fs)], 2)
+        } else {
+            (Vec::new(), 0)
+        };
+        Some(Self {
+            passa_baixa_200,
+            ordem,
+            passa_baixa_10: passa_baixa_2(62.831_853_071_795_86, fs), // 0x143538160
+            passa_baixa_100: passa_baixa_2(628.318_530_717_958_7, fs), // 0x1434e55e8
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,5 +278,20 @@ mod tests {
         let [hp, lp8, lp32] = bandas_passada_b(44100.0).unwrap();
         assert_eq!((hp.fator, lp8.fator, lp32.fator), (2, 8, 32));
         assert!(filtro_passada_a(44100.0).is_some());
+    }
+
+    #[test]
+    fn envelope_escolhe_a_ordem_pela_taxa() {
+        let e = FiltrosEnvelope::novo(44100.0 / 8.0).unwrap();
+        assert_eq!((e.ordem, e.passa_baixa_200.len()), (4, 4));
+        assert_eq!(e.passa_baixa_200[0], e.passa_baixa_200[2]);
+        let e = FiltrosEnvelope::novo(11025.0 / 8.0).unwrap();
+        assert_eq!(e.ordem, 2);
+        let e = FiltrosEnvelope::novo(96000.0 / 8.0).unwrap();
+        assert_eq!((e.ordem, e.passa_baixa_200.len()), (0, 0));
+        for b in [&e.passa_baixa_10, &e.passa_baixa_100] {
+            assert!((ganho_dc(&b.c) - 1.0).abs() < 1e-9);
+        }
+        assert!(FiltrosEnvelope::novo(0.0).is_none());
     }
 }
