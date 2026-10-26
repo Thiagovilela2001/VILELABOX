@@ -382,6 +382,17 @@ mantido (`p16`).
   saída de 200 Hz; até 12 rodadas por grupo (`cmp edx, 0xc`); a última
   amostra do envelope da banda é gravada em `+0x4e0` a cada chamada.
 
+## Padrão entre as duas bandas (`0x141177b30`)
+
+Portado em `padrao_duas_bandas`. Com as marcas da banda larga (`a`) e da
+banda de 110 a 200 Hz (`b`), para cada `i` de 0 a `len(a) − 33`: ambas em
+`i`; vazias em `i+2..=i+6`; ao menos uma posição de `i+7..=i+9` só em `b`;
+vazias em `i+10..=i+14`; ao menos uma de `i+15..=i+17` em ambas. Uma
+ocorrência conta quando a anterior não contada ficou 15 a 17 posições antes
+(a referência guardada é `anterior + 17` e começa em 0, então uma ocorrência
+em `i <= 2` já conta). Mais de uma contada liga o 5º argumento
+(`local_204`).
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

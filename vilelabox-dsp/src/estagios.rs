@@ -1325,6 +1325,51 @@ fn marcar_interno(
     Some(marcas)
 }
 
+/// Padrão de dois compassos entre as marcas da banda larga (`a`, de
+/// `marcar_picos`) e da banda de 110 a 200 Hz (`b`, de `marcar_picos_banda`)
+/// (`0x141177b30`).
+///
+/// Em cada posição `i` de `0` a `len(a) − 33`: ambas marcadas em `i`; ambas
+/// vazias em `i+2..=i+6`; ao menos uma posição de `i+7..=i+9` só em `b`; ambas
+/// vazias em `i+10..=i+14`; ao menos uma posição de `i+15..=i+17` em ambas.
+/// Leituras além de `len(a)` falham (as vazias) ou não contam (as contagens).
+/// Uma ocorrência em `i` conta se a anterior não contada estava em
+/// `i − 17`, `i − 16` ou `i − 15` (o original guarda `anterior + 17` e compara
+/// com `i`, `i + 1` e `i + 2`); depois de contar, a referência volta a 0.
+/// Como ela começa em 0, uma ocorrência em `i <= 2` já conta. Devolve
+/// verdadeiro com mais de uma contada.
+///
+/// ADAPTAÇÃO: posição fora de `b` não casa (o original lê além do fim).
+pub fn padrao_duas_bandas(a: &[u8], b: &[u8]) -> bool {
+    let n = a.len() as i64;
+    let par = |j: i64| -> Option<(u8, u8)> {
+        if j >= n {
+            return None;
+        }
+        Some((*a.get(j as usize)?, *b.get(j as usize)?))
+    };
+    let vazias = |de: i64, ate: i64| (de..=ate).all(|j| par(j) == Some((0, 0)));
+    let (mut ultimo, mut contagem) = (0i64, 0);
+    let mut i = 0i64;
+    while i < n - 32 {
+        let ok = par(i) == Some((1, 1))
+            && vazias(i + 2, i + 6)
+            && (i + 7..=i + 9).any(|j| par(j) == Some((0, 1)))
+            && vazias(i + 10, i + 14)
+            && (i + 15..=i + 17).any(|j| par(j) == Some((1, 1)));
+        if ok {
+            if ultimo == i || ultimo == i + 1 || ultimo == i + 2 {
+                contagem += 1;
+                ultimo = 0;
+            } else {
+                ultimo = i + 17;
+            }
+        }
+        i += 1;
+    }
+    contagem > 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1553,5 +1598,27 @@ mod tests {
         assert_eq!(e12.anterior, y[1999]);
         assert_eq!(e6.anterior, 0.0);
         assert!(crate::filtro::FiltrosBanda::novo(5512.5).is_some());
+    }
+
+    #[test]
+    fn padrao_de_duas_bandas_encadeado() {
+        // Um ciclo de 17 posições: 1 em 0 nas duas, 0 em 2..6, só b em 7,
+        // 0 em 10..14, 1 nas duas em 15.
+        let mut a = vec![0u8; 120];
+        let mut b = vec![0u8; 120];
+        for c in [0usize, 17, 34] {
+            a[c] = 1;
+            b[c] = 1;
+            b[c + 7] = 1;
+            a[c + 15] = 1;
+            b[c + 15] = 1;
+        }
+        a[51] = 1;
+        b[51] = 1;
+        // 0 conta (referência inicial 0); 17 não conta e guarda 34; 34 conta.
+        assert!(padrao_duas_bandas(&a, &b));
+        // Sem o pico só em b, nada casa.
+        let b2: Vec<u8> = a.clone();
+        assert!(!padrao_duas_bandas(&a, &b2));
     }
 }

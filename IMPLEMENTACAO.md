@@ -9,9 +9,10 @@
 | Crate | `vilelabox-dsp::estagios::marcar_picos`, `EstadoMarcas` (`motor+0x268`/`0x270`/`0x278`) |
 | Lacuna fechada | os estágios já portados que consomem marcas (`classificar_padrao`, `confirmar_picos`, `picos_finos`, `fase_do_compasso`) agora têm o produtor |
 | Banda 110–200 Hz | `filtro::FiltrosBanda` (`0x14118be60`) e `marcar_picos_banda` (`0x14118c1b0`), com 12 rodadas, alinhamento só por subida e `anterior` sempre atualizado |
-| Testes | 2 unitários novos (molde 1000; 6 contra 12 rodadas e `anterior` da banda); workspace com 235 testes |
+| Padrão entre bandas | `padrao_duas_bandas` (`0x141177b30`) |
+| Testes | 3 unitários novos (molde 1000; 6 contra 12 rodadas e `anterior` da banda; padrão encadeado); workspace com 236 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | `0x141177b30`, `0x141171760` e `0x1411718e0` |
+| Próximo gate | `0x141171760` e `0x1411718e0` |
 
 ## Fase do compasso do detector legado (P4.1, `0x141172490`) — 2026-10-26
 
