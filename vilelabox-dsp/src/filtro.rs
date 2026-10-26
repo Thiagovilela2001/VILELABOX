@@ -51,7 +51,7 @@ impl Biquad {
         }
     }
 
-    fn processar_no_lugar(&mut self, y: &mut [f64]) {
+    pub(crate) fn processar_no_lugar(&mut self, y: &mut [f64]) {
         let [b0, b1, b2, a1, a2] = self.c;
         for yi in y.iter_mut() {
             let xi = *yi;

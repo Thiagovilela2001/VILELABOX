@@ -207,6 +207,33 @@ vetor de saída de bytes.
   reaproveita registradores AVX e precisa de leitura no assembly antes de
   qualquer porte.
 
+## Estágios da passada A (A1.1c, segunda rodada)
+
+Portados em `vilelabox-dsp::estagios`; ordem das operações conferida no
+assembly com `desmontar.py` (capstone, privado).
+
+- **Energia** (`0x1411671d0`): soma dos quadrados. A decompilação perde o
+  corpo; o assembly mostra blocos de 8 com `vfmadd231pd` em dois acumuladores
+  (`ymm1` posições 0–3, `ymm2` 4–7), redução `(s2 + s3) + (s0 + s1)` com
+  `s = ymm2 + ymm1`, e cauda `vmulsd` + `vaddsd` sem fusão.
+- **Filtro de 1ª ordem** (`0x141165e30` projeto, `0x141166430` processo):
+  bilinear de `(b1·s + b0)/(a1·s + a0)` e forma direta II transposta.
+- **Energia por quarto de batida** (`0x1411885f0`): sinal pelo passa-baixa de
+  100 Hz (`+0x3a0`); por batida da grade, três janelas de
+  `(int)(fs·(1/bpm)·15 + 0,5)` amostras (`0x145415578` = 15) a partir do
+  índice 1-based e a quarta até a batida seguinte, ou até
+  `início + (int)(fs·(1/bpm)·60 + 0,5) − 1` nas duas últimas batidas. Fora de
+  `5512,45 < fs < 5512,55` (`0x143538358`, `0x143538360`) todos os valores
+  são multiplicados por 4 (`0x1454154c0`). Resultado em `+0x3d8`; compassos
+  (16 valores, `n/4` grupos) em `+0x3f8`, somados na árvore do assembly
+  `0x141188860`–`0x1411888e6`.
+- **Onset de agudos** (`0x141178330`): argumentos confirmados no assembly
+  (convenção x64 da Microsoft). Passa-alta Butterworth de 300 Hz
+  (`0x1434e5600`), numerador `(1, 0, 0)`, `a1 = 2·cos(i·π/4 + π/8)·Ω`, duas
+  seções duplicadas; valor absoluto; passa-baixa de 1ª ordem
+  `Ω/(s + Ω)` em 5 Hz (`0x1435380c8`); diferença com `d[0] = 0`. Taxa 0 vira
+  5512,5. Resultado em `+0x418`.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

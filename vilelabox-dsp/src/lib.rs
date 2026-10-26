@@ -5,6 +5,7 @@
 //! estática). Cada função cita o endereço de origem. Desvios necessários para
 //! Rust seguro são marcados como ADAPTAÇÃO.
 
+pub mod estagios;
 pub mod filtro;
 
 /// Faixas de BPM da preferência de análise, `(mínimo, máximo)` em BPM inteiro.
