@@ -385,7 +385,11 @@ A2): `vilelabox-dsp` com contrato PCM e `vilelabox-analysis` com etapas
 canceláveis e cacheadas, preenchendo identidade, grade, frases e tonalidade
 das faixas importadas.
 
-### P4.1 — Infraestrutura DSP
+### P4.1 — Infraestrutura DSP — EM ANDAMENTO
+
+Primeira rodada da A1.1 em 2026-10-26 (`evidence/p4-1-analise-batida.md`):
+`vilelabox-dsp` criado só com as primitivas recuperadas. O contrato PCM e a
+FFT ficam suspensos até a origem dos buffers `i16` do motor ser recuperada.
 
 - recuperar com REA e Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes,
   encadeamento e tratamento de bordas;
@@ -500,7 +504,7 @@ equipamento real.
 Ordem recomendada para as próximas entregas:
 
 1. ~~P3.3 e P3.4 + G3~~ concluídos em 2026-10-26;
-2. **P4.1:** `vilelabox-dsp` ([`PLANO-ANALISE.md`](PLANO-ANALISE.md), fase A1);
+2. **P4.1 (em andamento):** `vilelabox-dsp` ([`PLANO-ANALISE.md`](PLANO-ANALISE.md), fase A1);
 4. **P4.2 + G4:** `vilelabox-analysis` preenchendo identidade, grade, frases e
    tonalidade (fase A2);
 5. **P5:** app consumindo o `Core`, com importação pela interface e edição de

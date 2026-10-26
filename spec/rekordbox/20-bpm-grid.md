@@ -44,6 +44,22 @@ não uma reconstrução comprovada do algoritmo DSP proprietário.
 - `deck.rs`: clique de metrônomo gerado no motor de áudio.
 - `sync.rs`: sincronização de BPM, fase e número da batida.
 
+## Análise automática
+
+Evidência: `evidence/p4-1-analise-batida.md` (estática, endereços do
+`rekordbox.exe` 7.2.8).
+
+- O BPM da análise é entregue como inteiro BPM × 100, arredondado com
+  `(int)(bpm * 100 + 0,5)`.
+- Cada batida da análise carrega posição, número no compasso e BPM × 100
+  calculado de `6000000 / intervalo_ms`, arredondado.
+- O resultado é dobrado ou dividido por dois até cair na faixa de BPM da
+  preferência; as faixas são 70–180 (padrão), 48–95, 58–115, 68–135, 78–155,
+  88–175, 98–195, 108–215, 118–235 e 128–255.
+- O motor avalia candidatos somando um sinal `i16` em janelas de uma batida
+  (60/BPM segundos) ou meia batida (30/BPM), começando em um quarto da
+  posição pedida.
+
 ## Perguntas abertas
 
 As operações visíveis acima são documentadas e foram reproduzidas. Os detalhes

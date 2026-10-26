@@ -9,6 +9,7 @@ members = [
     "vilelabox-library",
     "vilelabox-core",
     "vilelabox-cli",
+    "vilelabox-dsp",
     "vilelabox-audio",
     "xtask",
     "vilelabox-app",

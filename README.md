@@ -20,6 +20,7 @@ O projeto ainda é experimental e não é um software de performance pronto.
 - `vilelabox-library`: importação, varredura, busca, playlists e identidade.
 - `vilelabox-core`: núcleo headless com comandos, eventos e decks.
 - `vilelabox-cli`: CLI de desenvolvimento sobre o núcleo.
+- `vilelabox-dsp`: primitivas da análise de BPM recuperadas com evidência.
 - `vilelabox-audio`: decodificação, transporte e mixagem.
 - `vilelabox-types`: tipos e invariantes do domínio musical.
 - `vilelabox-reference`: esquema canônico e comparação diferencial.

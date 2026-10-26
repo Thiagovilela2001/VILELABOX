@@ -5279,6 +5279,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vilelabox-dsp"
+version = "0.1.0"
+
+[[package]]
 name = "vilelabox-library"
 version = "0.1.0"
 dependencies = [

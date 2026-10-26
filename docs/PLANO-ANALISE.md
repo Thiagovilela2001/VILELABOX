@@ -38,8 +38,10 @@ marcadas como `ADAPTAÇÃO`.
 | # | tarefa | entrega | teste |
 | --- | --- | --- | --- |
 | A1.1 | Recuperar com REA e Ghidra tipos numéricos, tamanhos de bloco, janelas, constantes, encadeamento e tratamento de bordas | dossiê G0 + notas na spec | — |
-| A1.2 | Contrato PCM | crate `vilelabox-dsp`: blocos estéreo `f32` indexados em frames | propriedade de fatiamento |
-| A1.3 | Janelas e FFT | Hann e FFT (rustfft) sem I/O | contra fixture de referência |
+| A1.1a | **Feito (2026-10-26):** encadeamento do job, tabela de faixas de BPM, arredondamento BPM × 100, layout das batidas e soma de janela `i16` | `evidence/p4-1-analise-batida.md`, `20-bpm-grid.md`, `vilelabox-dsp` | 3 unitários |
+| A1.1b | Pendente: origem dos buffers `i16` do motor e o algoritmo de `0x14247a210` | dossiê p4-1 ampliado | diferencial com fixture WAV |
+| A1.2 | Contrato PCM | **suspenso:** a evidência mostra buffers `i16`, não blocos `f32`; o contrato sai da A1.1b | propriedade de fatiamento |
+| A1.3 | Janelas e FFT | **suspenso:** nenhuma FFT nem Hann observada no motor até aqui | contra fixture de referência |
 | A1.4 | Invariância de bloco | mesmo resultado com blocos de tamanhos diferentes | propriedade |
 | A1.5 | Benchmarks reproduzíveis | harness registrado no repositório | números anexados à entrada do IMPLEMENTACAO |
 

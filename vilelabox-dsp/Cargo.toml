@@ -1,0 +1,9 @@
+[package]
+name = "vilelabox-dsp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Primitivas numéricas da análise do VILELABOX recuperadas do programa de referência (P4.1; evidence/p4-1-analise-batida.md)"
+
+[dependencies]

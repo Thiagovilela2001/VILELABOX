@@ -1,5 +1,18 @@
 # Registro de implementação
 
+## Análise de BPM: dossiê p4-1 e `vilelabox-dsp` (P4.1, A1.1a) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Método | strings `__FUNCSIG__` do `analyzer::AnalyzeJobBeatDetector` convertidas em VA e usadas como `xref:` no projeto Ghidra; constantes lidas do `.rdata` |
+| Evidência | `spec/rekordbox/evidence/p4-1-analise-batida.md`; nota na `20-bpm-grid.md` |
+| Recuperado | modos legado e alta precisão; motor com dois tipos; BPM × 100 = `(int)(bpm·100 + 0,5)`; batida = posição, intervalo em ms e número; tabela de faixas de BPM (70–180 padrão e nove alternativas); dobra e divisão até a faixa; soma de janela `i16` de uma batida e meia batida |
+| Crate | `vilelabox-dsp`: `FAIXAS_BPM`, `bpm_centesimos`, `bpm_centesimos_do_intervalo`, `ajustar_a_faixa`, `soma_batida`, `soma_meia_batida`; desvios marcados como ADAPTAÇÃO |
+| Achado | o motor analisa buffers `i16`, não blocos `f32`; nenhuma FFT observada; A1.2 e A1.3 suspensos |
+| Testes | 3 unitários novos; workspace com 212 testes (inclui a correção da ajuda da CLI) |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | A1.1b: quem escreve `motor+0x78`/`+0x80` e o algoritmo de `0x14247a210`; depois teste diferencial com fixture WAV |
+
 ## Núcleo headless `vilelabox-core` e CLI (P3.3/P3.4, Gate G3) — 2026-10-26
 
 | Campo | Resultado |
