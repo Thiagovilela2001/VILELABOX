@@ -5,6 +5,8 @@
 //! estática). Cada função cita o endereço de origem. Desvios necessários para
 //! Rust seguro são marcados como ADAPTAÇÃO.
 
+pub mod filtro;
+
 /// Faixas de BPM da preferência de análise, `(mínimo, máximo)` em BPM inteiro.
 /// Tabela em `0x1434eb4b0`; o índice 0 repete o padrão do índice 1.
 pub const FAIXAS_BPM: [(i32, i32); 11] = [

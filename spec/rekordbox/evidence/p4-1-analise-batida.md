@@ -139,6 +139,50 @@ Comportamento completo; portado em `vilelabox-dsp::posicao_de_entrada`.
   `0x141195480` e `0x141195ed0`) e `0x141170430` (estados 3 e 4, "C/D", fecha
   com `0x141197d60`). Estado −1 é erro e 5 é concluído.
 
+## Filtros do detector legado (A1.1c)
+
+Portados em `vilelabox-dsp::filtro`.
+
+- **Biquad** (`0x141166570`): forma direta II transposta, coeficientes
+  `[b0, b1, b2, a1, a2]` e estado de dois termos mantido entre blocos.
+- **Coeficientes** (`0x141165eb0`): transformada bilinear do protótipo
+  `(b2·s² + b1·s + b0) / (a2·s² + a1·s + a0)` com `T = 1/fs`, termos `4·a2`
+  e `4·b2`, normalizados pelo denominador.
+- **Pré-distorção** (`0x141165dc0`): `Ω = tan(ω / 2fs) · 2fs`, `ω = 2π·corte`
+  (`0x1454154f8` = 2π). A função `0x14279adf0` é `tan`: a aproximação para
+  argumento pequeno é `x + x³ · 0,3333…` (`0x143d0b0f0`).
+- **Butterworth de 8ª ordem** (`0x141191270` passa-baixa, `0x14118ad30`
+  passa-alta): quatro seções com `a1 = 2·cos(i·π/8 + π/16)·Ω`, i = 0..3
+  (`0x1435380a8`, `0x143538388`; `0x1427a2fa0` é `cos`), `a0 = Ω²`, `a2 = 1`.
+  Numerador `(0, 0, Ω²)` no passa-baixa e `(1, 0, 0)` no passa-alta. Exige
+  `fs > 0` e decimação ≥ 2.
+- **Decimação** (`0x14117cbb0`): cada seção filtra o bloco inteiro; a saída
+  são `n / M` amostras, a de índice `i·M + M − 1`. O resto do bloco é
+  descartado.
+- **Passada A** (`0x1411952f0`): passa-baixa em `fs/8 · 0,4`
+  (`0x145415250` = 0,4) e acumulação até `min(fs/8 · 210, frames / 8)`
+  amostras (`0x1435384d0` = 210, ou seja 210 s do sinal decimado).
+- **Passada B** (`0x141195ed0`): três bandas, passa-alta em `fs/2 · 0,55`
+  com ÷2 (`0x1454152d0` = 0,55), passa-baixa em `fs/8 · 0,4` com ÷8 e
+  passa-baixa em `fs/32 · 0,4` com ÷32; buffers de `40 s` por banda
+  (`0x145415608` = 40). Depois chama `0x141173370` com as três taxas.
+
+## Cadeia do fechamento da passada A (`0x141195480`)
+
+O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
+de índices: passo `(60/bpm)·fs`, início `fs · deslocamento_ms · 0,001 + 0,5`,
+índice `i·passo + início + 1,5`, último limitado ao fim), `0x14118aea0`
+(biquads auxiliares com cortes dependentes da taxa), `0x14118b160`,
+`0x141188560`, `0x1411885f0`, `0x141176680`, `0x141178330`, `0x1411786a0`,
+`0x141179530`, `0x141178df0`, `0x141172490`, nova grade, `0x14118be60`,
+`0x14118c1b0`, `0x141177b30`, `0x141171760` (sobre 30 s) e, quando aplicável,
+`0x1411718e0`. Resultados em `+0x208` (BPM × 100), `+0x20c`, `+0x210`,
+`+0x218`, `+0x238` e `+0x258`..`+0x260`.
+
+O BPM, o deslocamento e o tom de partida vêm da thread, que os lê dos dados
+já conhecidos da faixa (vtable de `thread+0x2e0`, slots `+0xa0`, `+0xa8`,
+`+0xb0`). Sem dado prévio o BPM é 0, que o init aceita.
+
 ## Alta precisão (`0x141134550`)
 
 Decodifica o arquivo para buffers `f32`, roda inferência em blocos
@@ -161,12 +205,16 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
   o motor 1; as tabelas de razões em `0x143b107b8`–`0x143b10880`; as rotinas
   de dobrar e dividir a grade (`0x1411308c0`, `0x141130d90`); a análise de
   tom.
-- **Não observado:** FFT ou janela de Hann, até aqui. O detector legado ainda
-  não foi aberto por dentro, então isso não descarta FFT nas passadas.
+- **OBSERVADO (A1.1c):** filtros Butterworth de 8ª ordem com decimação, as
+  bandas das passadas A e B e a grade de índices `0x141173280`.
+- **Não observado:** FFT ou janela de Hann, até aqui. Os estágios do
+  fechamento da passada A e a passada C/D ainda não foram abertos.
 
 ## Próximos alvos
 
-1. Passada A/B: `0x1411953b0` (por bloco), `0x141195480` e `0x141195ed0`.
-2. Passada C/D: `0x1411965b0` e `0x141197d60` (~2 000 linhas).
+1. Estágios do fechamento da passada A, na ordem listada acima, começando
+   por `0x14118aea0` e `0x14118b160`.
+2. `0x141173370` (fechamento da passada B) e a passada C/D (`0x1411965b0`,
+   `0x141197d60`).
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
 4. Teste diferencial com fixture WAV analisada pelo programa de referência.
