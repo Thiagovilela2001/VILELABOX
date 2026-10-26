@@ -1616,6 +1616,139 @@ pub fn numero_da_batida(
     })
 }
 
+/// Grade de índices 1-based (`0x141173280`), conferida no assembly:
+/// passo `(60/bpm)·fs`, início `(int)fma(ms·0,001, fs, 0,5)`, quantidade
+/// `(int)((n − início) / passo)` e índice `(int)((i·passo + início) + 1,5)`;
+/// o último é limitado a `n`.
+///
+/// ADAPTAÇÃO: quantidade negativa dá `None` (o original falha na alocação) e
+/// grade vazia não lê o índice −1.
+pub fn grade_de_indices(n: usize, fs: f64, bpm: f64, ms: i32) -> Option<Vec<i32>> {
+    let passo = (60.0 / bpm) * fs;
+    let inicio = (ms as f64 * 0.001).mul_add(fs, 0.5) as i32;
+    let n = n as i32;
+    let qtd = ((n - inicio) as f64 / passo) as i32;
+    if qtd < 0 {
+        return None;
+    }
+    let mut g: Vec<i32> = (0..qtd)
+        .map(|i| ((i as f64 * passo + inicio as f64) + 1.5) as i32)
+        .collect();
+    if let Some(u) = g.last_mut() {
+        if n < *u {
+            *u = n;
+        }
+    }
+    Some(g)
+}
+
+/// Parâmetros fixos do analisador gravados no init (`0x141170020`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ConfigPassadaA {
+    /// Taxa decimada (`motor+0x98` = taxa/8).
+    pub fs: f64,
+    /// BPM de partida (`motor+0xb0` = BPM × 100 · 0,01 do init).
+    pub bpm: f64,
+    /// Deslocamento de partida em ms (`motor+0xac`).
+    pub ms: i32,
+    /// `motor+0xbc` (6º argumento do init).
+    pub campo_bc: i32,
+    /// `motor+0xca`: mantém o deslocamento de partida.
+    pub manter_ms: bool,
+    /// `motor+0xcb`: não recalcula o número da batida.
+    pub manter_numero: bool,
+}
+
+/// Resultado do fechamento da passada A (`motor+0x208`–`+0x260`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResultadoPassadaA {
+    /// Deslocamento final em ms (`+0x208`).
+    pub ms: i32,
+    /// Número da batida inicial (`+0x20c`).
+    pub numero: i32,
+    /// Molde A visto nas marcas (`+0x210`).
+    pub molde_a: bool,
+    /// Picos confirmados (`+0x218`, `+0x238`, `+0x258`, `+0x25c`).
+    pub picos: PicosConfirmados,
+    /// Batida em que o áudio começa (`+0x260`).
+    pub primeira_audivel: i32,
+}
+
+/// Fechamento da passada A (`0x141195480`): encadeia os estágios portados na
+/// ordem do original. `sinal` = sinal da passada A (mono, passa-baixa de
+/// `fs/8 · 0,4` e decimação por 8), até `fs · 210` amostras.
+///
+/// Primeira volta com o deslocamento de partida: grade, marcas, energia por
+/// quarto, padrão rítmico, onset de agudos, três rodadas de picos e fase do
+/// compasso. Segunda volta com o deslocamento corrigido: nova grade, marcas
+/// das duas bandas, padrão entre bandas, início audível (30 s) e número da
+/// batida.
+pub fn fechamento_passada_a(sinal: &[f64], c: &ConfigPassadaA) -> Option<ResultadoPassadaA> {
+    use crate::filtro::{passa_baixa_hz, FiltrosBanda, FiltrosEnvelope};
+    let (fs, bpm, ms) = (c.fs, c.bpm, c.ms);
+    let lim = ((fs * 210.0) as usize).min(sinal.len());
+    let sinal = &sinal[..lim];
+    // Primeira volta.
+    let grade = grade_de_indices(sinal.len(), fs, bpm, ms)?;
+    let mut env = FiltrosEnvelope::novo(fs)?;
+    let mut est = EstadoMarcas::default();
+    let y = env.envelope(sinal)?;
+    let marcas = marcar_picos(&y, &mut est, fs, bpm, ms, 1, 1)?;
+    let mut lp100 = passa_baixa_hz(100.0, fs);
+    let (_, compassos) = energia_por_quarto(sinal, &mut lp100, bpm, fs, &grade)?;
+    let padrao = classificar_padrao(&marcas, &compassos, bpm)?;
+    let onset = onset_agudos(sinal, fs);
+    let agudos = picos_de_agudos(&onset, fs, bpm, ms, &grade)?;
+    let confirmados = confirmar_picos(&agudos, &marcas, fs, bpm, ms, &grade, padrao.seminimas)?;
+    let (finos, validos_finos, primeiro_finos) =
+        picos_finos(&agudos, &marcas, fs, bpm, ms, &grade)?;
+    let fase = fase_do_compasso(sinal, &marcas, fs, bpm, ms, grade.len(), &agudos)?;
+    let (mut ms_novo, mut modo) = (fase.ms, fase.modo);
+    if c.manter_ms {
+        ms_novo = ms;
+        modo = 0;
+    }
+    // Segunda volta.
+    let grade2 = grade_de_indices(sinal.len(), fs, bpm, ms_novo)?;
+    let mut env2 = FiltrosEnvelope::novo(fs)?;
+    let mut est2 = EstadoMarcas::default();
+    let y2 = env2.envelope(sinal)?;
+    let marcas2 = marcar_picos(&y2, &mut est2, fs, bpm, ms_novo, 1, 1)?;
+    let mut banda = FiltrosBanda::novo(fs)?;
+    let mut est3 = EstadoMarcas::default();
+    let (e200, ebanda) = banda.envelopes(sinal)?;
+    let marcas_banda = marcar_picos_banda(&e200, &ebanda, &mut est3, fs, bpm, ms_novo, 1, 1)?;
+    let _duas_bandas = padrao_duas_bandas(&marcas2, &marcas_banda);
+    let trinta = ((fs * 30.0) as usize).min(sinal.len());
+    let primeira_audivel = primeira_batida_audivel(&sinal[..trinta], bpm, ms_novo, fs);
+    let numero = if validos_finos < 1 || c.manter_numero || fase.mantido == Some(true) {
+        c.campo_bc
+    } else {
+        numero_da_batida(
+            sinal,
+            fs,
+            bpm,
+            ms,
+            ms_novo,
+            1,
+            &grade2,
+            &finos,
+            validos_finos,
+            primeiro_finos,
+            c.campo_bc,
+            modo,
+        )?
+        .numero
+    };
+    Some(ResultadoPassadaA {
+        ms: ms_novo,
+        numero,
+        molde_a: fase.molde_a,
+        picos: confirmados,
+        primeira_audivel,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1894,5 +2027,45 @@ mod tests {
         let r =
             numero_da_batida(&sinal, 400.0, 120.0, 0, 0, 1, &grade, &posicoes, 8, 1, 2, 2).unwrap();
         assert_eq!(r.numero, 1);
+    }
+
+    #[test]
+    fn grade_de_indices_segue_o_assembly() {
+        // fs 400, 120 BPM: passo 200; início 10 ms = (int)(4,5) = 4.
+        let g = grade_de_indices(1000, 400.0, 120.0, 10).unwrap();
+        // (1000 − 4) / 200 = 4,98 -> 4 índices: 5,5 -> 5, 205, 405, 605.
+        assert_eq!(g, vec![5, 205, 405, 605]);
+        assert!(grade_de_indices(10, 400.0, 120.0, 1000).is_none());
+    }
+
+    #[test]
+    fn fechamento_passada_a_roda_de_ponta_a_ponta() {
+        // Clique a cada batida (120 BPM) a 5512,5 Hz por 40 s.
+        let fs = 5512.5;
+        let batida = (60.0 / 120.0 * fs) as usize;
+        let sinal: Vec<f64> = (0..(fs as usize * 40))
+            .map(|i| {
+                let k = i % batida;
+                if k < 40 {
+                    (k as f64 * 0.7).sin() * (1.0 - k as f64 / 40.0)
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let c = ConfigPassadaA {
+            fs,
+            bpm: 120.0,
+            ms: 0,
+            campo_bc: 1,
+            manter_ms: false,
+            manter_numero: false,
+        };
+        let r = fechamento_passada_a(&sinal, &c).unwrap();
+        // Regressão do porte (não comparado com o programa de referência):
+        // cliques no tempo mantêm o deslocamento e a batida 1; sem padrões de
+        // marcas, nenhum pico é confirmado.
+        assert_eq!((r.ms, r.numero, r.primeira_audivel), (0, 1, 1));
+        assert_eq!((r.molde_a, r.picos.validos), (false, 0));
     }
 }

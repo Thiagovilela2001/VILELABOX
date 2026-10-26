@@ -1,5 +1,15 @@
 # Registro de implementação
 
+## Passada A do detector legado de ponta a ponta (P4.1) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Entrega | `grade_de_indices` (`0x141173280`) e `fechamento_passada_a` (`0x141195480`), que encadeia todos os estágios portados na ordem do original e devolve deslocamento, número da batida, molde A, picos confirmados e início audível |
+| Achado | a passada A não estima BPM: recebe o BPM conhecido da faixa (`motor+0xb0`). A estimativa está nas passadas B e C/D |
+| Testes | 2 unitários novos (grade conferida à mão; passada A sobre cliques sintéticos a 120 BPM, como regressão do porte, sem comparação com o original); workspace com 240 testes |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | passada B (`0x141195ed0` → `0x141173370`) e C/D (`0x1411965b0`, `0x141197d60`), onde está o BPM; depois teste diferencial com faixa analisada pelo programa de referência |
+
 ## Marcação de picos do detector legado (P4.1, `0x14118b160`) — 2026-10-26
 
 | Campo | Resultado |

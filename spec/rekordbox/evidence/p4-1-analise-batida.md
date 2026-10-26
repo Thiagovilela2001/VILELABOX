@@ -413,6 +413,22 @@ em `i <= 2` já conta). Mais de uma contada liga o 5º argumento
   primeiro quarto forte cai nas posições 5 a 8 de 16. O número final é
   `1 + 2·segunda_metade + paridade`, salvo a exceção pelo modo da fase.
 
+## Orquestração da passada A (`0x141195480`)
+
+Portada em `fechamento_passada_a`, com a grade `0x141173280` em
+`grade_de_indices` (início `(int)fma(ms·0,001, fs, 0,5)` no assembly).
+Ordem: grade; filtros de envelope e marcas; passa-baixa de 100 Hz e
+energia por quarto; padrão rítmico; onset de agudos; três rodadas de picos;
+fase do compasso; com `motor+0xca`, o deslocamento de partida é mantido e o
+modo zerado; nova grade e marcas com o deslocamento corrigido; banda de 110 a
+200 Hz e padrão entre bandas; início audível nos primeiros 30 s; número da
+batida (ou `motor+0xbc` quando não há picos finos, com `motor+0xcb` ou com o
+deslocamento mantido pela fase). Saídas em `motor+0x208`–`+0x260`.
+
+**A passada A recebe o BPM pronto** (`motor+0xb0`, vindo do BPM já conhecido
+da faixa no init). A estimativa do BPM está nas passadas B e C/D
+(`0x141173370`, `0x1411965b0`, `0x141197d60`), ainda não abertas.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
