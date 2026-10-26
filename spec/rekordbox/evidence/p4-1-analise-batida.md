@@ -250,6 +250,26 @@ assembly com `desmontar.py` (capstone, privado).
   (`0x143538040`), liga o 6º; senão o terceiro em mais de `t` blocos liga o
   7º. O uso desses sinalizadores adiante é DESCONHECIDO.
 
+- **Ordenações** (`0x1411678b0`, `0x141168940`): pares (valor, índice
+  1-based). Valores `f64` em ordem decrescente e estável (inserção em
+  `0x14116e4c0` move enquanto `valor > anterior`); inteiros em ordem crescente
+  e estável (`0x14116e630`, `jl`). Acima de 32 elementos, merge sort estável
+  com o mesmo comparador.
+- **Picos de agudos** (`0x1411786a0`), portado em `picos_de_agudos`: para os
+  `grade/8` primeiros compassos (passo de 4 batidas), o onset de agudos do
+  compasso é ordenado; o candidato `k` é aceito quando
+  `v[k+1] < 0,9886·v[k]` (`0x1435380b8`) e seu índice não está a
+  `±((int)(fs·15/bpm + 0,5) − 20)` dos primeiros `aceitos` índices da lista
+  ordenada; para quando não há queda em `k` nem em `k+1`. Capacidade de
+  8 × compassos. Em seguida, em ordem crescente, picos sem outro a duas
+  batidas, com tolerância `(int)(fs·1,875/bpm + 0,5)` (`0x1435380c0`), são
+  zerados em sequência; nova ordenação; os válidos perdem
+  `(int)(ms·(fs·0,001) + 0,5)` nos blocos de 16 do laço vetorial e
+  `(int)((fs·ms)·0,001 + 0,5)` no resto. BPM 0 vira 120 (`0x145415678`) e
+  taxa 0 vira 5512,5. Saídas: posições, quantidade de válidos e primeiro
+  válido 1-based. O vetor `f64` paralelo (`param_10`) é alocado zerado e só
+  recebe zeros.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

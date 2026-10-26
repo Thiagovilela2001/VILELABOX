@@ -6,10 +6,10 @@
 | --- | --- |
 | Método | decompilação Ghidra conferida no assembly com capstone (`desmontar.py`, privado), para argumentos perdidos e ordem das somas |
 | Recuperado | energia (soma dos quadrados com FMA e redução exata); filtro de 1ª ordem; energia por quarto de batida e por compasso (`0x1411885f0`); onset de agudos com passa-alta de 300 Hz, valor absoluto e passa-baixa de 5 Hz (`0x141178330`) |
-| Crate | `vilelabox-dsp::estagios`: `energia`, `soma`, `PrimeiraOrdem`, `energia_por_quarto`, `onset_agudos`, `classificar_padrao` (moldes rítmicos de `0x141176680`) |
-| Testes | 7 unitários novos; workspace com 228 testes |
+| Crate | `vilelabox-dsp::estagios`: `energia`, `soma`, `PrimeiraOrdem`, `energia_por_quarto`, `onset_agudos`, `classificar_padrao` (moldes rítmicos de `0x141176680`), `picos_de_agudos` (`0x1411786a0`) |
+| Testes | 9 unitários novos; workspace com 230 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | `0x1411786a0`, `0x141179530`, `0x141178df0` e `0x141172490` |
+| Próximo gate | `0x141179530`, `0x141178df0` e `0x141172490` |
 
 ## Filtros do detector legado de BPM (P4.1, A1.1c) — 2026-10-26
 

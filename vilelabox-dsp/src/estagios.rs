@@ -289,6 +289,123 @@ pub fn classificar_padrao(marcas: &[u8], compassos: &[f64], bpm: f64) -> Option<
     Some(p)
 }
 
+/// Ordenação decrescente e estável de `(valor, índice 1-based)`
+/// (`0x1411678b0`; inserção em `0x14116e4c0` move enquanto `valor >
+/// anterior`). Acima de 32 elementos o original usa merge sort estável com o
+/// mesmo comparador, que dá o mesmo resultado.
+fn argsort_decrescente(x: &[f64]) -> (Vec<f64>, Vec<i32>) {
+    let mut pares: Vec<(f64, i32)> = x.iter().copied().zip(1..).collect();
+    pares.sort_by(|a, b| {
+        if a.0 > b.0 {
+            std::cmp::Ordering::Less
+        } else if b.0 > a.0 {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    });
+    pares.into_iter().unzip()
+}
+
+/// Picos de agudos por compasso (`0x1411786a0`).
+///
+/// Para cada um dos `grade.len() / 8` primeiros compassos (passo de quatro
+/// batidas), ordena o onset de agudos do compasso em ordem decrescente e
+/// aceita o candidato `k` quando o seguinte cai abaixo de `0,9886 ×` ele
+/// (`0x1435380b8`) e ele não está a `±((int)(fs·15/bpm + 0,5) − 20)` amostras
+/// dos primeiros `aceitos` índices da lista ordenada. Para no primeiro
+/// candidato sem queda quando também não há queda logo depois. Capacidade de
+/// 8 picos por compasso no total.
+///
+/// Depois, em ordem crescente, um pico sem outro a duas batidas
+/// (`(int)(60/bpm·2fs + 0,5)`) com tolerância `(int)(fs·1,875/bpm + 0,5)`
+/// (`0x1435380c0`) é zerado, em sequência. Por fim subtrai
+/// `(int)(fs·ms·0,001 + 0,5)` dos picos válidos. BPM 0 vira 120 e taxa 0 vira
+/// 5512,5.
+///
+/// Devolve `(posições em ordem crescente com zeros à frente, válidos,
+/// primeiro válido 1-based)`. ADAPTAÇÃO: compasso fora do onset dá `None`.
+pub fn picos_de_agudos(
+    onset: &[f64],
+    fs: f64,
+    bpm: f64,
+    deslocamento_ms: i32,
+    grade: &[i32],
+) -> Option<(Vec<i32>, usize, usize)> {
+    let bpm = if bpm == 0.0 { 120.0 } else { bpm };
+    let fs = if fs == 0.0 { 5512.5 } else { fs };
+    let compassos = (grade.len() as i32 / 8) as usize;
+    let cap = compassos * 8;
+    let mut pos = vec![0i32; cap];
+    let raio = (fs * (15.0 / bpm) + 0.5) as i32 - 20;
+    let mut total = 0usize;
+    for b in 0..compassos {
+        let ini = grade[4 * b];
+        let len = grade[4 * b + 4] - ini;
+        if ini < 1 || len < 0 {
+            return None;
+        }
+        let a = (ini - 1) as usize;
+        let (v, idx) = argsort_decrescente(onset.get(a..a + len as usize)?);
+        let n = v.len();
+        let mut aceitos = 0usize;
+        let mut k = 0usize;
+        while k + 1 < n {
+            let perto = idx[..aceitos]
+                .iter()
+                .any(|&j| j - raio <= idx[k] && idx[k] <= j + raio);
+            if !perto {
+                let cheio = total >= cap;
+                if 0.9886 * v[k] <= v[k + 1] || cheio {
+                    if n < k + 3 || cheio || v[k + 1] * 0.9886 <= v[k + 2] {
+                        break;
+                    }
+                } else {
+                    pos[total] = ini - 1 + idx[k];
+                    total += 1;
+                    aceitos += 1;
+                }
+            }
+            k += 1;
+        }
+    }
+    pos.sort();
+    let duas = ((60.0 / bpm) * (fs + fs) + 0.5) as i32;
+    let tol = (fs * (1.875 / bpm) + 0.5) as i32;
+    for i in 0..cap {
+        let p = pos[i];
+        if p == 0 {
+            continue;
+        }
+        let (antes, depois) = (p - duas, p + duas);
+        let tem_par = pos.iter().any(|&q| {
+            q != 0
+                && ((q - tol <= antes && antes <= q + tol)
+                    || (q - tol <= depois && depois <= q + tol))
+        });
+        if !tem_par {
+            pos[i] = 0;
+        }
+    }
+    pos.sort();
+    let zeros = pos.iter().take_while(|&&p| p == 0).count();
+    let validos = cap - zeros;
+    let vetorial = if validos > 15 {
+        validos - validos % 16
+    } else {
+        0
+    };
+    for (i, p) in pos[zeros..].iter_mut().enumerate() {
+        let d = if i < vetorial {
+            (deslocamento_ms as f64 * (fs * 0.001) + 0.5) as i32
+        } else {
+            (fs * deslocamento_ms as f64 * 0.001 + 0.5) as i32
+        };
+        *p -= d;
+    }
+    Some((pos, validos, zeros + 1))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -375,5 +492,37 @@ mod tests {
                 .unwrap()
                 .molde_1000_0010_1000_0000
         );
+    }
+
+    #[test]
+    fn argsort_e_decrescente_e_estavel() {
+        let (v, i) = argsort_decrescente(&[1.0, 3.0, 2.0, 3.0]);
+        assert_eq!(v, vec![3.0, 3.0, 2.0, 1.0]);
+        assert_eq!(i, vec![2, 4, 3, 1]);
+    }
+
+    #[test]
+    fn picos_de_agudos_acha_o_pico_e_exige_par() {
+        // fs 400, 120 BPM: batida = 200 amostras; compasso = 800.
+        let fs = 400.0;
+        let grade: Vec<i32> = (0..17).map(|i| 1 + i * 200).collect();
+        let mut onset = vec![0.0; 3400];
+        // Um pico forte por compasso, sempre 10 amostras após o início.
+        for c in 0..2 {
+            onset[c * 800 + 10] = 1.0;
+        }
+        let (pos, validos, primeiro) = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
+        // Picos a 800 amostras: sem par a duas batidas (400) -> zerados.
+        assert_eq!((validos, primeiro), (0, pos.len() + 1));
+        // Com pico também a 400 amostras, o par existe.
+        for c in 0..2 {
+            onset[c * 800 + 410] = 0.5;
+        }
+        let (pos, validos, _) = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
+        assert_eq!(validos, 4);
+        assert_eq!(&pos[pos.len() - 4..], &[11, 411, 811, 1211]);
+        // Deslocamento de 10 ms a 400 Hz = 4 amostras.
+        let (pos, _, _) = picos_de_agudos(&onset, fs, 120.0, 10, &grade).unwrap();
+        assert_eq!(pos[pos.len() - 1], 1207);
     }
 }
