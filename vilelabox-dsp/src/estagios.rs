@@ -571,6 +571,105 @@ pub fn confirmar_picos(
     })
 }
 
+/// Terceira rodada de picos (`0x141178df0`).
+///
+/// Mesma seleção de `confirmar_picos`, com capacidade de 16 por compasso e
+/// razão de queda `0,998849369936505` (`0x1435380d8`). Um pico fica se tiver
+/// par a duas batidas (tolerância de ⅛ de batida) e, com
+/// `6 <= quarto < marcas − 5`, se as marcas formarem `(−4, +2)`, `(−6, +5)`
+/// ou `(−4, +4)` sem marca no próprio quarto; senão é zerado, em sequência.
+/// Os valores paralelos (`param_12`) são sempre zero no original e não são
+/// devolvidos. Deslocamento final como em `picos_de_agudos`.
+///
+/// Devolve `(posições, válidos, primeiro válido 1-based)`.
+pub fn picos_finos(
+    picos: &PicosAgudos,
+    marcas: &[u8],
+    fs: f64,
+    bpm: f64,
+    deslocamento_ms: i32,
+    grade: &[i32],
+) -> Option<(Vec<i32>, usize, usize)> {
+    let bpm = if bpm == 0.0 { 120.0 } else { bpm };
+    let fs = if fs == 0.0 { 5512.5 } else { fs };
+    let compassos = (grade.len() as i32 / 8) as usize;
+    let cap = compassos * 16;
+    let batida = (60.0 / bpm) * fs;
+    let quarto = (batida * 0.25 + 0.5) as i32;
+    let raio = quarto - 20;
+    let razao = 0.998_849_369_936_505;
+    let mut pos = vec![0i32; cap];
+    let mut total = 0usize;
+    for b in 0..compassos {
+        let base = grade[4 * b];
+        let (v, idx) = picos.ordenados.get(b)?;
+        let n = v.len();
+        let mut k = 0usize;
+        while k + 1 < n {
+            let candidato = idx[k] + base;
+            let perto = pos[..total]
+                .iter()
+                .any(|&q| q - raio <= candidato && candidato <= q + raio);
+            if !perto && total < cap {
+                if razao * v[k] <= v[k + 1] {
+                    if n < k + 3 || v[k + 1] * razao <= v[k + 2] {
+                        break;
+                    }
+                } else {
+                    pos[total] = idx[k] - 1 + base;
+                    total += 1;
+                }
+            }
+            k += 1;
+        }
+    }
+    pos.sort();
+    let duas = (batida + batida + 0.5) as i32;
+    let oitavo = (batida * 0.125 + 0.5) as i32;
+    let desloc = (fs * deslocamento_ms as f64 * 0.001 + 0.5) as i32;
+    for i in 0..cap {
+        let p = pos[i];
+        if p == 0 {
+            continue;
+        }
+        let (antes, depois) = (p - duas, p + duas);
+        let par = pos.iter().any(|&q| {
+            q != 0
+                && ((q - oitavo <= antes && antes <= q + oitavo)
+                    || (q - oitavo <= depois && depois <= q + oitavo))
+        });
+        let fica = par && {
+            let slot = (p - desloc) / quarto;
+            if slot < 6 || marcas.len() as i32 <= slot + 5 {
+                true
+            } else {
+                let m = |o: i32| marcas[(slot + o) as usize] == 1;
+                ((m(-4) && m(2)) || (m(-6) && m(5)) || (m(-4) && m(4))) && !m(0)
+            }
+        };
+        if !fica {
+            pos[i] = 0;
+        }
+    }
+    pos.sort();
+    let zeros = pos.iter().take_while(|&&p| p == 0).count();
+    let validos = cap - zeros;
+    let vetorial = if validos > 15 {
+        validos - validos % 16
+    } else {
+        0
+    };
+    for (i, p) in pos[zeros..].iter_mut().enumerate() {
+        let d = if i < vetorial {
+            (deslocamento_ms as f64 * (fs * 0.001) + 0.5) as i32
+        } else {
+            desloc
+        };
+        *p -= d;
+    }
+    Some((pos, validos, zeros + 1))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -698,5 +797,11 @@ mod tests {
         assert_eq!(c.validos, 3);
         assert_eq!(&c.posicoes[c.posicoes.len() - 3..], &[11, 411, 811]);
         assert_eq!(&c.valores[c.valores.len() - 3..], &[1.0, 0.5, 1.0]);
+        // Terceira rodada, sem marcas: só o pico no quarto 0 (fora da faixa
+        // de marcas) fica; 411 e 811 caem por falta de padrão e 1211 fica sem
+        // par depois disso.
+        let (f, validos, _) = picos_finos(&r, &marcas, fs, 120.0, 0, &grade).unwrap();
+        assert_eq!(f.len(), 32);
+        assert_eq!((validos, f[31]), (1, 11));
     }
 }

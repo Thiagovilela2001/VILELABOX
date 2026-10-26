@@ -285,6 +285,14 @@ assembly com `desmontar.py` (capstone, privado).
   ordenada, deslocada por `(int)((fs·ms)·0,001 + 0,5)`, com quantidade de
   válidos e primeiro válido.
 
+- **Picos finos** (`0x141178df0`), portado em `picos_finos`: mesma seleção
+  da confirmação, com capacidade de 16 por compasso e razão de queda
+  0,998849369936505 (`0x1435380d8`). Em sequência, um pico fica só se tiver
+  par a duas batidas e, com `6 <= quarto < marcas − 5`, se as marcas formarem
+  `(−4, +2)`, `(−6, +5)` ou `(−4, +4)` sem marca no próprio quarto. O vetor
+  `f64` de saída é alocado zerado e só recebe zeros. Deslocamento final como
+  em `0x1411786a0`.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
