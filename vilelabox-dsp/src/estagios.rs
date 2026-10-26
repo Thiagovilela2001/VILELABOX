@@ -1024,7 +1024,7 @@ fn min_valor(x: &[f64]) -> Option<f64> {
 /// Alinhamento inicial de `0x14118b160` (`0x14118b4a9`–`0x14118b834`),
 /// lido no assembly. Devolve o deslocamento em amostras.
 // Negação de comparação reproduz `vcomisd` + `jbe` do original com NaN.
-#[allow(clippy::neg_cmp_op_on_partial_ord)]
+#[allow(clippy::neg_cmp_op_on_partial_ord, clippy::too_many_arguments)]
 fn alinhar(
     y: &[f64],
     r15: i32,
@@ -1033,6 +1033,7 @@ fn alinhar(
     qd: f64,
     bar_d: f64,
     grupos: i32,
+    descida: bool,
 ) -> Option<i32> {
     let bar = bar_d as i32;
     let q = (qd + 0.5) as i32;
@@ -1069,7 +1070,7 @@ fn alinhar(
         let janela = y.get(w0..w0 + (bar + 1) as usize)?;
         let (x1, x0, nx) = (g(e + r15 - 1)?, g(e + r15)?, g(e + r15 + 1)?);
         let subida = if val > x1 {
-            if x1 > x0 && x0 > nx {
+            if descida && x1 > x0 && x0 > nx {
                 false
             } else {
                 continue;
@@ -1156,6 +1157,67 @@ pub fn marcar_picos(
     inicio_batida: i32,
     chamada: i32,
 ) -> Option<Vec<u8>> {
+    marcar_interno(
+        y,
+        y,
+        estado,
+        fs,
+        bpm,
+        ms,
+        inicio_batida,
+        chamada,
+        6,
+        true,
+        false,
+    )
+}
+
+/// Marcação da banda de 110 a 200 Hz (`0x14118c1b0`), lida no assembly e
+/// comparada instrução a instrução com `0x14118b160`. Diferenças: o
+/// alinhamento usa `envelope_200` e só o caso de subida (o de descida foi
+/// removido pelo compilador como inalcançável); a grade usa `envelope_banda`;
+/// até 12 rodadas por grupo; `estado.anterior` (`motor+0x4e0`) recebe sempre a
+/// última amostra de `envelope_banda` antes da diferença.
+#[allow(clippy::too_many_arguments)]
+pub fn marcar_picos_banda(
+    envelope_200: &[f64],
+    envelope_banda: &[f64],
+    estado: &mut EstadoMarcas,
+    fs: f64,
+    bpm: f64,
+    ms: i32,
+    inicio_batida: i32,
+    chamada: i32,
+) -> Option<Vec<u8>> {
+    marcar_interno(
+        envelope_200,
+        envelope_banda,
+        estado,
+        fs,
+        bpm,
+        ms,
+        inicio_batida,
+        chamada,
+        12,
+        false,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn marcar_interno(
+    y: &[f64],
+    y_marcas: &[f64],
+    estado: &mut EstadoMarcas,
+    fs: f64,
+    bpm: f64,
+    ms: i32,
+    inicio_batida: i32,
+    chamada: i32,
+    rodadas: usize,
+    descida: bool,
+    anterior_sempre: bool,
+) -> Option<Vec<u8>> {
     let n = y.len() as i32;
     let inicio = (ms as f64 * 0.001).mul_add(fs, 0.5) as i32;
     let p = (60.0 / bpm).mul_add(fs, 0.5) as i32;
@@ -1181,7 +1243,7 @@ pub fn marcar_picos(
         return Some(vec![0]);
     }
     let alinh = if grupos > 1 {
-        alinhar(y, r15, l288, p, qd, bar_d, grupos)?
+        alinhar(y, r15, l288, p, qd, bar_d, grupos, descida)?
     } else {
         0
     };
@@ -1189,12 +1251,16 @@ pub fn marcar_picos(
     estado.alinhamento = alinh;
     let desloc = if chamada > 1 { antigo } else { alinh };
     // Diferença de primeira ordem, de trás para frente.
-    let mut sig = y.to_vec();
+    let mut sig = y_marcas.to_vec();
+    let anterior = estado.anterior;
+    if anterior_sempre {
+        estado.anterior = *sig.last()?;
+    }
     for i in (1..sig.len()).rev() {
         sig[i] -= sig[i - 1];
     }
     if let Some(v) = sig.first_mut() {
-        *v -= estado.anterior;
+        *v -= anterior;
     }
     let l294 = fim - r15;
     if r15 > desloc && fim - desloc <= n {
@@ -1231,7 +1297,7 @@ pub fn marcar_picos(
             }
         }
         let mut primeiro = 0.0;
-        for rodada in 0..6 {
+        for rodada in 0..rodadas {
             let (mut mx, mut im) = (v[0], 0usize);
             for (i, &x) in v.iter().enumerate().skip(1) {
                 if x > mx {
@@ -1463,5 +1529,29 @@ mod tests {
         let mut e2 = EstadoMarcas::default();
         let m2 = marcar_picos(&[0.0, 0.5], &mut e2, fs, 120.0, 0, 1, 1).unwrap();
         assert_eq!((m2, e2.anterior), (vec![0], 0.5));
+    }
+
+    #[test]
+    fn marcar_banda_usa_doze_rodadas_e_guarda_anterior() {
+        let fs = 400.0;
+        let y: Vec<f64> = (0..2000)
+            .map(|i| {
+                if i % 50 < 5 {
+                    1.0 + i as f64 * 1e-6
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let mut e6 = EstadoMarcas::default();
+        let mut e12 = EstadoMarcas::default();
+        let m6 = marcar_picos(&y, &mut e6, fs, 120.0, 0, 1, 1).unwrap();
+        let m12 = marcar_picos_banda(&y, &y, &mut e12, fs, 120.0, 0, 1, 1).unwrap();
+        // Ataque em todo quarto: 6 rodadas marcam 6 de 16, 12 marcam 12.
+        assert_eq!(m6[..16].iter().filter(|&&b| b == 1).count(), 6);
+        assert_eq!(m12[..16].iter().filter(|&&b| b == 1).count(), 12);
+        assert_eq!(e12.anterior, y[1999]);
+        assert_eq!(e6.anterior, 0.0);
+        assert!(crate::filtro::FiltrosBanda::novo(5512.5).is_some());
     }
 }

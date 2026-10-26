@@ -176,6 +176,54 @@ fn passa_baixa_2(w: f64, fs: f64) -> Biquad {
     )
 }
 
+/// Banco de filtros de `0x14118be60` (`motor+0x4f8`–`+0x6f8`): o mesmo
+/// passa-baixa de 200 Hz e de 10 Hz de `FiltrosEnvelope` e um passa-alta
+/// Butterworth de 110 Hz (`0x143538410` = 2π·110) em duas seções duplicadas,
+/// com uma segunda cópia do passa-baixa de 10 Hz.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FiltrosBanda {
+    pub base: FiltrosEnvelope,
+    pub passa_alta_110: [Biquad; 4],
+    pub passa_baixa_10_b: Biquad,
+}
+
+impl FiltrosBanda {
+    pub fn novo(fs: f64) -> Option<Self> {
+        let base = FiltrosEnvelope::novo(fs)?;
+        let o = pre_distorcao(691.150_383_789_754_5, fs);
+        let secao = |i: i32| {
+            let k = (i as f64 * std::f64::consts::FRAC_PI_4 + std::f64::consts::FRAC_PI_8).cos();
+            Biquad::bilinear(1.0, 0.0, 0.0, 1.0, (k + k) * o, o * o, fs)
+        };
+        let (a, b) = (secao(0), secao(1));
+        let passa_baixa_10_b = base.passa_baixa_10.clone();
+        Some(Self {
+            base,
+            passa_alta_110: [a.clone(), b.clone(), a, b],
+            passa_baixa_10_b,
+        })
+    }
+
+    /// Envelopes de `0x14118c1b0`: `(|200 Hz| → 10 Hz, |110 Hz(200 Hz)| →
+    /// 10 Hz)`. O passa-alta age sobre a saída do passa-baixa de 200 Hz.
+    pub fn envelopes(&mut self, x: &[f64]) -> Option<(Vec<f64>, Vec<f64>)> {
+        let (primeira, demais) = self.base.passa_baixa_200.split_first_mut()?;
+        let mut a = vec![0.0; x.len()];
+        primeira.processar(x, &mut a);
+        for s in demais {
+            s.processar_no_lugar(&mut a);
+        }
+        let mut e1: Vec<f64> = a.iter().map(|v| v.abs()).collect();
+        self.base.passa_baixa_10.processar_no_lugar(&mut e1);
+        for s in &mut self.passa_alta_110 {
+            s.processar_no_lugar(&mut a);
+        }
+        let mut e2: Vec<f64> = a.iter().map(|v| v.abs()).collect();
+        self.passa_baixa_10_b.processar_no_lugar(&mut e2);
+        Some((e1, e2))
+    }
+}
+
 /// Passa-baixa Butterworth de 2ª ordem com corte em Hz (`0x1411890e0`,
 /// grava em `motor+0x438`): `ω = corte · 2π`, `a1 = √2·Ω`.
 pub fn passa_baixa_hz(corte_hz: f64, fs: f64) -> Biquad {

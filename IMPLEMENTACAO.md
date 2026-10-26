@@ -8,9 +8,10 @@
 | Recuperado | alinhamento inicial por máximo, encosta e vale; diferenciação; recorte ou deslocamento do sinal; grade de 16 máximos por grupo e marcação em até 6 rodadas |
 | Crate | `vilelabox-dsp::estagios::marcar_picos`, `EstadoMarcas` (`motor+0x268`/`0x270`/`0x278`) |
 | Lacuna fechada | os estágios já portados que consomem marcas (`classificar_padrao`, `confirmar_picos`, `picos_finos`, `fase_do_compasso`) agora têm o produtor |
-| Testes | 1 unitário novo (molde 1000 com ataque em cada batida; retorno com sinal curto); workspace com 234 testes |
+| Banda 110–200 Hz | `filtro::FiltrosBanda` (`0x14118be60`) e `marcar_picos_banda` (`0x14118c1b0`), com 12 rodadas, alinhamento só por subida e `anterior` sempre atualizado |
+| Testes | 2 unitários novos (molde 1000; 6 contra 12 rodadas e `anterior` da banda); workspace com 235 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | `0x14118c1b0` (gêmea de `0x14118b160` com passa-alta de 110 Hz e filtros em `+0x4f8`–`+0x6f8`), depois `0x141177b30`, `0x141171760` e `0x1411718e0` |
+| Próximo gate | `0x141177b30`, `0x141171760` e `0x1411718e0` |
 
 ## Fase do compasso do detector legado (P4.1, `0x141172490`) — 2026-10-26
 

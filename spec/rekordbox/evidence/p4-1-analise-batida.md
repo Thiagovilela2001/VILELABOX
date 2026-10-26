@@ -367,6 +367,21 @@ mantido (`p16`).
    250 ms (`p5 − 0xfa`) ou de `60/bpm · 500` com retorno de
    `60/bpm · 1000` se negativo (`0x145415730`, `0x1454157b8`) (modo 1).
 
+## Banda de 110 a 200 Hz (`0x14118be60`, `0x14118c1b0`)
+
+- **Filtros** (`0x14118be60`), portados em `filtro::FiltrosBanda`: o mesmo
+  passa-baixa de 200 Hz (ordem em `+0x5d8`) e de 10 Hz (`+0x5e0`) de
+  `0x14118aea0`, um passa-alta Butterworth de 110 Hz (`0x143538410`,
+  691,15 = 2π·110) em duas seções duplicadas (`+0x618`–`+0x6c0`) e uma cópia
+  do passa-baixa de 10 Hz (`+0x6f8`). Estado em `+0x4e0`, `+0x4e8`, `+0x4f0`.
+- **Marcação** (`0x14118c1b0`), portada em `marcar_picos_banda`: comparada
+  instrução a instrução com `0x14118b160` (diferença normalizada dos
+  mnemônicos). O alinhamento usa `|200 Hz| → 10 Hz` e só o caso de subida
+  (`r14d = 1` fixo; o de descida é inalcançável); a grade usa
+  `|110 Hz(200 Hz)| → 10 Hz`, com o passa-alta aplicado no lugar sobre a
+  saída de 200 Hz; até 12 rodadas por grupo (`cmp edx, 0xc`); a última
+  amostra do envelope da banda é gravada em `+0x4e0` a cada chamada.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
