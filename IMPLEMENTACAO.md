@@ -1,5 +1,14 @@
 # Registro de implementação
 
+## Planos dos próximos passos — 2026-10-25
+
+| Campo | Resultado |
+| --- | --- |
+| Documentos novos | `docs/PLANO-CORE-HEADLESS.md` (P3.3/P3.4: fases C1–C2 e Gate G3) e `docs/PLANO-ANALISE.md` (P4: fases A1–A2 e Gate G4) |
+| Plano-mestre | `docs/IMPLEMENTATION-PLAN.md` com status 2026-10-25: estado atual do projeto, bloqueio do P2.3 pelo Gate G0 com as duas vias de desbloqueio, P3.1/P3.2 marcados como concluídos, P3.3/P3.4 e P4 apontando para os planos detalhados e "Próximos pacotes imediatos" reordenado (P3.3 → P3.4/G3 → P4.1 → P4.2/G4 → P5 → P6.3/G6 → P2.3 condicional → P7) |
+| Verificação | documentação apenas; gates de código seguem verdes do commit anterior (200 testes) |
+| Próximo gate | execução do P3.3 (fase C1 do `PLANO-CORE-HEADLESS.md`) |
+
 ## Biblioteca `vilelabox-library` (P3.2) — 2026-10-25
 
 | Campo | Resultado |

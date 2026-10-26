@@ -1,6 +1,6 @@
 # Plano de implementação do VILELABOX
 
-Status de referência: 2026-10-24.
+Status de referência: 2026-10-25.
 
 ## Objetivo
 
@@ -88,28 +88,47 @@ Antes de iniciar qualquer item das fases P0–P7:
 - se faltar evidência, a tarefa retorna à engenharia reversa e não avança por
   suposição de produto.
 
-## Estado inicial
+## Estado atual (2026-10-25)
 
-Já concluído:
+Concluído:
 
-- workspace Rust na raiz;
-- tipos musicais e esquema canônico;
-- leitor ANLZ de contêiner, caminho, grade, frases e cues básicos;
-- conversão ANLZ para `ReferenceTrack`;
-- comparação diferencial aprovada em 40 cópias de faixas reais;
-- protótipo Slint que lista ANLZ e exibe BPM, compassos e frases;
-- CI Rust, fixtures sintéticas e `spec-lint`.
+- workspace Rust com 10 crates (`types`, `reference`, `anlz`, `xml`, `catalog`,
+  `storage`, `library`, `audio`, `xtask`, `app`) e 200 testes aprovados;
+- formatos: leitor e exportador ANLZ com paridade em 40 análises reais,
+  variantes de cues com label e cor, catálogo somente leitura (P2.1) e XML de
+  intercâmbio com leitura e escrita (P2.2);
+- `vilelabox-storage` (P3.1): banco próprio com migrações versionadas, backup
+  antes de migrar, cascatas e cache de análise;
+- `vilelabox-library` (P3.2): importadores idempotentes de catálogo e XML,
+  varredura de diretórios, busca e ordenação, identidade por SHA-256,
+  duplicatas, ausentes e movidos;
+- aplicativo Slint: biblioteca com busca e ordenação, decks com loops, cues,
+  SLIP e KEY SYNC, mixer com as curvas medidas, editor de beatgrid com
+  metrônomo e scratch na waveform (`spec/rekordbox/20-bpm-grid.md`);
+- motor de áudio: decodificação (symphonia), transporte, reamostragem, sync
+  por batida e fase, quantização, loops e cues, metrônomo e scratch.
+
+Bloqueado:
+
+- **P2.3 (exportação USB)**, pelo Gate G0: não há dossiê de engenharia reversa
+  do fluxo de exportação nem artefato `export.pdb` no ambiente (detalhes na
+  seção P2.3).
+
+Planos detalhados dos próximos passos:
+
+- [`PLANO-CORE-HEADLESS.md`](PLANO-CORE-HEADLESS.md) — P3.3 e P3.4 (Gate G3);
+- [`PLANO-ANALISE.md`](PLANO-ANALISE.md) — P4 (Gates G0 por etapa e G4).
 
 ## Ordem de execução
 
 ```text
-P0 estabilização
-  → P1 formatos ANLZ
-    → P2 demais formatos
-      → P3 storage, biblioteca e core
+P0 estabilização (concluída)
+  → P1 formatos ANLZ (concluído)
+    → P2 demais formatos (P2.1 e P2.2 concluídos; P2.3 bloqueado por evidência)
+      → P3 storage, biblioteca e core (P3.1 e P3.2 concluídos; P3.3/P3.4 em andamento)
         → P4 análise musical
           → P5 interface funcional
-            → P6 motor de áudio
+            → P6 motor de áudio (parcialmente adiantado; P6.3 pendente)
               → P7 dispositivos e recursos avançados
 ```
 
@@ -262,11 +281,29 @@ label e cor.
 
 ### P2.3 — Exportação USB
 
-1. concluir `spec/rekordbox/13-export-usb.md`;
+**Situação (2026-10-25): bloqueado pelo Gate G0.** Não há dossiê de
+engenharia reversa do fluxo de exportação nem artefato `export.pdb` no
+ambiente; a especificação `13-export-usb.md` não pode ser escrita por
+suposição de produto.
+
+**Desbloqueio (qualquer um dos dois):**
+
+1. sessão Ghidra sobre o executável recuperando o fluxo de exportação
+   (estrutura do banco do dispositivo, árvore de diretórios e arquivos
+   auxiliares), registrada em dossiê; ou
+2. mídia exportada pelo programa de referência com `export.pdb` e a árvore
+   completa, copiada para `third_party/rekordbox/`, para análise diferencial.
+
+**Sequência quando a evidência existir:**
+
+1. concluir `spec/rekordbox/13-export-usb.md` a partir do dossiê;
 2. criar escritor inicialmente direcionado a uma imagem de diretório temporária;
 3. gerar manifesto e validar todo arquivo antes da publicação;
 4. implementar publicação atômica no destino;
 5. testar apenas em mídia descartável ou imagem de filesystem.
+
+**Pré-trabalho possível sem evidência nova:** nenhum — o escritor ANLZ já
+existe e o restante do pacote depende da evidência.
 
 ### Gate G2 — Formatos concluídos
 
@@ -278,27 +315,28 @@ label e cor.
 
 ## P3 — Banco próprio, biblioteca e núcleo headless
 
-### P3.1 — `vilelabox-storage`
+### P3.1 — `vilelabox-storage` — CONCLUÍDO (2026-10-25)
 
-- recuperar com REA e Ghidra entidades, relações, índices, transações e ciclo de vida
-  dos dados antes de definir o esquema;
-- banco SQLite próprio com migrations versionadas, tratado como `ADAPTAÇÃO`
-  quando o armazenamento de referência não puder ser reproduzido diretamente;
-- conexões, transações e integridade referencial;
-- tabelas para faixas, localizações, metadados, playlists, cues, grids, frases
-  e resultados de análise;
-- backup antes de migration;
-- testes de upgrade, rollback e recuperação de interrupção.
+Esquema próprio (ADAPTAÇÃO registrada em `spec/rekordbox/10-master-db.md`) com
+10 tabelas (faixas, localizações, cues, grade, frases, playlists e resultados
+de análise), migrações por `PRAGMA user_version` (uma transação por versão,
+rollback em falha, lacuna rejeitada), backup `<nome>.backup-v<N>.db` antes de
+migrar e 19 testes cobrindo upgrade, rollback, interrupção, cascatas e banco
+corrompido.
 
-### P3.2 — `vilelabox-library`
+### P3.2 — `vilelabox-library` — CONCLUÍDO (2026-10-25)
 
-- importadores chamam adaptadores de formato e escrevem no storage;
-- busca, ordenação e filtros;
-- árvore de playlists com ordem estável;
-- identidade por conteúdo e localizações independentes;
-- detecção de arquivos movidos, ausentes e duplicados.
+Importadores idempotentes de catálogo e XML (cues importados preservam os do
+usuário; correspondência por caminho), varredura de diretórios, busca textual
+e ordenação por coluna com a semântica do app, playlists com ordem estável,
+identidade por SHA-256, duplicatas, ausentes e reencontro de movidos; 11
+testes.
 
-### P3.3 — `vilelabox-core`
+### P3.3 — `vilelabox-core` — PRÓXIMO PACOTE
+
+Detalhamento executável em [`PLANO-CORE-HEADLESS.md`](PLANO-CORE-HEADLESS.md)
+(fases C1 e C2): `Core` com comandos e eventos, decks headless com preparação
+carregada do banco, playlists com reordenação e fila de eventos drenável.
 
 **Comandos iniciais:**
 
@@ -334,6 +372,11 @@ importar → pesquisar → selecionar → carregar → editar cue → persistir
 ---
 
 ## P4 — Análise musical
+
+Detalhamento executável em [`PLANO-ANALISE.md`](PLANO-ANALISE.md) (fases A1 e
+A2): `vilelabox-dsp` com contrato PCM e `vilelabox-analysis` com etapas
+canceláveis e cacheadas, preenchendo identidade, grade, frases e tonalidade
+das faixas importadas.
 
 ### P4.1 — Infraestrutura DSP
 
@@ -449,13 +492,20 @@ equipamento real.
 
 Ordem recomendada para as próximas entregas:
 
-1. **G0/P0.1:** documentar com REA e Ghidra a hierarquia e os estados da interface;
-2. **P0.1:** modularizar a interface conforme a evidência recuperada;
-3. **G0/P1.1:** documentar o fluxo de exportação e associação ANLZ;
-4. **P1.1:** traduzir esse fluxo para o exportador ANLZ em Rust;
-5. **G0/P1.2:** recuperar labels, cores e variantes de cues;
-6. **P1.2:** implementar as variantes conforme as evidências;
-7. **G0/P2.1:** mapear com REA e Ghidra o catálogo principal e suas consultas.
+1. **P3.3:** `vilelabox-core` — comandos, eventos e decks headless
+   ([`PLANO-CORE-HEADLESS.md`](PLANO-CORE-HEADLESS.md), fase C1);
+2. **P3.4 + G3:** CLI headless e preparação independente (fase C2);
+3. **P4.1:** `vilelabox-dsp` ([`PLANO-ANALISE.md`](PLANO-ANALISE.md), fase A1);
+4. **P4.2 + G4:** `vilelabox-analysis` preenchendo identidade, grade, frases e
+   tonalidade (fase A2);
+5. **P5:** app consumindo o `Core`, com importação pela interface e edição de
+   cues e loops na waveform;
+6. **P6.3 + G6:** efeitos, sampler, filas lock-free auditadas e validação de
+   tempo real;
+7. **P2.3 (condicional):** retomar a exportação USB assim que o dossiê ou o
+   artefato `export.pdb` existir;
+8. **P7:** MIDI, HID, gravação, separação, vídeo, rede e iluminação, nesta
+   ordem de pacotes independentes.
 
 ## Definition of Done
 
