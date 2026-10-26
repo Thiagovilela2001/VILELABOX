@@ -144,6 +144,18 @@ pub fn filtro_passada_a(fs: f64) -> Option<Butterworth8> {
     Butterworth8::passa_baixa(fs * 0.125 * 0.4, fs, 8)
 }
 
+/// Diferença de primeira ordem do estágio `0x14118b160`:
+/// `d[i] = y[i] − y[i−1]` e `d[0] = y[0] − anterior` (`motor+0x268`).
+pub fn diferenca(y: &[f64], anterior: f64) -> Vec<f64> {
+    let mut d = Vec::with_capacity(y.len());
+    let mut prev = anterior;
+    for &v in y {
+        d.push(v - prev);
+        prev = v;
+    }
+    d
+}
+
 /// Pré-distorção `0x141165dc0` com `ω` já em rad/s.
 fn pre_distorcao(w: f64, fs: f64) -> f64 {
     let dois_fs = fs + fs;
@@ -185,6 +197,26 @@ fn perto(fs: f64, inf: f64, sup: f64) -> bool {
 }
 
 impl FiltrosEnvelope {
+    /// Envelope do estágio `0x14118b160`: as seções de 200 Hz em sequência,
+    /// valor absoluto (`0x141167080`) e passa-baixa de 10 Hz, com estado
+    /// mantido entre chamadas. Devolve o sinal antes da diferenciação.
+    ///
+    /// Com `ordem == 0` o original não copia a entrada para o buffer de
+    /// trabalho (DESCONHECIDO o conteúdo); aqui devolve `None`.
+    pub fn envelope(&mut self, x: &[f64]) -> Option<Vec<f64>> {
+        let (primeira, demais) = self.passa_baixa_200.split_first_mut()?;
+        let mut y = vec![0.0; x.len()];
+        primeira.processar(x, &mut y);
+        for s in demais {
+            s.processar_no_lugar(&mut y);
+        }
+        for v in y.iter_mut() {
+            *v = v.abs();
+        }
+        self.passa_baixa_10.processar_no_lugar(&mut y);
+        Some(y)
+    }
+
     /// `fs` = taxa decimada (`motor+0x98` = taxa/8). `None` para `fs <= 0`.
     pub fn novo(fs: f64) -> Option<Self> {
         if fs.is_nan() || fs <= 0.0 {
@@ -293,5 +325,24 @@ mod tests {
             assert!((ganho_dc(&b.c) - 1.0).abs() < 1e-9);
         }
         assert!(FiltrosEnvelope::novo(0.0).is_none());
+    }
+
+    #[test]
+    fn envelope_retifica_e_suaviza() {
+        let fs = 44100.0 / 8.0;
+        let mut e = FiltrosEnvelope::novo(fs).unwrap();
+        // Senoide de 50 Hz: passa o 200 Hz, vira |x| e o 10 Hz deixa a média.
+        let x: Vec<f64> = (0..(fs as usize * 4))
+            .map(|i| (i as f64 * 50.0 * std::f64::consts::TAU / fs).sin())
+            .collect();
+        let y = e.envelope(&x).unwrap();
+        let fim = y[y.len() - 1];
+        // Média de |sen| = 2/π.
+        assert!((fim - 2.0 / std::f64::consts::PI).abs() < 0.02, "{fim}");
+        assert!(FiltrosEnvelope::novo(12000.0)
+            .unwrap()
+            .envelope(&x)
+            .is_none());
+        assert_eq!(diferenca(&[1.0, 3.0, 2.0], 0.5), vec![0.5, 2.0, -1.0]);
     }
 }

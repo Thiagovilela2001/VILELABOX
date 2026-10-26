@@ -184,6 +184,29 @@ Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
 - `0x14118aea0` também grava seus argumentos em `+0x268`, `+0x270` e
   `+0x278`; o fechamento da passada A passa 0, 0 e 0,0001 (`0x145414da0`).
 
+## Envelope e marcação de picos (`0x14118b160`)
+
+Argumentos vistos no fechamento da passada A: sinal decimado, BPM
+(`motor+0xb0`), deslocamento em ms (`motor+0xac`), 1, a taxa decimada e um
+vetor de saída de bytes.
+
+- **OBSERVADO, portado** (`FiltrosEnvelope::envelope` e `diferenca`): as
+  seções de 200 Hz em sequência, valor absoluto (`0x141167080`, máscara
+  `0x7fff…`), passa-baixa de 10 Hz e diferença de primeira ordem com
+  `d[0] = y[0] − motor+0x268`. Com ordem 0 o original não copia a entrada.
+- **OBSERVADO, não portado:** com `p = (int)(60/bpm · fs + 0,5)` amostras por
+  batida, o sinal é varrido em grupos de quatro batidas; em cada grupo, 16
+  janelas de `round(p/4)` amostras dão o máximo (`0x141167280` =
+  `max_element`). Até seis vezes por grupo, o maior dos 16 é marcado com 1 no
+  vetor de saída (16 bytes por grupo) e zerado, se for maior que 0,0001, que
+  0,596 × o primeiro máximo do grupo (`0x1435383a0`) e que 0,178 × o máximo
+  corrente (`0x143538390`). O máximo corrente fica em `motor+0x278`.
+- **Alinhamento inicial**, quando há menos de dois grupos válidos: busca de
+  até oito candidatos com limiares 0,2, 0,595662 (`0x143538398`), 1,12
+  (`0x143537ec0`) e 2,11 (`0x1435383a8`). A decompilação desse trecho
+  reaproveita registradores AVX e precisa de leitura no assembly antes de
+  qualquer porte.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade
@@ -230,7 +253,7 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 ## Próximos alvos
 
 1. Estágios do fechamento da passada A, na ordem listada acima, começando
-   por `0x14118b160`.
+   pela marcação de picos de `0x14118b160` (no assembly) e por `0x1411885f0`.
 2. `0x141173370` (fechamento da passada B) e a passada C/D (`0x1411965b0`,
    `0x141197d60`).
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.

@@ -6,10 +6,10 @@
 | --- | --- |
 | Evidência | `spec/rekordbox/evidence/p4-1-analise-batida.md`, seções "Filtros do detector legado" e "Cadeia do fechamento da passada A" |
 | Recuperado | biquad em forma direta II transposta; bilinear com pré-distorção por `tan` (confirmada pela série `x + x³/3`); Butterworth de 8ª ordem passa-baixa e passa-alta; decimação pela última amostra de cada grupo; bandas da passada A (fs/8·0,4, ÷8, até 210 s) e da passada B (fs/2·0,55 ÷2, fs/8·0,4 ÷8, fs/32·0,4 ÷32); grade de índices; o BPM e a 1ª batida de partida vêm dos dados conhecidos da faixa |
-| Crate | `vilelabox-dsp::filtro`: `Biquad`, `Butterworth8`, `filtro_passada_a`, `bandas_passada_b`, `FiltrosEnvelope` (200, 10 e 100 Hz); constantes conferidas bit a bit com o binário |
-| Testes | 6 unitários novos; workspace com 220 testes |
+| Crate | `vilelabox-dsp::filtro`: `Biquad`, `Butterworth8`, `filtro_passada_a`, `bandas_passada_b`, `FiltrosEnvelope` (200, 10 e 100 Hz) com `envelope` e `diferenca`; constantes conferidas bit a bit com o binário |
+| Testes | 7 unitários novos; workspace com 221 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | estágios do fechamento da passada A, a começar por `0x14118b160` |
+| Próximo gate | marcação de picos de `0x14118b160` lida no assembly; depois `0x1411885f0` e os demais estágios da passada A |
 
 ## Detector legado de BPM e posição de entrada (P4.1, A1.1b) — 2026-10-26
 
