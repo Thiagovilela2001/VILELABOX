@@ -202,6 +202,11 @@ impl Database {
         playlists::adicionar_faixa(&self.con, lista, faixa)
     }
 
+    /// Reordena a playlist (transacional); `false` se o índice não existe.
+    pub fn mover_na_lista(&self, lista: i64, de: usize, para: usize) -> Result<bool, ErroStorage> {
+        playlists::mover_faixa(&self.con, lista, de, para)
+    }
+
     pub fn faixas_da_lista(&self, lista: i64) -> Result<Vec<TrackId>, ErroStorage> {
         playlists::faixas(&self.con, lista)
     }

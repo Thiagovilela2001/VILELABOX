@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Núcleo headless do VILELABOX: comandos, eventos e decks sobre o banco próprio (P3.3; ADAPTAÇÃO)"
+
+[dependencies]
+thiserror = "1.0"
+vilelabox-catalog = { path = "../vilelabox-catalog" }
+vilelabox-library = { path = "../vilelabox-library" }
+vilelabox-storage = { path = "../vilelabox-storage" }
+vilelabox-types = { path = "../vilelabox-types" }
+vilelabox-xml = { path = "../vilelabox-xml" }

@@ -48,8 +48,8 @@ Pré-requisito de todas as demais.
 | U0.5 | Trabalho fora da thread gráfica | scan e carga em thread, resultado via `slint::invoke_from_event_loop` | a janela abre antes de o scan terminar |
 | U0.6 | Desabilitar o que não tem backend | propriedade `enabled` nos botões; estilo apagado | revisão visual |
 
-Quando `vilelabox-core` (P3.3) existir, `AppState` e `Command` migram para ele
-sem mudar a UI; U0 é a forma mínima que já nasce com esse formato.
+`vilelabox-core` (P3.3) existe desde 2026-10-26; `AppState` e `Command` migram
+para ele no P5 sem mudar a UI. U0 é a forma mínima que já nasce com esse formato.
 
 ## Fase U1 — Biblioteca (P5.2)
 
@@ -83,7 +83,8 @@ Depende de U1.6. Edita dados; não toca som.
 | U2.7 | Edição de grade | comando do core | 20-bpm-grid (a escrever) |
 
 **Bloqueio:** U2.6 e U2.7 precisam persistir dados, ou seja, do
-`vilelabox-storage` e do `vilelabox-core` (P3). Até lá, só leitura: U2.1–U2.5.
+`vilelabox-storage` e do `vilelabox-core` (P3). O storage existe desde
+2026-10-25 e o core desde 2026-10-26; o desbloqueio efetivo vem com a migração do app para o `Core` (P5).
 
 ## Fase U3 — Menus, toolbar e status
 

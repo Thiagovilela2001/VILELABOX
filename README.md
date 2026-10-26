@@ -13,7 +13,14 @@ O projeto ainda é experimental e não é um software de performance pronto.
 
 - `vilelabox-app`: protótipo desktop em Slint. Lê análises ANLZ em modo somente
   leitura e exibe biblioteca, BPM, compassos e frases. Ainda não reproduz áudio.
-- `vilelabox-anlz`: leitor dos contêineres e seções ANLZ.
+- `vilelabox-anlz`: leitor e exportador dos contêineres e seções ANLZ.
+- `vilelabox-xml` e `vilelabox-catalog`: XML de intercâmbio e leitura do
+  catálogo (cópia sem criptografia).
+- `vilelabox-storage`: banco SQLite próprio com migrações versionadas.
+- `vilelabox-library`: importação, varredura, busca, playlists e identidade.
+- `vilelabox-core`: núcleo headless com comandos, eventos e decks.
+- `vilelabox-cli`: CLI de desenvolvimento sobre o núcleo.
+- `vilelabox-audio`: decodificação, transporte e mixagem.
 - `vilelabox-types`: tipos e invariantes do domínio musical.
 - `vilelabox-reference`: esquema canônico e comparação diferencial.
 - `xtask`: ferramentas de validação do processo clean-room.
@@ -30,6 +37,15 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo run -q -p xtask -- spec-lint spec/rekordbox
+```
+
+Fluxo de preparação sem interface (cada chamada reabre o mesmo banco):
+
+```powershell
+cargo run -q -p vilelabox-cli -- C:\dados\vilelabox.db importar dir C:\caminho\musica
+cargo run -q -p vilelabox-cli -- C:\dados\vilelabox.db pesquisar texto
+cargo run -q -p vilelabox-cli -- C:\dados\vilelabox.db cue <faixa> <frame>
+cargo run -q -p vilelabox-cli -- C:\dados\vilelabox.db deck <faixa>
 ```
 
 Para abrir o protótipo com uma cópia de uma pasta `USBANLZ`:

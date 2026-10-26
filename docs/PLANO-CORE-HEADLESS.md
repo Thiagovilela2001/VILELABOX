@@ -10,6 +10,9 @@ pelo `AppState`/`Command` do app (fase U0). Os dados persistidos seguem o
 banco próprio (P3.1); os comportamentos vindos do programa de referência
 continuam exigindo spec e dossiê de evidência (Gate G0).
 
+**Status:** concluído em 2026-10-26 (fases C1 e C2; Gate G3 aprovado).
+Registro em `IMPLEMENTACAO.md`.
+
 ## Ponto de partida
 
 | já existe | falta |

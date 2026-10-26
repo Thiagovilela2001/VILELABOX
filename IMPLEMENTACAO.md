@@ -1,5 +1,19 @@
 # Registro de implementação
 
+## Núcleo headless `vilelabox-core` e CLI (P3.3/P3.4, Gate G3) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Crate `vilelabox-core` | `Core::executar(Comando)` como ponto único de mutação; consultas `pesquisar`, `listas`, `faixas_da_lista`, `selecao`, `deck`; fila `drenar_eventos()` em ordem de emissão; ADAPTAÇÃO (desenho próprio) |
+| Comandos | importar diretório/catálogo/XML, verificar localizações, buscar movidos, selecionar, criar lista, adicionar e mover na lista, carregar no deck, criar/mover/remover cue (origem `User`; loop move inteiro), salvar grade com bloqueio |
+| Eventos | `BibliotecaAlterada`, `SelecaoAlterada`, `FaixaCarregada`, `PreparacaoAlterada`, `TarefaAnaliseAtualizada { pendentes }` (faixas sem identidade acústica) |
+| Erros | `ErroCore` tipado: faixa inexistente, deck vazio, cue inexistente, posição inválida na playlist |
+| Storage | `mover_na_lista`: reordenação 0-based numa transação, renumerando `track_no` |
+| Crate `vilelabox-cli` | binário de desenvolvimento; cada chamada é um processo novo sobre o mesmo banco |
+| Testes | 8 novos: 7 do core (eventos, seleção, playlist, erros, fluxo de cues, loop, grade) e `tests/fluxo.rs` (Gate G3: estado preservado entre processos) |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` (208 testes) e `xtask spec-lint` aprovados |
+| Próximo gate | P4.1 `vilelabox-dsp` (fase A1 do `PLANO-ANALISE.md`), começando pelo dossiê G0 |
+
 ## Planos dos próximos passos — 2026-10-25
 
 | Campo | Resultado |

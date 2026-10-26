@@ -51,6 +51,37 @@ pub fn adicionar_faixa(con: &Connection, lista: i64, faixa: TrackId) -> Result<(
     Ok(())
 }
 
+/// Move a entrada da posição `de` para `para` (índices 0-based na ordem
+/// atual) e renumera `track_no` de 1 em diante na mesma transação.
+/// Retorna `false` quando algum índice está fora da lista.
+pub fn mover_faixa(
+    con: &Connection,
+    lista: i64,
+    de: usize,
+    para: usize,
+) -> Result<bool, ErroStorage> {
+    let mut ids = faixas(con, lista)?;
+    if de >= ids.len() || para >= ids.len() {
+        return Ok(false);
+    }
+    let id = ids.remove(de);
+    ids.insert(para, id);
+    let tx = con.unchecked_transaction()?;
+    tx.execute(
+        "DELETE FROM playlist_tracks WHERE playlist_id = ?1",
+        params![lista],
+    )?;
+    for (i, f) in ids.iter().enumerate() {
+        tx.execute(
+            "INSERT INTO playlist_tracks (playlist_id, track_id, track_no) VALUES (?1, ?2, ?3)",
+            params![lista, f.0, i as i64 + 1],
+        )
+        .map_err(mapear_constraint)?;
+    }
+    tx.commit()?;
+    Ok(true)
+}
+
 /// Faixas da playlist na ordem definida.
 pub fn faixas(con: &Connection, lista: i64) -> Result<Vec<TrackId>, ErroStorage> {
     let mut st = con

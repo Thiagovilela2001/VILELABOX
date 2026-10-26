@@ -7,14 +7,14 @@ depende de outro aplicativo de DJ.
 
 ```text
 vilelabox-app
-  -> futuro vilelabox-core
+  -> vilelabox-core   (vilelabox-cli usa o mesmo núcleo)
     -> domínio e serviços de biblioteca
       -> vilelabox-storage
       -> vilelabox-types
 
 adaptadores de formato
-  -> vilelabox-anlz
-  -> futuros master-db, xml e export-usb
+  -> vilelabox-anlz, vilelabox-xml, vilelabox-catalog (somente leitura)
+  -> futuro export-usb
   -> vilelabox-reference (somente validação)
 ```
 
@@ -27,6 +27,5 @@ adaptadores de formato
 
 ## Estado transitório
 
-O protótipo atual ainda conecta a interface diretamente ao leitor ANLZ. Essa
-ligação será substituída quando `vilelabox-core` e a biblioteca própria
-existirem.
+`vilelabox-core` e a biblioteca própria existem (P3.3); a interface ainda
+conecta direto ao leitor ANLZ até a migração do P5.

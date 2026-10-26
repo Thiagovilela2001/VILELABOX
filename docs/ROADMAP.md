@@ -29,7 +29,8 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 
 - [x] banco próprio (`vilelabox-storage`, P3.1);
 - [x] coleções, playlists, busca e preparação (`vilelabox-library`, P3.2);
-- [ ] núcleo headless com comandos e eventos.
+- [x] núcleo headless com comandos e eventos (`vilelabox-core`, P3.3);
+- [x] CLI headless com o fluxo de preparação (`vilelabox-cli`, P3.4 + G3).
 
 ## C5 — Interface
 

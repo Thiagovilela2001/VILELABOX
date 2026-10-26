@@ -1,0 +1,12 @@
+[package]
+name = "vilelabox-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "CLI headless de desenvolvimento do VILELABOX sobre o vilelabox-core (P3.4)"
+
+[dependencies]
+vilelabox-core = { path = "../vilelabox-core" }
+vilelabox-library = { path = "../vilelabox-library" }
+vilelabox-types = { path = "../vilelabox-types" }

@@ -88,12 +88,13 @@ Antes de iniciar qualquer item das fases P0–P7:
 - se faltar evidência, a tarefa retorna à engenharia reversa e não avança por
   suposição de produto.
 
-## Estado atual (2026-10-25)
+## Estado atual (2026-10-26)
 
 Concluído:
 
-- workspace Rust com 10 crates (`types`, `reference`, `anlz`, `xml`, `catalog`,
-  `storage`, `library`, `audio`, `xtask`, `app`) e 200 testes aprovados;
+- workspace Rust com 12 crates (`types`, `reference`, `anlz`, `xml`, `catalog`,
+  `storage`, `library`, `core`, `cli`, `audio`, `xtask`, `app`) e 208 testes
+  aprovados;
 - formatos: leitor e exportador ANLZ com paridade em 40 análises reais,
   variantes de cues com label e cor, catálogo somente leitura (P2.1) e XML de
   intercâmbio com leitura e escrita (P2.2);
@@ -102,6 +103,9 @@ Concluído:
 - `vilelabox-library` (P3.2): importadores idempotentes de catálogo e XML,
   varredura de diretórios, busca e ordenação, identidade por SHA-256,
   duplicatas, ausentes e movidos;
+- `vilelabox-core` (P3.3): comandos, eventos e decks headless com preparação
+  carregada do banco; `vilelabox-cli` (P3.4) prova o fluxo e a persistência
+  entre processos (Gate G3);
 - aplicativo Slint: biblioteca com busca e ordenação, decks com loops, cues,
   SLIP e KEY SYNC, mixer com as curvas medidas, editor de beatgrid com
   metrônomo e scratch na waveform (`spec/rekordbox/20-bpm-grid.md`);
@@ -125,7 +129,7 @@ Planos detalhados dos próximos passos:
 P0 estabilização (concluída)
   → P1 formatos ANLZ (concluído)
     → P2 demais formatos (P2.1 e P2.2 concluídos; P2.3 bloqueado por evidência)
-      → P3 storage, biblioteca e core (P3.1 e P3.2 concluídos; P3.3/P3.4 em andamento)
+      → P3 storage, biblioteca e core (P3.1–P3.4 concluídos; Gate G3 aprovado)
         → P4 análise musical
           → P5 interface funcional
             → P6 motor de áudio (parcialmente adiantado; P6.3 pendente)
@@ -332,7 +336,7 @@ e ordenação por coluna com a semântica do app, playlists com ordem estável,
 identidade por SHA-256, duplicatas, ausentes e reencontro de movidos; 11
 testes.
 
-### P3.3 — `vilelabox-core` — PRÓXIMO PACOTE
+### P3.3 — `vilelabox-core` — CONCLUÍDO (2026-10-26)
 
 Detalhamento executável em [`PLANO-CORE-HEADLESS.md`](PLANO-CORE-HEADLESS.md)
 (fases C1 e C2): `Core` com comandos e eventos, decks headless com preparação
@@ -355,7 +359,10 @@ carregada do banco, playlists com reordenação e fila de eventos drenável.
 - preparação alterada;
 - tarefa de análise atualizada.
 
-### P3.4 — Aplicativo headless
+### P3.4 — Aplicativo headless — CONCLUÍDO (2026-10-26)
+
+`vilelabox-cli`: cada chamada é um processo novo sobre o mesmo banco;
+`tests/fluxo.rs` prova o fluxo e a persistência entre processos (G3).
 
 Criar uma CLI de desenvolvimento para provar o fluxo:
 
@@ -492,10 +499,8 @@ equipamento real.
 
 Ordem recomendada para as próximas entregas:
 
-1. **P3.3:** `vilelabox-core` — comandos, eventos e decks headless
-   ([`PLANO-CORE-HEADLESS.md`](PLANO-CORE-HEADLESS.md), fase C1);
-2. **P3.4 + G3:** CLI headless e preparação independente (fase C2);
-3. **P4.1:** `vilelabox-dsp` ([`PLANO-ANALISE.md`](PLANO-ANALISE.md), fase A1);
+1. ~~P3.3 e P3.4 + G3~~ concluídos em 2026-10-26;
+2. **P4.1:** `vilelabox-dsp` ([`PLANO-ANALISE.md`](PLANO-ANALISE.md), fase A1);
 4. **P4.2 + G4:** `vilelabox-analysis` preenchendo identidade, grade, frases e
    tonalidade (fase A2);
 5. **P5:** app consumindo o `Core`, com importação pela interface e edição de
