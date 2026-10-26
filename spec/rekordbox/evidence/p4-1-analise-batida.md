@@ -474,9 +474,12 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 
 ## Próximos alvos
 
-1. Estágios do fechamento da passada A, na ordem listada acima, começando
-   pela marcação de picos de `0x14118b160` (no assembly) e por `0x1411885f0`.
-2. `0x141173370` (fechamento da passada B) e a passada C/D (`0x1411965b0`,
-   `0x141197d60`).
+1. Passada B: `0x141173370` (85 linhas), chamada por `0x141195ed0` com as
+   três bandas; é onde o BPM deve ser estimado, já que a passada A o recebe
+   pronto.
+2. Passadas C/D: `0x1411965b0` (682 linhas) e `0x141197d60` (2 067 linhas),
+   com cerca de 100 funções auxiliares no total (as maiores: `0x141192c60`,
+   `0x1411913e0`, `0x1411c1d70`, `0x1411c0b90`, `0x1411bdfc0`).
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
-4. Teste diferencial com fixture WAV analisada pelo programa de referência.
+4. Teste diferencial: analisar uma fixture WAV no programa de referência e
+   comparar deslocamento, número da batida e grade com o porte.
