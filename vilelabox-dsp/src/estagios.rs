@@ -713,6 +713,268 @@ pub fn energia_por_quarto_fixa(
     Some(out)
 }
 
+/// Resultado de `fase_do_compasso` (`0x141172490`, saídas 13 a 16).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Fase {
+    /// Novo deslocamento em ms (`p13`).
+    pub ms: i32,
+    /// Modo de correção (`p14`): 0 nenhum, 1 recuo, 2 ou 3 avanço por quartos
+    /// (3 quando o deslocamento não mudou).
+    pub modo: i32,
+    /// Molde `1000001` + 9 zeros encontrado (`p15`).
+    pub molde_a: bool,
+    /// `p16`: deslocamento mantido com energia sustentada. `None` no retorno
+    /// antecipado, em que o original não escreve.
+    pub mantido: Option<bool>,
+}
+
+const MOLDE_A: [u8; 7] = [1, 0, 0, 0, 0, 0, 1];
+const MOLDE_C: [u8; 24] = [
+    1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0,
+];
+
+/// Fase do compasso (`0x141172490`), conferida no assembly.
+///
+/// `marcas` = 16 bytes por compasso de `0x14118b160`; `picos` = saída de
+/// `picos_de_agudos` (`p10`–`p12`); `sinal` = sinal da passada A;
+/// `n_grade` = quantidade de índices da grade.
+///
+/// ADAPTAÇÃO: moldes que passam do fim das marcas não casam, e energia vazia
+/// não avança o deslocamento; o original lê além do fim nos dois casos.
+pub fn fase_do_compasso(
+    sinal: &[f64],
+    marcas: &[u8],
+    fs: f64,
+    bpm: f64,
+    ms: i32,
+    n_grade: usize,
+    picos: &PicosAgudos,
+) -> Option<Fase> {
+    let blocos = (n_grade as i32 / 8) as usize;
+    if blocos < 2 || ((marcas.len() as f64 * 0.031_25) as i32) < 2 {
+        return Some(Fase {
+            ms,
+            modo: 0,
+            molde_a: false,
+            mantido: None,
+        });
+    }
+    let inv = 60.0 / bpm;
+    let batida = inv * fs;
+    let quarto = batida * 0.25;
+    let casa = |i: usize, m: &[u8]| marcas.get(i..i + m.len()).is_some_and(|b| b == m);
+    let um = |i: usize| marcas.get(i) == Some(&1);
+    let (mut a, mut b, mut c, mut d) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    for i in 0..blocos * 16 {
+        if casa(i, &MOLDE_A) {
+            if casa(i + 7, &[0; 9]) {
+                a.push(i as i32);
+            }
+            if casa(i + 8, &[0; 2]) {
+                b.push(i as i32);
+            }
+        }
+        if casa(i, &MOLDE_C) {
+            c.push(i as i32);
+        }
+        if um(i)
+            && marcas.get(i + 1) == Some(&0)
+            && (um(i + 3) || um(i + 7))
+            && (um(i + 6) || um(i + 10))
+        {
+            d.push(i as i32);
+        }
+    }
+    // Lista de referência e limiar (0x1454151e0, 0x145415250, 0x145415270).
+    let mut lista: Option<&Vec<i32>> = None;
+    let mut limiar = 0.5;
+    let mut por_modulo = false;
+    if c.len() > 4 {
+        lista = Some(&c);
+        limiar = 0.2;
+    } else if a.len() > 4 {
+        lista = Some(&a);
+        limiar = 0.4;
+    } else if d.len() > 16 {
+        let razao = if d.len() <= 25 {
+            0.65f32 as f64
+        } else if d.len() <= 60 {
+            0.41f32 as f64
+        } else {
+            0.3f32 as f64
+        };
+        let r: Vec<i32> = d.iter().map(|&x| (x + 1) % 4).collect();
+        let mx = *r.iter().max().unwrap_or(&0);
+        let mut iguais = 0.0;
+        for &x in &r {
+            if x == mx {
+                iguais += 1.0;
+            }
+        }
+        if mx == 3 && iguais / d.len() as f64 > razao {
+            por_modulo = true;
+        }
+    }
+    if b.len() > 4 && !por_modulo && lista.is_none() {
+        lista = Some(&b);
+        limiar = 0.45;
+    }
+    // Período de um quarto de batida em ms (0x1454156e8 = 250).
+    let periodo = if bpm == 0.0 {
+        125
+    } else {
+        (inv * 250.0) as i32
+    };
+    if periodo <= 0 {
+        return None;
+    }
+    let mut r = ms;
+    while r > periodo {
+        r -= periodo;
+    }
+    let e1 = energia_por_quarto_fixa(
+        sinal,
+        &mut crate::filtro::passa_baixa_hz(400.0, fs),
+        bpm,
+        r,
+        fs,
+    )?;
+    let e2 = energia_por_quarto_fixa(
+        sinal,
+        &mut crate::filtro::passa_baixa_hz(100.0, fs),
+        bpm,
+        ms,
+        fs,
+    )?;
+    let maximo = |v: &[f64]| {
+        v.iter().copied().fold(None, |m: Option<f64>, x| match m {
+            Some(y) if y < x => Some(x),
+            Some(y) => Some(y),
+            None => Some(x),
+        })
+    };
+    // Primeiro quarto forte em e1 (0,48 e 0,6000000000000001).
+    let m1 = maximo(&e1).unwrap_or(0.0) * 0.48;
+    let (mut i1, mut zeros) = (0usize, false);
+    for i in 0..e1.len() {
+        let x = e1[i];
+        if x > m1 && (i < 1 || (e1[i - 1] - x).abs() > x * 0.600_000_000_000_000_1) {
+            i1 = i;
+            zeros = i > 0 && e1[..i].iter().all(|&v| v == 0.0);
+            break;
+        }
+    }
+    // Energia sustentada em e2 (0,5 e 0,605).
+    let m2 = maximo(&e2).unwrap_or(0.0);
+    let mut sustentada = false;
+    let mut bvar49 = false;
+    let primeiro = e2.iter().position(|&x| m2 * 0.5 < x).map(|k| k + 1);
+    if let Some(r10) = primeiro {
+        let lim = m2 * 0.605;
+        let n = e2.len();
+        let mut cont = 0;
+        let mut j = r10;
+        let mut disparou = false;
+        while j <= n {
+            if lim >= e2[j - 1] {
+                cont = 0;
+            } else {
+                cont += 1;
+                if cont >= 16 {
+                    disparou = true;
+                    break;
+                }
+            }
+            j += 4;
+        }
+        if !disparou {
+            let mut blocos_fortes = 0;
+            let mut ini = r10;
+            while ini <= n {
+                let fim = (ini + 63).min(n);
+                let mut k = ini;
+                while k <= fim {
+                    if lim >= e2[k - 1] {
+                        cont = 0;
+                    } else {
+                        cont += 1;
+                        if cont >= 12 {
+                            blocos_fortes += 1;
+                            break;
+                        }
+                    }
+                    k += 4;
+                }
+                if blocos_fortes >= 3 {
+                    disparou = true;
+                    break;
+                }
+                if cont < 12 {
+                    blocos_fortes = 0;
+                }
+                ini += 64;
+                cont = 0;
+            }
+        }
+        if disparou {
+            sustentada = true;
+            bvar49 = r10 % 4 == 3;
+        }
+    }
+    let mut avancou = false;
+    if (i1 < 4 || zeros) && e1.get(i1).is_some_and(|&x| 70.0 < x) {
+        r += i1 as i32 * periodo;
+        avancou = true;
+    }
+    // Fração de picos fora do tempo forte, pela lista de referência.
+    let mut fora = false;
+    if let Some(ref_lista) = lista {
+        let mut unicos: Vec<i32> = Vec::new();
+        let cap = blocos * 8;
+        for &v in ref_lista.iter() {
+            if picos.validos > 0 && picos.primeiro - 1 < cap {
+                let lim = v as f64 * quarto;
+                for &x in &picos.posicoes[picos.primeiro - 1..cap] {
+                    if x as f64 > lim && !unicos.contains(&x) {
+                        unicos.push(x);
+                    }
+                }
+            }
+        }
+        if !unicos.is_empty() {
+            let div = (batida + 0.5) as i32;
+            let n_fora = unicos
+                .iter()
+                .filter(|&&u| {
+                    let resto = (u % div) as f64;
+                    resto > quarto && resto < batida * 0.75
+                })
+                .count();
+            fora = n_fora as f64 / unicos.len() as f64 > limiar;
+        }
+    }
+    let (novo, modo) = if avancou {
+        (r, (r == ms) as i32 + 2)
+    } else if !(fora || bvar49 || por_modulo) {
+        (ms, 0)
+    } else {
+        let mut x = if ms - 250 >= 0 { ms - 250 } else { ms };
+        if bpm != 0.0 {
+            x = ms - inv.mul_add(500.0, 0.5) as i32;
+            if x < 0 {
+                x += inv.mul_add(1000.0, 0.5) as i32;
+            }
+        }
+        (x, 1)
+    };
+    Some(Fase {
+        ms: novo,
+        modo,
+        molde_a: !a.is_empty(),
+        mantido: Some(ms == novo && sustentada),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -858,5 +1120,36 @@ mod tests {
         // (1000 − 4) / 400 = 2 batidas.
         assert_eq!(e, vec![400.0; 8]);
         assert!(crate::filtro::passa_baixa_hz(400.0, 5512.5).c[0] > 0.0);
+    }
+
+    #[test]
+    fn constantes_da_fase() {
+        // 0x143537f70, 0x143537f80, 0x143537f68, 0x143537f60.
+        assert_eq!(0.600_000_000_000_000_1f64.to_bits(), 0x3fe3333333333334);
+        assert_eq!((0.65f32 as f64).to_bits(), 0x3fe4ccccc0000000);
+        assert_eq!((0.41f32 as f64).to_bits(), 0x3fda3d70a0000000);
+        assert_eq!((0.3f32 as f64).to_bits(), 0x3fd3333340000000);
+    }
+
+    #[test]
+    fn fase_retorna_cedo_e_detecta_molde() {
+        let vazio = PicosAgudos {
+            posicoes: vec![0; 16],
+            validos: 0,
+            primeiro: 17,
+            ordenados: vec![],
+        };
+        // Grade curta: retorno antecipado sem tocar o deslocamento.
+        let f = fase_do_compasso(&[], &[0; 64], 5512.5, 120.0, 37, 8, &vazio).unwrap();
+        assert_eq!((f.ms, f.modo, f.mantido), (37, 0, None));
+        // Sinal mudo e marcas com o molde A uma vez: nada a corrigir.
+        let mut marcas = vec![0u8; 64];
+        marcas[..7].copy_from_slice(&MOLDE_A);
+        let sinal = vec![0.0; 22050];
+        let f = fase_do_compasso(&sinal, &marcas, 5512.5, 120.0, 37, 16, &vazio).unwrap();
+        assert_eq!(
+            (f.ms, f.modo, f.molde_a, f.mantido),
+            (37, 0, true, Some(false))
+        );
     }
 }

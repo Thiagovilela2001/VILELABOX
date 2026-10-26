@@ -1,5 +1,16 @@
 # Registro de implementação
 
+## Fase do compasso do detector legado (P4.1, `0x141172490`) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Método | fluxo de controle conferido no assembly inteiro da função (`0x141172490`–`0x141173272`), registrador por registrador nos trechos que a decompilação embaralhou |
+| Recuperado | varredura de moldes de bytes (A, B, C e o padrão D), escolha da lista de referência e limiar, correção pelo resto 4, período de um quarto de batida, energias com passa-baixas de 400 e 100 Hz, primeiro quarto forte, energia sustentada em blocos de 16 e de 64 quartos, fração de picos fora do tempo forte e as três decisões de deslocamento |
+| Crate | `vilelabox-dsp::estagios::fase_do_compasso` e `Fase` |
+| Testes | 2 unitários novos (retorno antecipado, molde A, constantes `f32` conferidas bit a bit); workspace com 233 testes |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | segunda volta da cadeia: `0x14118be60`, `0x14118c1b0`, `0x141177b30`, `0x141171760`, `0x1411718e0` |
+
 ## Estágios da passada A: energia por quarto e onset de agudos (P4.1, A1.1c) — 2026-10-26
 
 | Campo | Resultado |

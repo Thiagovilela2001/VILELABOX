@@ -301,14 +301,18 @@ assembly com `desmontar.py` (capstone, privado).
   energia por quarto em grade fixa a partir do deslocamento, índices 0-based,
   sempre × 4 (portado em `energia_por_quarto_fixa`).
 
-## Fase do compasso (`0x141172490`, esqueleto)
+## Fase do compasso (`0x141172490`)
 
-**OBSERVADO na decompilação, ainda não portado.** O fluxo decompilado tem
-saltos para dentro de laços e registradores AVX reaproveitados; o porte exige
-conferir o controle no assembly.
+**Portado em `fase_do_compasso`**, com o fluxo conferido no assembly
+(`0x141172490`–`0x141173272`): a decompilação mostrava saltos para dentro de
+laços e reaproveitamento de registradores. Pontos que só o assembly mostrou:
+o contador de 12 da varredura em blocos herda o valor do laço de 16; os
+recuos de 500 e 1000 usam FMA (`vfmadd213sd`); o sinalizador do resto 3 parte
+de `r12b` zerado em `0x141172807`; o limiar de metade do máximo é 0,5
+(`xmm12`).
 
 Entradas: marcas de pico (16 por compasso), BPM, deslocamento em ms (`p5`),
-a lista de `confirmar_picos` (`p10`, com quantidade `p11` e primeiro válido
+a lista de `picos_de_agudos` (`p10`, com quantidade `p11` e primeiro válido
 `p12`). Saídas: novo deslocamento em ms (`p13`), modo de correção (`p14`:
 0, 1, 2 ou 3), sinalizador de molde (`p15`) e sinalizador de deslocamento
 mantido (`p16`).
