@@ -1,5 +1,17 @@
 # Registro de implementação
 
+## App ligado ao núcleo e ao banco próprio (P5.1, primeira entrega) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| App | `vilelabox-app/src/nucleo.rs`: ponte com o `vilelabox-core` sobre `%APPDATA%\vilelabox\vilelabox.db`; conversões segundos/ms ↔ frames para cues e grade |
+| Fluxo | carregar no deck registra a faixa e lê do banco cues do usuário, grade e bloqueio (com prioridade sobre o JSON); decodificar o áudio grava taxa, canais e duração e migra os JSON; gravar cues e grade vai para o banco quando a taxa é conhecida, senão para o JSON |
+| Núcleo | comandos `RegistrarFaixa`, `RegistrarAudio`, `SubstituirCues`; consultas `faixa_por_caminho` e `taxa`; evento `IdentidadeAtualizada` |
+| ADAPTAÇÃO | cues do banco voltam em ordem de posição; rótulo e cor agora são gravados (o JSON não guardava) |
+| Testes | 1 do núcleo (registro idempotente, identidade, substituição sem loops), 3 da ponte (ida e volta de cue e grade; recusa sem taxa), 1 do app (JSON migra para o banco e restaura sem ele) |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados; o app compila; a janela não foi aberta nesta rodada |
+| Próximo gate | P5.2: coleção e playlists servidas pelo banco (importação pelo núcleo), busca pelo `Core::pesquisar` e seletor de pasta |
+
 ## Passada A do detector legado de ponta a ponta (P4.1) — 2026-10-26
 
 | Campo | Resultado |

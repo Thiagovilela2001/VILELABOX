@@ -420,7 +420,20 @@ sem evidência até as passadas A/B e C/D serem abertas (A1.1c).
 
 ## P5 — Interface funcional
 
-### P5.1 — Modelo UI/core
+### P5.1 — Modelo UI/core — PRIMEIRA ENTREGA (2026-10-26)
+
+Feito: o app abre o `vilelabox-core` sobre `%APPDATA%\vilelabox\vilelabox.db`
+(módulo `vilelabox-app/src/nucleo.rs`). Ao carregar uma faixa no deck, ela é
+registrada no banco pelo caminho e espelhada no deck do núcleo; cues do
+usuário, grade e bloqueio gravados no banco valem sobre os arquivos JSON. Ao
+decodificar o áudio, taxa, canais e duração vão para a identidade da faixa e
+os JSON existentes migram para o banco. Sem taxa conhecida, ou sem banco, o
+app segue gravando nos JSON. O núcleo ganhou `RegistrarFaixa`,
+`RegistrarAudio` e `SubstituirCues`, com `faixa_por_caminho` e `taxa`.
+
+Falta: canal de comandos e snapshots imutáveis no lugar do `AppState`
+compartilhado; tarefas longas do núcleo fora da thread gráfica; biblioteca e
+playlists servidas pelo banco (P5.2).
 
 - canal de comandos da UI para o core;
 - snapshots imutáveis do core para a UI;

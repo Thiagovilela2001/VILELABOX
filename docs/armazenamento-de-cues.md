@@ -1,5 +1,13 @@
 # Armazenamento de cues
 
+> **Atualização (P5.1, 2026-10-26):** o destino principal passou a ser o banco
+> próprio, via `vilelabox-core` (`vilelabox-app/src/nucleo.rs`): cues do
+> usuário (exceto loops) com origem `User`, em frames, com rótulo e cor. O
+> JSON descrito abaixo continua como reserva enquanto a taxa de amostragem da
+> faixa não é conhecida (antes de o áudio ser decodificado) e é migrado para o
+> banco na primeira decodificação. ADAPTAÇÃO: o banco devolve os cues em ordem
+> de posição, não na ordem de gravação do JSON.
+
 Decisão de produto. Cue é comportamento de referência; o armazenamento é nosso.
 
 ## Por que arquivo próprio e não `djmdCue`

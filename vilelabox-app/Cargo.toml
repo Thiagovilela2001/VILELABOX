@@ -16,6 +16,9 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 vilelabox-xml = { path = "../vilelabox-xml" }
 vilelabox-catalog = { path = "../vilelabox-catalog" }
 vilelabox-audio = { path = "../vilelabox-audio" }
+vilelabox-core = { path = "../vilelabox-core" }
+vilelabox-storage = { path = "../vilelabox-storage" }
+vilelabox-types = { path = "../vilelabox-types" }
 
 [build-dependencies]
 slint-build = "1"

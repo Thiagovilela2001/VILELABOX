@@ -27,5 +27,6 @@ adaptadores de formato
 
 ## Estado transitório
 
-`vilelabox-core` e a biblioteca própria existem (P3.3); a interface ainda
-conecta direto ao leitor ANLZ até a migração do P5.
+`vilelabox-core` e a biblioteca própria existem (P3.3). Desde o P5.1 o app
+grava cues, grade e identidade do áudio pelo núcleo (`vilelabox-app/src/nucleo.rs`);
+a coleção e as playlists da tela ainda vêm do leitor ANLZ e do XML até o P5.2.

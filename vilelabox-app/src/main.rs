@@ -12,6 +12,7 @@ mod loops;
 #[cfg(test)]
 mod loops_cues_e2e;
 mod marks;
+mod nucleo;
 mod presentation;
 pub mod state;
 mod sync;
@@ -323,8 +324,14 @@ fn apply_audio(
     deck: DeckId,
     audio_buf: Arc<vilelabox_audio::AudioBuffer>,
 ) {
-    controller.send(acoes::carregar_audio(state, deck, audio_buf));
     let i = if deck == DeckId::Deck1 { 0 } else { 1 };
+    state.audio_pronto(
+        i,
+        audio_buf.sample_rate,
+        audio_buf.channels,
+        audio_buf.total_frames,
+    );
+    controller.send(acoes::carregar_audio(state, deck, audio_buf));
     send_metronome(controller, state, i);
 }
 
@@ -366,6 +373,14 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let mut initial_state = AppState::new();
     initial_state.cues_dir = cues_store::dir_padrao();
+    // P5.1: banco próprio via núcleo; sem ele, o app segue com os JSON.
+    match nucleo::caminho_padrao().map(|c| nucleo::Ponte::abrir(&c)) {
+        Some(Ok(p)) => {
+            initial_state.nucleo = Some(Arc::new(Mutex::new(p)));
+        }
+        Some(Err(e)) => eprintln!("Banco próprio indisponível: {e}"),
+        None => {}
+    }
     initial_state.clock_text = presentation::system_clock_str();
     initial_state.apply(Command::ScanStarted {
         dir_display: dir.display().to_string(),

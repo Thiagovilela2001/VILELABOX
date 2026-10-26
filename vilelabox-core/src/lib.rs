@@ -8,8 +8,11 @@
 
 use std::path::{Path, PathBuf};
 use vilelabox_library::{Consulta, ErroLibrary};
+use vilelabox_storage::NovaFaixa;
 use vilelabox_storage::{Database, ErroStorage, FaixaRow, ListaRow};
-use vilelabox_types::{BeatGrid, Cue, CueOrigin, Frame, TrackId};
+use vilelabox_types::{
+    AudioIdentity, BeatGrid, Cue, CueKind, CueOrigin, Frame, SampleRate, TrackId, TrackMetadata,
+};
 
 /// Deck headless.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,6 +85,26 @@ pub enum Comando {
         grade: BeatGrid,
         bloqueada: bool,
     },
+    /// Cadastra a faixa pelo caminho do áudio, se ainda não existir.
+    RegistrarFaixa {
+        caminho: String,
+        titulo: Option<String>,
+        artista: Option<String>,
+    },
+    /// Grava taxa, canais e duração lidos do áudio decodificado, preservando
+    /// o SHA-256 já calculado.
+    RegistrarAudio {
+        faixa: TrackId,
+        taxa: u32,
+        canais: u16,
+        duracao_frames: i64,
+    },
+    /// Substitui os cues do usuário (exceto loops) da faixa no deck; os de
+    /// outras origens ficam. Todos entram com origem `User`.
+    SubstituirCues {
+        deck: Deck,
+        cues: Vec<Cue>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -103,6 +126,8 @@ pub enum Evento {
     TarefaAnaliseAtualizada {
         pendentes: usize,
     },
+    /// Taxa, canais e duração da faixa gravados.
+    IdentidadeAtualizada(TrackId),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -160,6 +185,20 @@ impl Core {
 
     pub fn faixas_da_lista(&self, lista: i64) -> Result<Vec<TrackId>, ErroCore> {
         Ok(self.db.faixas_da_lista(lista)?)
+    }
+
+    /// Faixa dona do caminho de áudio, se cadastrada.
+    pub fn faixa_por_caminho(&self, caminho: &str) -> Result<Option<TrackId>, ErroCore> {
+        Ok(self.db.id_por_localizacao(caminho)?)
+    }
+
+    /// Taxa de amostragem conhecida da faixa (gravada por `RegistrarAudio`).
+    pub fn taxa(&self, faixa: TrackId) -> Result<Option<u32>, ErroCore> {
+        Ok(self
+            .db
+            .faixa(faixa)?
+            .and_then(|f| f.identidade)
+            .map(|i| i.sample_rate.get()))
     }
 
     pub fn selecao(&self) -> Option<TrackId> {
@@ -272,6 +311,59 @@ impl Core {
                 cues.remove(indice);
                 Ok(())
             }),
+            Comando::RegistrarFaixa {
+                caminho,
+                titulo,
+                artista,
+            } => {
+                if self.db.id_por_localizacao(&caminho)?.is_some() {
+                    return Ok(());
+                }
+                let id = self.db.inserir_faixa(&NovaFaixa {
+                    metadados: TrackMetadata {
+                        title: titulo,
+                        artist: artista,
+                        ..TrackMetadata::default()
+                    },
+                    ..NovaFaixa::default()
+                })?;
+                self.db.adicionar_localizacao(id, &caminho)?;
+                self.biblioteca(format!("faixa {} registrada", id.0));
+                Ok(())
+            }
+            Comando::RegistrarAudio {
+                faixa,
+                taxa,
+                canais,
+                duracao_frames,
+            } => {
+                let atual = self.faixa(faixa)?;
+                let identidade = AudioIdentity {
+                    sha256: atual.identidade.and_then(|i| i.sha256),
+                    duration_frames: Frame::new(duracao_frames),
+                    sample_rate: SampleRate::new(taxa).map_err(ErroStorage::from)?,
+                    channels: canais,
+                };
+                self.db.atualizar_identidade(faixa, &identidade)?;
+                self.eventos.push(Evento::IdentidadeAtualizada(faixa));
+                Ok(())
+            }
+            Comando::SubstituirCues { deck, cues } => {
+                let estado = self.decks[deck.idx()]
+                    .as_mut()
+                    .ok_or(ErroCore::DeckVazio(deck))?;
+                let faixa = estado.faixa.id;
+                let proprios: Vec<Cue> = cues
+                    .into_iter()
+                    .filter(|c| c.kind != CueKind::Loop)
+                    .collect();
+                self.db
+                    .substituir_cues_da_origem(faixa, CueOrigin::User, &proprios)?;
+                estado.cues = self.db.cues(faixa)?;
+                self.eventos
+                    .push(Evento::PreparacaoAlterada { deck, faixa });
+                Ok(())
+            }
             Comando::SalvarGrade {
                 deck,
                 grade,

@@ -143,6 +143,7 @@ fn fluxo_importar_carregar_editar_cue_em_ordem() {
             Evento::FaixaCarregada { .. } => "carregada",
             Evento::PreparacaoAlterada { .. } => "preparacao",
             Evento::SelecaoAlterada(_) => "selecao",
+            Evento::IdentidadeAtualizada(_) => "identidade",
         })
         .collect();
     assert_eq!(
@@ -262,4 +263,52 @@ fn grade_salva_e_recarrega_com_bloqueio() {
     let d = core.deck(Deck::Dois).unwrap();
     assert_eq!(d.grade.as_ref(), Some(&grade));
     assert!(d.bloqueada);
+}
+
+#[test]
+fn registrar_faixa_audio_e_substituir_cues() {
+    let mut core = Core::novo(Database::open_in_memory().unwrap());
+    let caminho = "C:/musica/a.mp3".to_string();
+    for _ in 0..2 {
+        core.executar(Comando::RegistrarFaixa {
+            caminho: caminho.clone(),
+            titulo: Some("A".into()),
+            artista: None,
+        })
+        .unwrap();
+    }
+    // Segunda chamada não duplica.
+    assert_eq!(core.pesquisar(&Consulta::default()).unwrap().len(), 1);
+    let id = core.faixa_por_caminho(&caminho).unwrap().unwrap();
+    assert_eq!(core.taxa(id).unwrap(), None);
+    core.executar(Comando::RegistrarAudio {
+        faixa: id,
+        taxa: 44100,
+        canais: 2,
+        duracao_frames: 441_000,
+    })
+    .unwrap();
+    assert_eq!(core.taxa(id).unwrap(), Some(44100));
+    core.executar(Comando::CarregarNoDeck {
+        deck: Deck::Um,
+        faixa: id,
+    })
+    .unwrap();
+    let mut hot = Cue::new(CueKind::HotCue, Frame::new(100), CueOrigin::Imported);
+    hot.slot = Some(2);
+    let lp = Cue::new_loop(Frame::new(10), Frame::new(20), CueOrigin::User).unwrap();
+    core.executar(Comando::SubstituirCues {
+        deck: Deck::Um,
+        cues: vec![hot, lp, memory(50)],
+    })
+    .unwrap();
+    // Loop fica de fora; o resto entra como User.
+    let cues = &core.deck(Deck::Um).unwrap().cues;
+    assert_eq!(cues.len(), 2);
+    assert!(cues
+        .iter()
+        .all(|c| c.origin == CueOrigin::User && c.kind != CueKind::Loop));
+    assert_eq!(cues[1].slot, Some(2));
+    let ev = core.drenar_eventos();
+    assert!(ev.contains(&Evento::IdentidadeAtualizada(id)));
 }
