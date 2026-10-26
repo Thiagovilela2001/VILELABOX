@@ -234,6 +234,22 @@ assembly com `desmontar.py` (capstone, privado).
   `Ω/(s + Ω)` em 5 Hz (`0x1435380c8`); diferença com `d[0] = 0`. Taxa 0 vira
   5512,5. Resultado em `+0x418`.
 
+- **Soma** (`0x141167150` → `0x14116ef60`): blocos de 8 em dois
+  acumuladores, `s = a1 + a0`, redução `(s2 + s3) + (s0 + s1)` somada a 0 e
+  cauda escalar.
+- **Padrão de picos** (`0x141176680`), portado em `classificar_padrao`:
+  compasso inicial = primeiro com energia acima da média, procurando do 17º
+  (ou do 1º com menos de 17 compassos) até o antepenúltimo; compassos
+  disponíveis `−(int)(bytes · −0,063) − inicial` (`0x143538048`); até 8
+  blocos de 8 compassos, contando só as posições 2, 3, 6 e 7 de cada bloco;
+  um compasso conta para um molde quando os 16 bytes batem. Moldes:
+  `1000×4` ou `0010×4`, `1000 0010 1000 0000`, `1000 0000 1000 0000` e
+  `1000 0000 1010 0000`. Decisão com `t = disponíveis > 63`: dois ou mais
+  blocos com o primeiro molde ligam o 5º argumento; senão o último molde em
+  mais de `t` blocos liga o 8º; senão o segundo, abaixo de 165 BPM
+  (`0x143538040`), liga o 6º; senão o terceiro em mais de `t` blocos liga o
+  7º. O uso desses sinalizadores adiante é DESCONHECIDO.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

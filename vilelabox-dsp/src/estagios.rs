@@ -169,6 +169,126 @@ pub fn onset_agudos(sinal: &[f64], fs: f64) -> Vec<f64> {
     y
 }
 
+/// Soma (`0x14116ef60`, via `0x141167150`): blocos de 8 em dois acumuladores
+/// de 4 posições, `s = a1 + a0`, redução `(s2 + s3) + (s0 + s1)` somada a 0
+/// e cauda escalar.
+pub fn soma(x: &[f64]) -> f64 {
+    let blocos = x.len() / 8 * 8;
+    let mut acc = 0.0;
+    if blocos > 0 {
+        let (mut a0, mut a1) = ([0.0f64; 4], [0.0f64; 4]);
+        for b in x[..blocos].chunks_exact(8) {
+            for l in 0..4 {
+                a0[l] += b[l];
+                a1[l] += b[l + 4];
+            }
+        }
+        let s: Vec<f64> = (0..4).map(|l| a1[l] + a0[l]).collect();
+        acc += (s[2] + s[3]) + (s[0] + s[1]);
+    }
+    for &v in &x[blocos..] {
+        acc += v;
+    }
+    acc
+}
+
+/// Moldes de 16 posições (quatro batidas × quatro quartos) de
+/// `0x141176680`.
+const MOLDES: [[u8; 16]; 5] = [
+    [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+];
+
+/// Sinalizadores de padrão rítmico de `0x141176680`, na ordem dos ponteiros
+/// de saída (5º a 8º argumentos). Nomes descrevem os moldes, não o uso
+/// (DESCONHECIDO).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Padrao {
+    /// Molde 1000×4 ou 0010×4 em pelo menos 2 blocos de 8 compassos.
+    pub seminimas: bool,
+    pub molde_1000_0010_1000_0000: bool,
+    pub molde_1000_0000_1000_0000: bool,
+    pub molde_1000_0000_1010_0000: bool,
+}
+
+/// Classificação do padrão de picos (`0x141176680`).
+///
+/// `marcas` = 16 bytes por compasso, saída de `0x14118b160`; `compassos` =
+/// energia por compasso (`motor+0x3f8`); `bpm` = `motor+0xb0`.
+/// O compasso inicial é o primeiro, a partir do 17º (ou do 1º, com menos de
+/// 17), cuja energia supera a média, até o antepenúltimo. Em até 8 blocos de 8
+/// compassos, só as posições 2, 3, 6 e 7 de cada bloco contam, e um compasso
+/// conta para um molde quando as 16 posições batem. Com
+/// `t = blocos_disponíveis > 63`: dois ou mais blocos com 1000×4/0010×4 dão
+/// `seminimas`; senão o molde 1000 0000 1010 0000 vence se aparecer em mais
+/// de `t` blocos; senão 1000 0010 1000 0000, se aparecer em mais de `t`
+/// blocos e o BPM for menor que 165 (`0x143538040`); senão
+/// 1000 0000 1000 0000, se aparecer em mais de `t` blocos.
+///
+/// ADAPTAÇÃO: compasso fora de `marcas` devolve `None`; o original lê além.
+pub fn classificar_padrao(marcas: &[u8], compassos: &[f64], bpm: f64) -> Option<Padrao> {
+    let n = compassos.len() as i32;
+    let mut inicio = 1i32;
+    if n != 0 {
+        let base = if n < 17 { 1 } else { 17 };
+        inicio = base;
+        let media = soma(compassos) / n as f64;
+        let mut u = base;
+        while u <= n - 3 {
+            if media < compassos[(u - 1) as usize] {
+                inicio = u;
+                break;
+            }
+            u += 1;
+        }
+    }
+    let disponiveis = -((marcas.len() as f64 * -0.063) as i32) - inicio;
+    let mut flags = [[0i32; 8]; 4];
+    if disponiveis > 0 {
+        let blocos = if disponiveis > 63 { 8 } else { disponiveis / 8 };
+        let mut l = (inicio - 1) as i64;
+        for o in 0..blocos as usize {
+            let mut cont = [0i32; 4];
+            for k in 1..=8 {
+                l += 1;
+                if !(matches!(k, 2 | 3 | 6 | 7) && l > 1) {
+                    continue;
+                }
+                let g = (l - 1) as usize * 16;
+                let b = marcas.get(g..g + 16)?;
+                let bate = |m: &[u8; 16]| m.iter().zip(b).all(|(x, y)| x == y);
+                if bate(&MOLDES[0]) || bate(&MOLDES[1]) {
+                    cont[0] += 1;
+                }
+                for (c, m) in cont[1..].iter_mut().zip(&MOLDES[2..]) {
+                    if bate(m) {
+                        *c += 1;
+                    }
+                }
+            }
+            for (f, c) in flags.iter_mut().zip(cont) {
+                f[o] = (c > 0) as i32;
+            }
+        }
+    }
+    let [ab, c, d, e] = flags.map(|f| f.iter().sum::<i32>());
+    let t = (disponiveis > 63) as i32;
+    let mut p = Padrao::default();
+    if ab >= 2 {
+        p.seminimas = true;
+    } else if t < e {
+        p.molde_1000_0000_1010_0000 = true;
+    } else if c <= t || bpm >= 165.0 {
+        p.molde_1000_0000_1000_0000 = t < d;
+    } else {
+        p.molde_1000_0010_1000_0000 = true;
+    }
+    Some(p)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,5 +344,36 @@ mod tests {
         let y = onset_agudos(&vec![1.0; 5000], 5512.5);
         assert_eq!(y[0], 0.0);
         assert!(y[4999].abs() < 1e-9);
+    }
+
+    #[test]
+    fn soma_vetorial() {
+        let x: Vec<f64> = (1..=19).map(|v| v as f64).collect();
+        assert_eq!(soma(&x), 190.0);
+        assert_eq!(soma(&[]), 0.0);
+    }
+
+    #[test]
+    fn padrao_de_seminimas() {
+        // 80 compassos com pico em cada batida; energia uniforme.
+        let marcas: Vec<u8> = MOLDES[0].iter().copied().cycle().take(16 * 80).collect();
+        let compassos = vec![1.0; 20];
+        let p = classificar_padrao(&marcas, &compassos, 128.0).unwrap();
+        assert!(p.seminimas);
+        // Sem picos: nada marcado.
+        let p = classificar_padrao(&vec![0u8; 16 * 80], &compassos, 128.0).unwrap();
+        assert_eq!(p, Padrao::default());
+        // Molde 1000 0010 1000 0000 só vale abaixo de 165 BPM.
+        let m: Vec<u8> = MOLDES[2].iter().copied().cycle().take(16 * 80).collect();
+        assert!(
+            classificar_padrao(&m, &compassos, 128.0)
+                .unwrap()
+                .molde_1000_0010_1000_0000
+        );
+        assert!(
+            !classificar_padrao(&m, &compassos, 170.0)
+                .unwrap()
+                .molde_1000_0010_1000_0000
+        );
     }
 }
