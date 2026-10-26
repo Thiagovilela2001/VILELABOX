@@ -52,6 +52,10 @@ fn texto(args: &[String], i: usize) -> Result<&str, String> {
 }
 
 fn rodar(args: &[String]) -> Result<(), String> {
+    // Sem subcomando (inclui `--help`) não abre banco: abrir criaria o arquivo.
+    if args.len() < 2 || args[0].starts_with('-') {
+        return Err(USO.into());
+    }
     let banco = PathBuf::from(texto(args, 0)?);
     let mut core = Core::abrir(&banco).map_err(|e| e.to_string())?;
     let faixa = |i| num::<i64>(args, i).map(TrackId);

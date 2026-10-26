@@ -64,3 +64,20 @@ fn importar_pesquisar_selecionar_carregar_editar_cue_persistir() {
         .unwrap();
     assert!(!falha.status.success());
 }
+
+#[test]
+fn ajuda_nao_cria_banco() {
+    let dir = std::env::temp_dir().join(format!("vilelabox-cli-ajuda-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    for args in [&["--help"][..], &["banco.db"][..]] {
+        let saida = Command::new(env!("CARGO_BIN_EXE_vilelabox-cli"))
+            .current_dir(&dir)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(!saida.status.success());
+        assert!(String::from_utf8_lossy(&saida.stderr).contains("uso:"));
+    }
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+}
