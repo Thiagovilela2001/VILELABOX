@@ -176,6 +176,12 @@ fn passa_baixa_2(w: f64, fs: f64) -> Biquad {
     )
 }
 
+/// Passa-baixa Butterworth de 2ª ordem com corte em Hz (`0x1411890e0`,
+/// grava em `motor+0x438`): `ω = corte · 2π`, `a1 = √2·Ω`.
+pub fn passa_baixa_hz(corte_hz: f64, fs: f64) -> Biquad {
+    passa_baixa_2(corte_hz * std::f64::consts::TAU, fs)
+}
+
 /// Filtros do envelope projetados à taxa decimada `fs` (`0x14118aea0`,
 /// `0x141188560`).
 #[derive(Debug, Clone, PartialEq)]

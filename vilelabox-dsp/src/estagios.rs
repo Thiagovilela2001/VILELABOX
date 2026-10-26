@@ -670,6 +670,49 @@ pub fn picos_finos(
     Some((pos, validos, zeros + 1))
 }
 
+/// Energia por quarto de batida numa grade fixa (`0x141189170`).
+///
+/// O sinal passa pelo filtro dado (`motor+0x438`, projetado por
+/// `filtro::passa_baixa_hz`). A grade começa em `(int)((fs·ms)·0,001 + 0,5)`
+/// (índice 0-based), com batida `(int)(fs·(1/bpm)·60 + 0,5)` e quarto
+/// `(int)(fs·(1/bpm)·15 + 0,5)`; há `(n − início) / batida` batidas, cada uma
+/// com três quartos e o resto. Todos os valores são multiplicados por 4.
+pub fn energia_por_quarto_fixa(
+    sinal: &[f64],
+    filtro: &mut Biquad,
+    bpm: f64,
+    deslocamento_ms: i32,
+    fs: f64,
+) -> Option<Vec<f64>> {
+    let mut y = vec![0.0; sinal.len()];
+    filtro.processar(sinal, &mut y);
+    let inicio = (fs * deslocamento_ms as f64 * 0.001 + 0.5) as i32;
+    let batida = (fs * (1.0 / bpm) * 60.0 + 0.5) as i32;
+    let quarto = (fs * (1.0 / bpm) * 15.0 + 0.5) as i32;
+    if batida == 0 {
+        return None;
+    }
+    let n = (y.len() as i32 - inicio) / batida;
+    let janela = |a: i32, len: i32| -> Option<f64> {
+        if a < 0 || len < 0 {
+            return None;
+        }
+        y.get(a as usize..(a + len) as usize).map(energia)
+    };
+    let mut out = Vec::with_capacity(n.max(0) as usize * 4);
+    for i in 0..n {
+        let base = inicio + i * batida;
+        for j in 0..3 {
+            out.push(janela(base + j * quarto, quarto)?);
+        }
+        out.push(janela(base + 3 * quarto, batida - 3 * quarto)?);
+    }
+    for v in out.iter_mut() {
+        *v *= 4.0;
+    }
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -803,5 +846,17 @@ mod tests {
         let (f, validos, _) = picos_finos(&r, &marcas, fs, 120.0, 0, &grade).unwrap();
         assert_eq!(f.len(), 32);
         assert_eq!((validos, f[31]), (1, 11));
+    }
+
+    #[test]
+    fn energia_por_quarto_fixa_cobre_a_grade() {
+        // fs 400, 60 BPM: batida 400, quarto 100; início 10 ms = 4 amostras.
+        let sinal = vec![1.0; 1000];
+        let mut f = Biquad::bilinear(0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 400.0);
+        f.c = [1.0, 0.0, 0.0, 0.0, 0.0];
+        let e = energia_por_quarto_fixa(&sinal, &mut f, 60.0, 10, 400.0).unwrap();
+        // (1000 − 4) / 400 = 2 batidas.
+        assert_eq!(e, vec![400.0; 8]);
+        assert!(crate::filtro::passa_baixa_hz(400.0, 5512.5).c[0] > 0.0);
     }
 }

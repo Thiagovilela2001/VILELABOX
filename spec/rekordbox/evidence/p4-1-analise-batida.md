@@ -293,6 +293,62 @@ assembly com `desmontar.py` (capstone, privado).
   `f64` de saída é alocado zerado e só recebe zeros. Deslocamento final como
   em `0x1411786a0`.
 
+- **Auxiliares de `0x141172490`**: `0x141170790` compara bytes (como
+  `memcmp`); `0x1411686b0` é `max_element` de inteiros (`0x142604d40`, guarda
+  o primeiro máximo, `cmovl`); `0x141168630` soma inteiros (`0x140f199b0`);
+  `0x1411890e0` projeta passa-baixa Butterworth de 2ª ordem com corte em Hz
+  em `motor+0x438` (portado em `filtro::passa_baixa_hz`); `0x141189170` é a
+  energia por quarto em grade fixa a partir do deslocamento, índices 0-based,
+  sempre × 4 (portado em `energia_por_quarto_fixa`).
+
+## Fase do compasso (`0x141172490`, esqueleto)
+
+**OBSERVADO na decompilação, ainda não portado.** O fluxo decompilado tem
+saltos para dentro de laços e registradores AVX reaproveitados; o porte exige
+conferir o controle no assembly.
+
+Entradas: marcas de pico (16 por compasso), BPM, deslocamento em ms (`p5`),
+a lista de `confirmar_picos` (`p10`, com quantidade `p11` e primeiro válido
+`p12`). Saídas: novo deslocamento em ms (`p13`), modo de correção (`p14`:
+0, 1, 2 ou 3), sinalizador de molde (`p15`) e sinalizador de deslocamento
+mantido (`p16`).
+
+1. Com menos de dois blocos de 8 batidas ou `(int)(bytes · 0,03125) < 2`
+   (menos de 64 bytes de marcas, 4 compassos), devolve o deslocamento de
+   entrada e modo 0.
+2. Varre cada byte de marca `i` e anota:
+   - `A`: os 7 bytes desde `i` são `1000001` (`0x143537ec8`) e os 9 desde
+     `i+7` são zero (`0x143537ed0`);
+   - `B`: os 7 bytes desde `i` são `1000001` e os 2 desde `i+8` são zero
+     (`0x143537edc`), independente de `A`;
+   - `C`: os 24 desde `i` são `100000101000000010100010`
+     (`0x143537ee0`);
+   - `D`: `m[i] = 1`, `m[i+1] = 0`, `m[i+3]` ou `m[i+7]` = 1 e `m[i+6]` ou
+     `m[i+10]` = 1.
+   `A` em qualquer posição liga `p15`.
+3. Escolha da lista de referência: `C` com 5 ou mais ocorrências usa as
+   posições de `C` e o limiar 0,2; senão `A` com 5 ou mais usa `A` e 0,4;
+   senão, com 16 ou menos ocorrências de `D`, usa a tabela fixa 128, 144, …,
+   496 (`0x143537f00`, 24 valores); senão calcula `(D + 1) mod 4`, toma o
+   máximo, conta quantos são iguais a ele e, se o máximo é 3 e a fração
+   passa 0,65 (até 25 ocorrências), 0,41 (26 a 60) ou 0,30 (61 ou mais)
+   (`0x143537f80`, `0x143537f68`, `0x143537f60`), marca correção. `B` com
+   5 ou mais, sem as anteriores, usa `B` e 0,45.
+4. Período `(int)(60/bpm · 250)` ms, um quarto de batida (`0x1454156e8`), ou
+   125 com BPM nulo; o deslocamento é reduzido por esse período enquanto o
+   passar.
+5. Energia por quarto em grade fixa com passa-baixa de 400 Hz
+   (`0x143537f88`) a partir do deslocamento reduzido e com 100 Hz
+   (`0x145415668`) a partir do original; análise dos máximos com limiares
+   0,48 (`0x145415290`), 0,6 (`0x143537f70`), 0,605 (`0x143537f78`) e 70
+   (`0x145415640`), em blocos de 64 quartos e contagens de 12 e 16.
+6. Com lista de referência, conta as posições de `p10` além de `ref · ¼
+   batida`, sem repetir, e mede a fração cujo resto pela batida fica entre
+   `¼` e `0,75` (`0x145415328`) da batida.
+7. Decisão: deslocamento somado de `k` períodos (modo 2 ou 3), ou recuo de
+   250 ms (`p5 − 0xfa`) ou de `60/bpm · 500` com retorno de
+   `60/bpm · 1000` se negativo (`0x145415730`, `0x1454157b8`) (modo 1).
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

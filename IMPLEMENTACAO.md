@@ -6,10 +6,10 @@
 | --- | --- |
 | Método | decompilação Ghidra conferida no assembly com capstone (`desmontar.py`, privado), para argumentos perdidos e ordem das somas |
 | Recuperado | energia (soma dos quadrados com FMA e redução exata); filtro de 1ª ordem; energia por quarto de batida e por compasso (`0x1411885f0`); onset de agudos com passa-alta de 300 Hz, valor absoluto e passa-baixa de 5 Hz (`0x141178330`) |
-| Crate | `vilelabox-dsp::estagios`: `energia`, `soma`, `PrimeiraOrdem`, `energia_por_quarto`, `onset_agudos`, `classificar_padrao` (moldes rítmicos de `0x141176680`), `picos_de_agudos` (`0x1411786a0`), `confirmar_picos` (`0x141179530`), `picos_finos` (`0x141178df0`) |
-| Testes | 9 unitários novos; workspace com 230 testes |
+| Crate | `vilelabox-dsp::estagios`: `energia`, `soma`, `PrimeiraOrdem`, `energia_por_quarto`, `onset_agudos`, `classificar_padrao` (moldes rítmicos de `0x141176680`), `picos_de_agudos` (`0x1411786a0`), `confirmar_picos` (`0x141179530`), `picos_finos` (`0x141178df0`), `energia_por_quarto_fixa` (`0x141189170`) e `filtro::passa_baixa_hz` (`0x1411890e0`); esqueleto de `0x141172490` documentado |
+| Testes | 10 unitários novos; workspace com 231 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | `0x141172490` (651 linhas), depois a segunda volta da cadeia (`0x14118be60`, `0x14118c1b0`, `0x141177b30`, `0x141171760`, `0x1411718e0`) |
+| Próximo gate | portar `0x141172490` conferindo o fluxo no assembly; depois a segunda volta da cadeia (`0x14118be60`, `0x14118c1b0`, `0x141177b30`, `0x141171760`, `0x1411718e0`) |
 
 ## Filtros do detector legado de BPM (P4.1, A1.1c) — 2026-10-26
 
