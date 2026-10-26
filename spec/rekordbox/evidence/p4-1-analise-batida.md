@@ -270,6 +270,21 @@ assembly com `desmontar.py` (capstone, privado).
   válido 1-based. O vetor `f64` paralelo (`param_10`) é alocado zerado e só
   recebe zeros.
 
+- **Confirmação de picos** (`0x141179530`), portado em `confirmar_picos`:
+  repete a seleção sobre as listas ordenadas guardadas por `0x1411786a0`, com
+  vizinhança `±((int)(batida·0,25 + 0,5) − 20)` contra os picos já aceitos de
+  todos os compassos e teste com `índice + início`. Em ordem crescente e em
+  sequência: sem par a duas batidas (tolerância `(int)(batida·0,125 + 0,5)`,
+  `0x145415198`) o pico sai da lista interna; com par, sai se as marcas de
+  `0x14118b160` em volta do seu quarto de batida não formarem `(−4, +2)`,
+  `(−6, +5)` ou `(−4, +4)` ou se o próprio quarto estiver marcado (só quando
+  `5 < quarto < marcas − 5`). A lista de saída (`param_12`, `param_13`) só
+  perde os que também não têm par a quatro batidas (tolerância `−¼`, `+⅛`
+  de batida). Sem o sinalizador de semínimas de `0x141176680`, a saída perde
+  os picos cujo quarto `(p − desloc − 1) / quarto` está marcado. Saída
+  ordenada, deslocada por `(int)((fs·ms)·0,001 + 0,5)`, com quantidade de
+  válidos e primeiro válido.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

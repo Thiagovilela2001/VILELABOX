@@ -323,15 +323,14 @@ fn argsort_decrescente(x: &[f64]) -> (Vec<f64>, Vec<i32>) {
 /// `(int)(fs·ms·0,001 + 0,5)` dos picos válidos. BPM 0 vira 120 e taxa 0 vira
 /// 5512,5.
 ///
-/// Devolve `(posições em ordem crescente com zeros à frente, válidos,
-/// primeiro válido 1-based)`. ADAPTAÇÃO: compasso fora do onset dá `None`.
+/// ADAPTAÇÃO: compasso fora do onset dá `None`.
 pub fn picos_de_agudos(
     onset: &[f64],
     fs: f64,
     bpm: f64,
     deslocamento_ms: i32,
     grade: &[i32],
-) -> Option<(Vec<i32>, usize, usize)> {
+) -> Option<PicosAgudos> {
     let bpm = if bpm == 0.0 { 120.0 } else { bpm };
     let fs = if fs == 0.0 { 5512.5 } else { fs };
     let compassos = (grade.len() as i32 / 8) as usize;
@@ -339,6 +338,7 @@ pub fn picos_de_agudos(
     let mut pos = vec![0i32; cap];
     let raio = (fs * (15.0 / bpm) + 0.5) as i32 - 20;
     let mut total = 0usize;
+    let mut ordenados = Vec::with_capacity(compassos);
     for b in 0..compassos {
         let ini = grade[4 * b];
         let len = grade[4 * b + 4] - ini;
@@ -368,6 +368,7 @@ pub fn picos_de_agudos(
             }
             k += 1;
         }
+        ordenados.push((v, idx));
     }
     pos.sort();
     let duas = ((60.0 / bpm) * (fs + fs) + 0.5) as i32;
@@ -403,7 +404,171 @@ pub fn picos_de_agudos(
         };
         *p -= d;
     }
-    Some((pos, validos, zeros + 1))
+    Some(PicosAgudos {
+        posicoes: pos,
+        validos,
+        primeiro: zeros + 1,
+        ordenados,
+    })
+}
+
+/// Saída de `picos_de_agudos`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PicosAgudos {
+    /// Ordem crescente, zeros à frente.
+    pub posicoes: Vec<i32>,
+    pub validos: usize,
+    /// Primeiro válido, 1-based.
+    pub primeiro: usize,
+    /// Por compasso: onset ordenado em ordem decrescente e índices 1-based
+    /// no compasso (guardados nos vetores de `param_13`).
+    pub ordenados: Vec<(Vec<f64>, Vec<i32>)>,
+}
+
+/// Saída de `confirmar_picos`: a lista `param_12` (posições) e `param_13`
+/// (valores), em ordem crescente com zeros à frente.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PicosConfirmados {
+    pub posicoes: Vec<i32>,
+    pub valores: Vec<f64>,
+    pub validos: usize,
+    pub primeiro: usize,
+}
+
+/// Permuta `v` pela ordenação crescente estável de `p` (`0x141168940`).
+fn ordenar_junto(p: &mut [i32], v: &mut [f64]) {
+    let mut pares: Vec<(i32, f64)> = p.iter().copied().zip(v.iter().copied()).collect();
+    pares.sort_by_key(|a| a.0);
+    for (i, (a, b)) in pares.into_iter().enumerate() {
+        p[i] = a;
+        v[i] = b;
+    }
+}
+
+/// Segunda rodada de picos (`0x141179530`).
+///
+/// Seleção nas listas ordenadas de `picos_de_agudos`, como a primeira, mas a
+/// vizinhança `±((int)(batida·0,25 + 0,5) − 20)` é medida contra as posições
+/// já aceitas em todos os compassos, o teste usa `índice + início` e não há
+/// teste de capacidade no corte. Depois, em sequência e em ordem crescente:
+/// um pico sem par a duas batidas (`(int)(2·batida + 0,5)`, tolerância
+/// `(int)(batida·0,125 + 0,5)`, `0x145415198`) é zerado; com par, é zerado se
+/// as marcas de pico em volta do seu quarto de batida não tiverem um dos
+/// padrões `(−4, +2)`, `(−6, +5)` ou `(−4, +4)` ou se houver marca no próprio
+/// quarto; a cópia de saída só zera os que também não têm par a quatro
+/// batidas (tolerância `[−¼, +⅛]` de batida). Com `seminimas == false`, a
+/// cópia zera os picos cujo quarto anterior está marcado. Saídas ordenadas e
+/// deslocadas por `(int)((fs·ms)·0,001 + 0,5)`. BPM 0 vira 120 e taxa 0 vira
+/// 5512,5.
+///
+/// ADAPTAÇÃO: posições fora dos vetores dão `None`.
+pub fn confirmar_picos(
+    picos: &PicosAgudos,
+    marcas: &[u8],
+    fs: f64,
+    bpm: f64,
+    deslocamento_ms: i32,
+    grade: &[i32],
+    seminimas: bool,
+) -> Option<PicosConfirmados> {
+    let bpm = if bpm == 0.0 { 120.0 } else { bpm };
+    let fs = if fs == 0.0 { 5512.5 } else { fs };
+    let compassos = (grade.len() as i32 / 8) as usize;
+    let cap = compassos * 8;
+    let batida = (60.0 / bpm) * fs;
+    let quarto = (batida * 0.25 + 0.5) as i32;
+    let mut pos = vec![0i32; cap];
+    let mut val = vec![0.0f64; cap];
+    let mut total = 0usize;
+    for b in 0..compassos {
+        let base = grade[4 * b];
+        let (v, idx) = picos.ordenados.get(b)?;
+        let n = v.len();
+        let mut k = 0usize;
+        while k + 1 < n {
+            let candidato = idx[k] + base;
+            let perto = pos[..total]
+                .iter()
+                .any(|&q| q - (quarto - 20) <= candidato && candidato <= q + quarto - 20);
+            if !perto && total < cap {
+                if 0.9886 * v[k] <= v[k + 1] {
+                    if n < k + 3 || v[k + 1] * 0.9886 <= v[k + 2] {
+                        break;
+                    }
+                } else {
+                    pos[total] = idx[k] - 1 + base;
+                    val[total] = v[k];
+                    total += 1;
+                }
+            }
+            k += 1;
+        }
+    }
+    ordenar_junto(&mut pos, &mut val);
+    let mut saida = pos.clone();
+    let mut saida_val = val.clone();
+    let duas = (batida + batida + 0.5) as i32;
+    let quatro = (batida * 4.0 + 0.5) as i32;
+    let oitavo = (batida * 0.125 + 0.5) as i32;
+    let desloc = (fs * deslocamento_ms as f64 * 0.001 + 0.5) as i32;
+    let marca = |i: i32| marcas.get(i as usize).copied();
+    for i in 0..cap {
+        let p = pos[i];
+        if p == 0 {
+            continue;
+        }
+        let par = |d: i32, inf: i32, sup: i32, pos: &[i32]| {
+            pos.iter().any(|&q| {
+                q != 0
+                    && ((q - inf <= p - d && p - d <= q + sup)
+                        || (q - inf <= p + d && p + d <= q + sup))
+            })
+        };
+        let par2 = par(duas, oitavo, oitavo, &pos);
+        let par4 = par(quatro, quarto, oitavo, &pos);
+        let zerar = if par2 {
+            let slot = (p - desloc) / quarto;
+            if 5 < slot && slot + 5 < marcas.len() as i32 {
+                let m = |o: i32| marca(slot + o).map(|x| x == 1);
+                let c = m(-4)?;
+                let sem_padrao = (!c || !m(2)?) && (!m(-6)? || !m(5)?) && (!c || !m(4)?);
+                sem_padrao || m(0)?
+            } else {
+                false
+            }
+        } else {
+            true
+        };
+        if zerar {
+            pos[i] = 0;
+            val[i] = 0.0;
+        }
+        if !par4 && !par2 {
+            saida[i] = 0;
+            saida_val[i] = 0.0;
+        }
+    }
+    if !seminimas {
+        for p in saida.iter_mut() {
+            if *p != 0 {
+                let slot = (!desloc + *p) / quarto;
+                if 0 < slot + 1 && slot + 1 < marcas.len() as i32 && marca(slot)? == 1 {
+                    *p = 0;
+                }
+            }
+        }
+    }
+    ordenar_junto(&mut saida, &mut saida_val);
+    let zeros = saida.iter().take_while(|&&p| p == 0).count();
+    for p in saida[zeros..].iter_mut() {
+        *p -= desloc;
+    }
+    Some(PicosConfirmados {
+        posicoes: saida,
+        valores: saida_val,
+        validos: cap - zeros,
+        primeiro: zeros + 1,
+    })
 }
 
 #[cfg(test)]
@@ -511,18 +676,27 @@ mod tests {
         for c in 0..2 {
             onset[c * 800 + 10] = 1.0;
         }
-        let (pos, validos, primeiro) = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
+        let r = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
         // Picos a 800 amostras: sem par a duas batidas (400) -> zerados.
-        assert_eq!((validos, primeiro), (0, pos.len() + 1));
+        assert_eq!((r.validos, r.primeiro), (0, r.posicoes.len() + 1));
+        assert_eq!(r.ordenados.len(), 2);
         // Com pico também a 400 amostras, o par existe.
         for c in 0..2 {
             onset[c * 800 + 410] = 0.5;
         }
-        let (pos, validos, _) = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
-        assert_eq!(validos, 4);
-        assert_eq!(&pos[pos.len() - 4..], &[11, 411, 811, 1211]);
+        let r = picos_de_agudos(&onset, fs, 120.0, 0, &grade).unwrap();
+        assert_eq!(r.validos, 4);
+        assert_eq!(&r.posicoes[r.posicoes.len() - 4..], &[11, 411, 811, 1211]);
         // Deslocamento de 10 ms a 400 Hz = 4 amostras.
-        let (pos, _, _) = picos_de_agudos(&onset, fs, 120.0, 10, &grade).unwrap();
-        assert_eq!(pos[pos.len() - 1], 1207);
+        let d = picos_de_agudos(&onset, fs, 120.0, 10, &grade).unwrap();
+        assert_eq!(d.posicoes[d.posicoes.len() - 1], 1207);
+        // Segunda rodada, sem marcas: 411 e 811 têm par mas saem da lista
+        // interna (sem padrão de marcas); 1211 então fica sem par a duas e a
+        // quatro batidas e sai também da saída. 11 fica (quarto 0 < 6).
+        let marcas = vec![0u8; 64];
+        let c = confirmar_picos(&r, &marcas, fs, 120.0, 0, &grade, true).unwrap();
+        assert_eq!(c.validos, 3);
+        assert_eq!(&c.posicoes[c.posicoes.len() - 3..], &[11, 411, 811]);
+        assert_eq!(&c.valores[c.valores.len() - 3..], &[1.0, 0.5, 1.0]);
     }
 }
