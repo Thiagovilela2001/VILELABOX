@@ -393,6 +393,26 @@ ocorrência conta quando a anterior não contada ficou 15 a 17 posições antes
 em `i <= 2` já conta). Mais de uma contada liga o 5º argumento
 (`local_204`).
 
+## Início audível e número da batida (`0x141171760`, `0x1411718e0`)
+
+- **Início audível** (`0x141171760`), portado em `primeira_batida_audivel`:
+  sobre os primeiros 30 s do sinal da passada A em valor absoluto, com
+  `início = (int)fma(ms·0,001, fs, 0,5)` (a decompilação mostrava outra
+  ordem) e `batida = (int)fma(60/bpm, fs, 0,5)` (0,5 com BPM nulo), acha o
+  primeiro `k` com amostra acima de 0,0005 (`0x143537eb0`) e devolve
+  `(int)(k/batida + 0,5) + 1` (fator 1/2756,25 com batida nula).
+- **Número da batida** (`0x1411718e0`), portado em `numero_da_batida`:
+  desloca os picos de `picos_finos` pela diferença de deslocamento (blocos
+  vetoriais `d·(fs·0,001)`, resto `fma(d·0,001, fs, pos)`), classifica pelo
+  resto num ciclo de duas batidas (`batida = (int)fma(60/bpm, fs, 0,5)` com
+  BPM 0 → 0,1, `q = (int)fma(batida, 0,25, 0,5)`), escolhe a paridade
+  (até 6 picos: `(motor+0xbc − 1) mod 2`; razão acima de 0,886
+  (`0x143537eb8`): 1; senão 0), mede a energia por quarto com passa-baixa de
+  100 Hz (`motor+0x730`, `0x141188950`/`0x1411889e0`, fator 4 sempre) com
+  limiar `fma(média, 0,6, máximo·0,4)` e liga a segunda metade quando o
+  primeiro quarto forte cai nas posições 5 a 8 de 16. O número final é
+  `1 + 2·segunda_metade + paridade`, salvo a exceção pelo modo da fase.
+
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
 O sinal decimado (até 210 s) passa, nesta ordem, por: `0x141173280` (grade

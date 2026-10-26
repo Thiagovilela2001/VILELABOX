@@ -10,9 +10,10 @@
 | Lacuna fechada | os estágios já portados que consomem marcas (`classificar_padrao`, `confirmar_picos`, `picos_finos`, `fase_do_compasso`) agora têm o produtor |
 | Banda 110–200 Hz | `filtro::FiltrosBanda` (`0x14118be60`) e `marcar_picos_banda` (`0x14118c1b0`), com 12 rodadas, alinhamento só por subida e `anterior` sempre atualizado |
 | Padrão entre bandas | `padrao_duas_bandas` (`0x141177b30`) |
-| Testes | 3 unitários novos (molde 1000; 6 contra 12 rodadas e `anterior` da banda; padrão encadeado); workspace com 236 testes |
+| Início e número | `primeira_batida_audivel` (`0x141171760`) e `numero_da_batida` (`0x1411718e0`), com os FMAs do assembly |
+| Testes | 5 unitários novos (molde 1000; 6 contra 12 rodadas e `anterior` da banda; padrão encadeado; início audível; número da batida); workspace com 238 testes |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | `0x141171760` e `0x1411718e0` |
+| Próximo gate | grade de índices `0x141173280` e o orquestrador `0x141195480`, para rodar a passada A de ponta a ponta |
 
 ## Fase do compasso do detector legado (P4.1, `0x141172490`) — 2026-10-26
 

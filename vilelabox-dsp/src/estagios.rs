@@ -1370,6 +1370,252 @@ pub fn padrao_duas_bandas(a: &[u8], b: &[u8]) -> bool {
     contagem > 1
 }
 
+/// Batida (1-based) em que o áudio começa (`0x141171760`), com FMAs
+/// conferidos no assembly.
+///
+/// `sinal` = primeiros `min(n, fs/8·30)` valores do sinal da passada A. Com
+/// `início = (int)fma(ms·0,001, fs, 0,5)` e
+/// `batida = (int)fma(60/bpm, fs, 0,5)` (0,5 no lugar de `60/bpm` com BPM
+/// nulo), procura o primeiro `k >= 1` com `|sinal[início + k − 1]| > 0,0005`
+/// (`0x143537eb0`; posição fora vale 0) e devolve
+/// `(int)(k / batida + 0,5) + 1`, ou `(int)(k · 0,000362811… + 0,5) + 1`
+/// com batida 0 (`0x143537ea8` = 1/2756,25). Sem amostra audível, `k = 0`.
+pub fn primeira_batida_audivel(sinal: &[f64], bpm: f64, ms: i32, fs: f64) -> i32 {
+    let inicio = (ms as f64 * 0.001).mul_add(fs, 0.5) as i32;
+    let fator = if bpm != 0.0 { 60.0 / bpm } else { 0.5 };
+    let batida = fator.mul_add(fs, 0.5) as i32;
+    let n = sinal.len() as i32;
+    let mut k = 0;
+    for j in 1..n {
+        let idx = inicio - 1 + j;
+        let v = if idx < n {
+            usize::try_from(idx)
+                .ok()
+                .and_then(|i| sinal.get(i))
+                .map_or(0.0, |x| x.abs())
+        } else {
+            0.0
+        };
+        if 0.0005 < v {
+            k = j;
+            break;
+        }
+    }
+    let d = if batida == 0 {
+        k as f64 * 0.000_362_811_791_383_219_96
+    } else {
+        k as f64 / batida as f64
+    };
+    (d + 0.5) as i32 + 1
+}
+
+/// Resultado de `numero_da_batida` (`0x1411718e0`, saídas 17 a 24).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NumeroBatida {
+    /// Número da batida inicial (`p17`, gravado em `motor+0x20c`).
+    pub numero: i32,
+    /// Paridade escolhida (`p18`, 0 ou 1).
+    pub paridade: i32,
+    /// Picos no tempo forte do ciclo de duas batidas (`p20`).
+    pub fortes: i32,
+    /// Picos no tempo forte ou no meio do ciclo (`p21`).
+    pub fortes_ou_meio: i32,
+    /// `fortes / fortes_ou_meio`, 1 sem picos (`p22`).
+    pub razao: f64,
+    /// Energia de quarto forte nos quartos 5 a 8 de 16 (`p24`).
+    pub segunda_metade: bool,
+}
+
+/// Energia por quarto de `0x1411889e0`: como `energia_por_quarto`, mas a
+/// quarta janela só usa o fim calculado na última batida e o fator 4 vale
+/// sempre.
+fn energia_por_quarto_numero(
+    sinal: &[f64],
+    lp100: &mut Biquad,
+    bpm: f64,
+    fs: f64,
+    grade: &[i32],
+) -> Option<Vec<f64>> {
+    let mut y = vec![0.0; sinal.len()];
+    lp100.processar(sinal, &mut y);
+    let batida = fs * (1.0 / bpm) * 60.0 + 0.5;
+    let q = (fs * (1.0 / bpm) * 15.0 + 0.5) as i32;
+    let janela = |ini: i32, len: i32| -> Option<f64> {
+        if len < 0 || ini < 1 {
+            return None;
+        }
+        let a = (ini - 1) as usize;
+        y.get(a..a + len as usize).map(energia)
+    };
+    let n = grade.len();
+    let mut out = Vec::with_capacity(n * 4);
+    for i in 0..n {
+        let mut pos = grade[i];
+        let fim = if i + 1 < n {
+            grade[i + 1]
+        } else {
+            batida as i32 - 1 + grade[i]
+        };
+        for _ in 0..3 {
+            out.push(janela(pos, q)?);
+            pos += q;
+        }
+        out.push(janela(pos, fim - pos)?);
+    }
+    for v in out.iter_mut() {
+        *v *= 4.0;
+    }
+    Some(out)
+}
+
+/// Número da batida inicial (`0x1411718e0`), conferido no assembly.
+///
+/// `posicoes`/`validos`/`primeiro` = saída de `picos_finos` (`p10`, `p12`,
+/// `p13`; os valores `p11` são sempre zero no original); `ms_original` e
+/// `ms_novo` = deslocamento antes e depois de `fase_do_compasso` (`p5`,
+/// `p6`); `base` = 7º argumento (1); `campo_bc` = `motor+0xbc` (`p14`);
+/// `modo` = modo de `fase_do_compasso` (`p16`).
+///
+/// 1. Os picos válidos andam `ms_original − ms_novo` ms: nos blocos de 16 do
+///    laço vetorial por `d · (fs·0,001)` somado; no resto por
+///    `fma(d·0,001, fs, pos)`.
+/// 2. Com `batida = (int)fma(60/bpm, fs, 0,5)` (BPM 0 vira 0,1) e
+///    `q = (int)fma(batida, 0,25, 0,5)`, cada pico tem resto
+///    `(int)(pos + 0,5) % 2·batida`: perto de 0 (até `q`) é forte; a até `q`
+///    de `batida` é meio; o resto não conta.
+/// 3. Paridade: com até 6 picos fortes ou do meio, `(campo_bc − 1) mod 2`;
+///    senão 1 se a razão passar 0,886 (`0x143537eb8`), senão 0 (a regra de
+///    0,15 compara somas de valores, que são zero).
+/// 4. Energia por quarto com passa-baixa de 100 Hz (`motor+0x730`); limiar
+///    `fma(média, 0,6, máximo·0,4)`; a partir do quarto `4·paridade`, o
+///    primeiro valor acima do limiar na posição `k mod 16` igual a 0, 1, 2,
+///    13, 14 ou 15 encerra; em 5 a 8 liga `segunda_metade`.
+/// 5. `numero = base + 2·segunda_metade + paridade`, salvo quando
+///    `modo != 1` e `(campo_bc + 1) mod 2 == paridade`: então `numero` é
+///    `base` com modo 2 ou 3 e `campo_bc` nos demais.
+#[allow(clippy::too_many_arguments)]
+pub fn numero_da_batida(
+    sinal: &[f64],
+    fs: f64,
+    bpm: f64,
+    ms_original: i32,
+    ms_novo: i32,
+    base: i32,
+    grade: &[i32],
+    posicoes: &[i32],
+    validos: usize,
+    primeiro: usize,
+    campo_bc: i32,
+    modo: i32,
+) -> Option<NumeroBatida> {
+    let mut pos: Vec<f64> = posicoes.iter().map(|&p| p as f64).collect();
+    let ini = primeiro.checked_sub(1)?;
+    let trecho = pos.get_mut(ini..ini + validos)?;
+    let d = (ms_original - ms_novo) as f64;
+    let vetorial = if validos > 15 {
+        validos - validos % 16
+    } else {
+        0
+    };
+    for (i, v) in trecho.iter_mut().enumerate() {
+        *v = if i < vetorial {
+            d * (fs * 0.001) + *v
+        } else {
+            (d * 0.001).mul_add(fs, *v)
+        };
+    }
+    let bpm_b = if bpm == 0.0 { 0.1 } else { bpm };
+    let batida = (60.0 / bpm_b).mul_add(fs, 0.5) as i32;
+    let q = (batida as f64).mul_add(0.25, 0.5) as i32;
+    if batida == 0 {
+        return None;
+    }
+    let (mut fortes, mut ambos) = (0, 0);
+    for &x in &pos[ini..ini + validos] {
+        let r = (0.5 + x) as i32 % (batida * 2);
+        let classe = if q < r && r <= batida * 2 - q {
+            if r < batida - q || q + batida < r {
+                -1
+            } else {
+                0
+            }
+        } else {
+            1
+        };
+        if classe == 1 {
+            fortes += 1;
+        }
+        if classe == 0 || classe == 1 {
+            ambos += 1;
+        }
+    }
+    let razao = if ambos > 0 {
+        fortes as f64 / ambos as f64
+    } else {
+        1.0
+    };
+    let paridade = if ambos <= 6 {
+        (campo_bc - 1) % 2
+    } else if razao > 0.886 {
+        1
+    } else {
+        // 0,15 < razão: (soma dos valores fortes > soma dos do meio), ambas 0.
+        0
+    };
+    let e = energia_por_quarto_numero(
+        sinal,
+        &mut crate::filtro::passa_baixa_hz(100.0, fs),
+        bpm_b,
+        fs,
+        grade,
+    )?;
+    let maximo = e.iter().copied().fold(None, |m: Option<f64>, x| match m {
+        Some(y) if y < x => Some(x),
+        Some(y) => Some(y),
+        None => Some(x),
+    });
+    let media = if e.is_empty() {
+        0.0
+    } else {
+        soma(&e) / e.len() as f64
+    };
+    let limiar = media.mul_add(0.6, maximo.unwrap_or(0.0) * 0.4);
+    let mut segunda_metade = false;
+    let n = e.len() as i32;
+    for k in 0..(n - 4).max(0) {
+        let x = *e.get((paridade * 4 + k) as usize)?;
+        if limiar >= x {
+            continue;
+        }
+        let r = k % 16;
+        if r == 0 || (1..=2).contains(&r) || (13..=15).contains(&r) {
+            break;
+        }
+        if (5..=8).contains(&r) {
+            segunda_metade = true;
+            break;
+        }
+    }
+    let soma_numero = if segunda_metade { 2 } else { 0 } + i32::from(paridade == 1);
+    let numero = if modo != 1 && (campo_bc + 1) % 2 == paridade {
+        if (modo - 2) as u32 > 1 {
+            campo_bc
+        } else {
+            base
+        }
+    } else {
+        soma_numero + base
+    };
+    Some(NumeroBatida {
+        numero,
+        paridade,
+        fortes,
+        fortes_ou_meio: ambos,
+        razao,
+        segunda_metade,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1620,5 +1866,33 @@ mod tests {
         // Sem o pico só em b, nada casa.
         let b2: Vec<u8> = a.clone();
         assert!(!padrao_duas_bandas(&a, &b2));
+    }
+
+    #[test]
+    fn primeira_batida_audivel_conta_batidas_de_silencio() {
+        // fs 400, 120 BPM: batida 200. Silêncio até a amostra 650.
+        let mut x = vec![0.0; 2000];
+        x[650] = -0.01;
+        // k = 651 (índice 650 = início − 1 + k com início 0) -> 651/200 = 3,26.
+        assert_eq!(primeira_batida_audivel(&x, 120.0, 0, 400.0), 4);
+        assert_eq!(primeira_batida_audivel(&[0.0; 10], 120.0, 0, 400.0), 1);
+    }
+
+    #[test]
+    fn numero_da_batida_conta_picos_no_ciclo_de_duas() {
+        // fs 400, 120 BPM: batida 200, q 50, ciclo 400.
+        let grade: Vec<i32> = (0..8).map(|i| 1 + i * 200).collect();
+        // 8 picos no tempo forte (resto 0) e nenhum no meio: razão 1 > 0,886.
+        let posicoes: Vec<i32> = (0..8).map(|i| i * 400).collect();
+        let sinal = vec![0.0; 2000];
+        let r =
+            numero_da_batida(&sinal, 400.0, 120.0, 0, 0, 1, &grade, &posicoes, 8, 1, 1, 0).unwrap();
+        assert_eq!((r.fortes, r.fortes_ou_meio, r.paridade), (8, 8, 1));
+        // modo 0 e (1 + 1) % 2 = 0 != 1: número = 1 + 0 + 1.
+        assert_eq!(r.numero, 2);
+        // Com modo 2 e campo par: (2 + 1) % 2 = 1 == paridade, número = base.
+        let r =
+            numero_da_batida(&sinal, 400.0, 120.0, 0, 0, 1, &grade, &posicoes, 8, 1, 2, 2).unwrap();
+        assert_eq!(r.numero, 1);
     }
 }
