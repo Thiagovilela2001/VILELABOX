@@ -194,18 +194,32 @@ vetor de saída de bytes.
   seções de 200 Hz em sequência, valor absoluto (`0x141167080`, máscara
   `0x7fff…`), passa-baixa de 10 Hz e diferença de primeira ordem com
   `d[0] = y[0] − motor+0x268`. Com ordem 0 o original não copia a entrada.
-- **OBSERVADO, não portado:** com `p = (int)(60/bpm · fs + 0,5)` amostras por
-  batida, o sinal é varrido em grupos de quatro batidas; em cada grupo, 16
+- **Portado em `marcar_picos`**, lido no assembly (`0x14118b160`–`0x14118be5x`).
+  A decompilação escondia FMAs: batida `p = (int)fma(60/bpm, fs, 0,5)`,
+  início `(int)fma(ms·0,001, fs, 0,5)` e base do grupo `fma(g, 4p, 1)`.
+  Antes da grade, o sinal é diferenciado e, se o alinhamento achou
+  deslocamento, recortado ou empurrado com zeros à frente. O sinal é varrido
+  em grupos de quatro batidas; em cada grupo, 16
   janelas de `round(p/4)` amostras dão o máximo (`0x141167280` =
   `max_element`). Até seis vezes por grupo, o maior dos 16 é marcado com 1 no
   vetor de saída (16 bytes por grupo) e zerado, se for maior que 0,0001, que
   0,596 × o primeiro máximo do grupo (`0x1435383a0`) e que 0,178 × o máximo
   corrente (`0x143538390`). O máximo corrente fica em `motor+0x278`.
-- **Alinhamento inicial**, quando há menos de dois grupos válidos: busca de
-  até oito candidatos com limiares 0,2, 0,595662 (`0x143538398`), 1,12
-  (`0x143537ec0`) e 2,11 (`0x1435383a8`). A decompilação desse trecho
-  reaproveita registradores AVX e precisa de leitura no assembly antes de
-  qualquer porte.
+- **Alinhamento inicial** (`0x14118b4a9`–`0x14118b834`, com dois grupos ou
+  mais), portado: em até 8 voltas, toma o máximo de uma cópia do envelope a
+  partir do 2º compasso (zerando o máximo anterior), alinha-o ao compasso
+  seguinte, exige valor acima de 0,2 × máximo, escolhe subida ou descida pelos
+  vizinhos, caminha até a inversão (até um quarto), e com o ponto acima de
+  0,595662 × máximo (`0x143538398`) procura para trás um vale abaixo da média
+  entre máximo e mínimo da janela, sustentado por `(int)(p/4 · 0,25)`
+  amostras sem passar de 1,12 × o vale (`0x143537ec0`). Vale nulo dá
+  deslocamento 0; ponto acima de 2,11 × vale (`0x1435383a8`) dá
+  `(int)((candidato − vale) + 0,5)`, limitado ao primeiro índice. Sem
+  inversão, `r13` e `xmm12` mantêm o valor da volta anterior (zerados no
+  início), como no original.
+- `0x1411672c0` é `max_element` com índice 1-based e `0x141167340` é
+  `min_element` (`0x142604de0`, `0x142604f60`; STL vetorizada, primeira
+  ocorrência).
 
 ## Estágios da passada A (A1.1c, segunda rodada)
 

@@ -975,6 +975,290 @@ pub fn fase_do_compasso(
     })
 }
 
+/// Estado do motor lido e gravado pela marcação de picos (`motor+0x268`,
+/// `+0x270`, `+0x278`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EstadoMarcas {
+    /// Última amostra do envelope antes da diferença (`+0x268`).
+    pub anterior: f64,
+    /// Deslocamento achado pelo alinhamento, em amostras (`+0x270`).
+    pub alinhamento: i32,
+    /// Máximo corrente dos grupos (`+0x278`).
+    pub maximo: f64,
+}
+
+impl Default for EstadoMarcas {
+    fn default() -> Self {
+        Self {
+            anterior: 0.0,
+            alinhamento: 0,
+            maximo: 0.0001,
+        }
+    }
+}
+
+/// Primeiro máximo e seu índice 1-based (`0x1411672c0` → `0x142604de0`).
+// Negação de comparação reproduz `vcomisd` + `jbe` do original com NaN.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
+fn max_com_indice(x: &[f64]) -> Option<(f64, i32)> {
+    let mut melhor: Option<(f64, usize)> = None;
+    for (i, &v) in x.iter().enumerate() {
+        match melhor {
+            Some((m, _)) if !(v > m) => {}
+            _ => melhor = Some((v, i)),
+        }
+    }
+    melhor.map(|(m, i)| (m, i as i32 + 1))
+}
+
+/// Primeiro mínimo (`0x141167340` → `0x142604f60`).
+// Negação de comparação reproduz `vcomisd` + `jbe` do original com NaN.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
+fn min_valor(x: &[f64]) -> Option<f64> {
+    x.iter().copied().fold(None, |m, v| match m {
+        Some(a) if !(v < a) => Some(a),
+        _ => Some(v),
+    })
+}
+
+/// Alinhamento inicial de `0x14118b160` (`0x14118b4a9`–`0x14118b834`),
+/// lido no assembly. Devolve o deslocamento em amostras.
+// Negação de comparação reproduz `vcomisd` + `jbe` do original com NaN.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
+fn alinhar(
+    y: &[f64],
+    r15: i32,
+    l288: i32,
+    p: i32,
+    qd: f64,
+    bar_d: f64,
+    grupos: i32,
+) -> Option<i32> {
+    let bar = bar_d as i32;
+    let q = (qd + 0.5) as i32;
+    let n = y.len() as i32;
+    let g = |i: i32| -> Option<f64> { y.get(usize::try_from(i).ok()?).copied() };
+    let ini = usize::try_from(r15 + bar - 1).ok()?;
+    let mut copia = y.get(ini..ini + ((grupos - 1) * bar) as usize)?.to_vec();
+    let mut cand = [0i32; 8];
+    // `xmm12` e `r13d` valem entre voltas (zerados em 0x14118b4a9).
+    let mut x12 = 0.0f64;
+    let mut r13 = 0i32;
+    for k in 0..8 {
+        if k > 0 && cand[k - 1] >= 1 && cand[k - 1] as usize <= copia.len() {
+            copia[(cand[k - 1] - 1) as usize] = 0.0;
+        }
+        let Some((m, idx)) = max_com_indice(&copia) else {
+            continue;
+        };
+        cand[k] = idx;
+        let e = if bar_d != 0.0 {
+            ((cand[k] as f64 / bar_d) as i32 + 1) * bar
+        } else {
+            (0xffff + 1) * bar
+        };
+        let val = if e + r15 - 1 <= n {
+            g(e + r15 - 2)?
+        } else {
+            g(n - 1)?
+        };
+        if !(val > m * 0.2 && e < copia.len() as i32 - bar) {
+            continue;
+        }
+        let w0 = usize::try_from(l288 - 1 + e).ok()?;
+        let janela = y.get(w0..w0 + (bar + 1) as usize)?;
+        let (x1, x0, nx) = (g(e + r15 - 1)?, g(e + r15)?, g(e + r15 + 1)?);
+        let subida = if val > x1 {
+            if x1 > x0 && x0 > nx {
+                false
+            } else {
+                continue;
+            }
+        } else if x1 > x0 || x0 > nx {
+            continue;
+        } else {
+            true
+        };
+        let b = e - 2 + r15;
+        for t in 1..=q {
+            let d = if subida {
+                g(b + t + 1)? - g(b + t)?
+            } else {
+                g(b - t - 1)? - g(b - t)?
+            };
+            if d < 0.0 {
+                let r = if subida { t + e } else { e - t };
+                x12 = g(r15 + r - 2)?;
+                r13 = r;
+                break;
+            }
+        }
+        if !(x12 > m * 0.595_662) {
+            continue;
+        }
+        let limiar = (m + min_valor(janela)?) * 0.5;
+        let mut vale = m;
+        let (mut achou, mut quietos, mut pos) = (false, 0, 0);
+        let lim = p * 5 / 4;
+        let mut resultado = None;
+        for t in 1..=lim {
+            let x = g(r13 - t + r15 - 2)?;
+            if !achou {
+                if x > g(r15 - 3 + r13 - t)? || x >= limiar {
+                    continue;
+                }
+                achou = true;
+                pos = r13 - t;
+                vale = x;
+            } else if x > vale * 1.12 {
+                achou = false;
+                quietos = 0;
+            } else {
+                quietos += 1;
+                if quietos >= (qd * 0.25) as i32 {
+                    resultado = Some(());
+                    break;
+                }
+            }
+        }
+        if resultado.is_some() {
+            if vale == 0.0 {
+                return Some(0);
+            }
+            if x12 > vale * 2.11 {
+                let r = ((e as f64 - pos as f64) + 0.5) as i32;
+                return Some(if r < r15 { r } else { r15 });
+            }
+        }
+    }
+    Some(0)
+}
+
+/// Marcação de picos (`0x14118b160`), lida no assembly.
+///
+/// `y` = envelope antes da diferença (`FiltrosEnvelope::envelope`);
+/// `inicio_batida` = 5º argumento (1 no fechamento da passada A); `chamada`
+/// = 7º argumento. Batida `p = (int)fma(60/bpm, fs, 0,5)`, início
+/// `(int)fma(ms·0,001, fs, 0,5)`, quarto `(int)(p·0,25 + 0,5)`. Com dois ou
+/// mais grupos de quatro batidas, o alinhamento move o sinal; depois, em cada
+/// grupo, 16 janelas de um quarto (base `fma(g, 4p, 1)`) dão o máximo, e até
+/// seis vezes o maior é marcado se passar 0,0001, `0,596 ×` o primeiro máximo
+/// do grupo e `0,178 ×` o máximo corrente.
+///
+/// Devolve as marcas (16 por grupo; um byte zero quando não há grupo).
+/// ADAPTAÇÃO: leituras fora do sinal devolvem `None`.
+pub fn marcar_picos(
+    y: &[f64],
+    estado: &mut EstadoMarcas,
+    fs: f64,
+    bpm: f64,
+    ms: i32,
+    inicio_batida: i32,
+    chamada: i32,
+) -> Option<Vec<u8>> {
+    let n = y.len() as i32;
+    let inicio = (ms as f64 * 0.001).mul_add(fs, 0.5) as i32;
+    let p = (60.0 / bpm).mul_add(fs, 0.5) as i32;
+    if p == 0 {
+        return None;
+    }
+    let qd = p as f64 * 0.25;
+    let q = (qd + 0.5) as i32;
+    let bar_d = p as f64 * 4.0;
+    let l288 = (inicio_batida - 1) * p + inicio;
+    let r15 = l288 + 1;
+    let nb = (n - r15 + 1) / p;
+    let mut grupos = nb / 4;
+    let fim = (r15 - 1) + nb * p;
+    let bar = bar_d as i32;
+    if bar * grupos - 1 + r15 > n {
+        grupos -= 1;
+    }
+    let maximo_ini = if chamada > 1 { estado.maximo } else { 0.0001 };
+    if grupos < 1 {
+        estado.anterior = *y.last()?;
+        estado.maximo = maximo_ini;
+        return Some(vec![0]);
+    }
+    let alinh = if grupos > 1 {
+        alinhar(y, r15, l288, p, qd, bar_d, grupos)?
+    } else {
+        0
+    };
+    let antigo = estado.alinhamento;
+    estado.alinhamento = alinh;
+    let desloc = if chamada > 1 { antigo } else { alinh };
+    // Diferença de primeira ordem, de trás para frente.
+    let mut sig = y.to_vec();
+    for i in (1..sig.len()).rev() {
+        sig[i] -= sig[i - 1];
+    }
+    if let Some(v) = sig.first_mut() {
+        *v -= estado.anterior;
+    }
+    let l294 = fim - r15;
+    if r15 > desloc && fim - desloc <= n {
+        let a = (r15 - desloc - 1) as usize;
+        sig = sig.get(a..a + (l294 + 1) as usize)?.to_vec();
+    } else if fim - desloc - 1 <= n && r15 < desloc {
+        let c = fim - desloc - 1;
+        if c < 0 {
+            return None;
+        }
+        let tmp = sig.get(..c as usize)?.to_vec();
+        if n < l294 {
+            sig.resize(l294 as usize, 0.0);
+        }
+        let z = (desloc - r15 + 1) as usize;
+        for v in sig.iter_mut().take(z) {
+            *v = 0.0;
+        }
+        sig.get_mut(z..z + tmp.len())?.copy_from_slice(&tmp);
+    }
+    let mut marcas = vec![0u8; grupos as usize * 16];
+    let mut corrente = 0.0001f64;
+    let p_d = p as f64;
+    for gr in 0..grupos {
+        let base = (gr as f64).mul_add(bar_d, 1.0);
+        let mut v = [0.0f64; 16];
+        for j in 0..4 {
+            let x6 = j as f64 * p_d + base;
+            for k in 0..4 {
+                let ini = (k as f64 * qd + x6) as i32;
+                let a = usize::try_from(ini - 1).ok()?;
+                let janela = sig.get(a..a + q as usize)?;
+                v[j * 4 + k] = max_com_indice(janela).map_or(0.0, |(m, _)| m);
+            }
+        }
+        let mut primeiro = 0.0;
+        for rodada in 0..6 {
+            let (mut mx, mut im) = (v[0], 0usize);
+            for (i, &x) in v.iter().enumerate().skip(1) {
+                if x > mx {
+                    im = i;
+                }
+                if mx < x {
+                    mx = x;
+                }
+            }
+            if rodada == 0 {
+                primeiro = mx;
+            }
+            if mx > 0.0001 && mx > primeiro * 0.596 && mx > corrente * 0.178 {
+                marcas[gr as usize * 16 + im] = 1;
+                v[im] = 0.0;
+            }
+        }
+        corrente = if primeiro > corrente {
+            primeiro
+        } else {
+            corrente
+        };
+    }
+    estado.maximo = corrente;
+    Some(marcas)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1151,5 +1435,33 @@ mod tests {
             (f.ms, f.modo, f.molde_a, f.mantido),
             (37, 0, true, Some(false))
         );
+    }
+
+    #[test]
+    fn marcar_picos_marca_o_ataque_de_cada_batida() {
+        // fs 400, 120 BPM: p = 200, quarto 50; envelope com subida no início
+        // de cada batida.
+        let fs = 400.0;
+        let y: Vec<f64> = (0..2000)
+            .map(|i| {
+                if i % 200 < 10 {
+                    1.0 + i as f64 * 1e-6
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let mut e = EstadoMarcas::default();
+        let m = marcar_picos(&y, &mut e, fs, 120.0, 0, 1, 1).unwrap();
+        // (2000 − 1 + 1) / 200 = 10 batidas -> 2 grupos.
+        assert_eq!(m.len(), 32);
+        // Ataque no início de cada batida: molde 1000 em todos os quartos.
+        let esperado: Vec<u8> = MOLDES[0].iter().copied().cycle().take(32).collect();
+        assert_eq!(m, esperado);
+        assert_eq!(e.alinhamento, 0);
+        // Sinal curto: um byte zero e a última amostra guardada.
+        let mut e2 = EstadoMarcas::default();
+        let m2 = marcar_picos(&[0.0, 0.5], &mut e2, fs, 120.0, 0, 1, 1).unwrap();
+        assert_eq!((m2, e2.anterior), (vec![0], 0.5));
     }
 }

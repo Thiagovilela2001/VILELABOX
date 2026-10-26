@@ -1,5 +1,17 @@
 # Registro de implementação
 
+## Marcação de picos do detector legado (P4.1, `0x14118b160`) — 2026-10-26
+
+| Campo | Resultado |
+| --- | --- |
+| Método | assembly da função inteira; a decompilação escondia três FMAs, o reaproveitamento de registradores no alinhamento e a ordem do argmax |
+| Recuperado | alinhamento inicial por máximo, encosta e vale; diferenciação; recorte ou deslocamento do sinal; grade de 16 máximos por grupo e marcação em até 6 rodadas |
+| Crate | `vilelabox-dsp::estagios::marcar_picos`, `EstadoMarcas` (`motor+0x268`/`0x270`/`0x278`) |
+| Lacuna fechada | os estágios já portados que consomem marcas (`classificar_padrao`, `confirmar_picos`, `picos_finos`, `fase_do_compasso`) agora têm o produtor |
+| Testes | 1 unitário novo (molde 1000 com ataque em cada batida; retorno com sinal curto); workspace com 234 testes |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | `0x14118c1b0` (gêmea de `0x14118b160` com passa-alta de 110 Hz e filtros em `+0x4f8`–`+0x6f8`), depois `0x141177b30`, `0x141171760` e `0x1411718e0` |
+
 ## Fase do compasso do detector legado (P4.1, `0x141172490`) — 2026-10-26
 
 | Campo | Resultado |
