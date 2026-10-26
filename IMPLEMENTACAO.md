@@ -11,7 +11,7 @@
 | Achado | o motor analisa buffers `i16`, não blocos `f32`; nenhuma FFT observada; A1.2 e A1.3 suspensos |
 | Testes | 3 unitários novos; workspace com 212 testes (inclui a correção da ajuda da CLI) |
 | Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
-| Próximo gate | A1.1b: quem escreve `motor+0x78`/`+0x80` e o algoritmo de `0x14247a210`; depois teste diferencial com fixture WAV |
+| Próximo gate | A1.1b: chamadores das somas de janela (objeto dos buffers `i16`) e o detector que roda sobre o PCM; `0x14247a210` é refinamento de grade, não detecção; depois teste diferencial com fixture WAV |
 
 ## Núcleo headless `vilelabox-core` e CLI (P3.3/P3.4, Gate G3) — 2026-10-26
 

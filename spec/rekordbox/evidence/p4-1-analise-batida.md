@@ -42,8 +42,12 @@ para VA e usadas como `xref:` no Ghidra. Constantes foram lidas direto do
 3. `legacyBeatAnalyze` pede ao detector o BPM e a lista de batidas, aloca
    12 bytes por batida e chama o pós-processamento `0x1411301d0`.
 4. O detector (`job+0x98`) é um envelope com dois motores, escolhidos por
-   `detector+0x14` (1 ou 2). O motor 2 roda em `0x14247a210` (~12 900 linhas
-   decompiladas, vetorizado com AVX).
+   `detector+0x14` (1 ou 2). A rotina `0x14247a210` do motor 2 (~12 900 linhas
+   decompiladas, vetorizada com AVX) **não lê PCM**: recebe uma lista de
+   batidas já detectadas (registros de três `i32`: posição, número e BPM × 100;
+   quantidade no 6º argumento), copia-a para um vetor de 24 bytes em
+   `objeto+0x70`, grava `interval.csv` de depuração com `"%.3f, %u"` (intervalo
+   em ms e BPM × 100) e então refina. É um estágio de ajuste da grade.
 
 ## Tipos e saída do motor
 
@@ -53,7 +57,7 @@ para VA e usadas como `xref:` no Ghidra. Constantes foram lidas direto do
 | BPM entregue | `(int)(bpm * 100.0f + 0.5f)`, BPM × 100 | idem; constantes `0x145415b68` = 100,0 e `0x145414d20` = 0,5 |
 | Batida do motor | registro de 24 bytes: `i32` posição, `f32` intervalo em ms, `i32` número da batida | `0x14247a290` |
 | Batida entregue | registro de 12 bytes: posição, número, `(int)(6000000.0f / intervalo + 0.5f)` | `0x14247a290`; `0x14364da78` = 6 000 000,0 |
-| Sinal analisado | buffers `i16` em `motor+0x78` e `motor+0x80`, comprimento `i32` em `motor+0x1c`, taxa `i32` em `motor+0xc` | `0x1424768e0`, `0x142476a40` |
+| Sinal das somas | buffers `i16` em `obj+0x78` e `obj+0x80`, comprimento `i32` em `obj+0x1c`, taxa `i32` em `obj+0xc`, onde `obj` é o 1º argumento das somas | `0x1424768e0`, `0x142476a40` |
 
 ## Soma de janela por batida
 
@@ -68,7 +72,10 @@ completo:
 4. Se `comprimento < n - 1 + inicio`, devolve −1,0.
 5. Se `n < 1`, devolve 0,0.
 6. Devolve a soma em `f64` de `n` amostras `i16` a partir de `inicio`; a
-   batida usa o buffer em `+0x80` e a meia batida o de `+0x78`.
+   batida usa o buffer em `obj+0x80` e a meia batida o de `obj+0x78`.
+
+O objeto `obj` das somas **não** é o mesmo de `0x14247a210`: lá, `+0x70` e
+`+0x78` são início e fim de um vetor de registros de 24 bytes.
 
 ## Pós-processamento da faixa de BPM (`0x1411301d0`)
 
@@ -88,13 +95,14 @@ completo:
 - **OBSERVADO:** encadeamento do job, escolha do modo, tabela de faixas de
   BPM, arredondamento do BPM × 100, layout das batidas do motor e da saída,
   buffers `i16` e a soma de janela por batida.
-- **INFERIDO:** os buffers `i16` em `+0x78` e `+0x80` são um sinal derivado do
-  áudio e não o PCM bruto, porque o índice de início é a posição dividida por
-  4. A taxa em `+0xc` seria a taxa desse sinal. Não há prova ainda.
+- **INFERIDO:** os buffers `i16` de `obj` são um sinal derivado do áudio e não
+  o PCM bruto, porque o índice de início é a posição dividida por 4. A taxa em
+  `obj+0xc` seria a taxa desse sinal. Não há prova ainda.
 - **INFERIDO:** os índices 1..10 da tabela correspondem às opções de faixa de
   BPM das preferências de análise.
-- **DESCONHECIDO:** como o áudio vira os buffers `i16`; o algoritmo de
-  `0x14247a210`; o motor 1; o significado das tabelas de razões em
+- **DESCONHECIDO:** que objeto é `obj` e como o áudio vira os buffers `i16`;
+  quem produz a lista de batidas que entra em `0x14247a210`; o refinamento
+  feito ali; o motor 1; o significado das tabelas de razões em
   `0x143b107b8`–`0x143b10880` (0,008 a 2,23) usadas por `0x14247a210`; as
   rotinas de dobrar e dividir a grade (`0x1411308c0`, `0x141130d90`); o modo
   de alta precisão por dentro de `0x141134550`; a análise de tom.
@@ -104,9 +112,11 @@ completo:
 
 ## Próximos alvos
 
-1. Quem preenche `motor+0x78` e `motor+0x80` (escritas nesses offsets a partir
-   de `0x14247a210` e do construtor do motor 2).
-2. `0x142473620`, `0x142473710` e `0x142475700`, chamados com a lista de
+1. Chamadores de `0x142476a40` e `0x1424768e0`, para identificar `obj` e quem
+   preenche `obj+0x78` e `obj+0x80`.
+2. Quem chama `0x14107c340` antes de `legacyBeatAnalyze` com a lista de
+   batidas de entrada, ou seja o detector que roda sobre o PCM.
+3. `0x142473620`, `0x142473710` e `0x142475700`, chamados com a lista de
    batidas e 900 × taxa.
-3. Teste diferencial: rodar a análise numa fixture WAV conhecida e comparar a
+4. Teste diferencial: rodar a análise numa fixture WAV conhecida e comparar a
    grade do `.DAT` com a soma de janela reimplementada.

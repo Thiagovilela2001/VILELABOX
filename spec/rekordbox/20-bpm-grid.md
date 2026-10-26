@@ -56,7 +56,7 @@ Evidência: `evidence/p4-1-analise-batida.md` (estática, endereços do
 - O resultado é dobrado ou dividido por dois até cair na faixa de BPM da
   preferência; as faixas são 70–180 (padrão), 48–95, 58–115, 68–135, 78–155,
   88–175, 98–195, 108–215, 118–235 e 128–255.
-- O motor avalia candidatos somando um sinal `i16` em janelas de uma batida
+- A análise tem rotinas que somam um sinal `i16` em janelas de uma batida
   (60/BPM segundos) ou meia batida (30/BPM), começando em um quarto da
   posição pedida.
 

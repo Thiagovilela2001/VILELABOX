@@ -61,7 +61,7 @@ pub fn ajustar_a_faixa(bpm100: i32, (minimo, maximo): (i32, i32)) -> i32 {
 /// com 30 s). Devolve −1,0 para BPM nulo, posição `pos / 4 < 0` ou janela
 /// além de `comprimento`, e 0,0 quando `n < 1`.
 ///
-/// `comprimento` é o campo `motor+0x1c` do original.
+/// `comprimento` é o campo `obj+0x1c` do original.
 /// ADAPTAÇÃO: a checagem original admite ler o índice `comprimento`; aqui,
 /// qualquer leitura fora de `sinal` também devolve −1,0.
 fn soma_janela(
@@ -89,12 +89,12 @@ fn soma_janela(
     }
 }
 
-/// Soma de uma batida (60/BPM s) do sinal (`0x142476a40`, buffer `motor+0x80`).
+/// Soma de uma batida (60/BPM s) do sinal (`0x142476a40`, buffer `obj+0x80`).
 pub fn soma_batida(sinal: &[i16], comprimento: i32, taxa: i32, bpm: f32, pos: i32) -> f64 {
     soma_janela(sinal, comprimento, taxa, bpm, pos, 60.0)
 }
 
-/// Soma de meia batida (30/BPM s) do sinal (`0x1424768e0`, buffer `motor+0x78`).
+/// Soma de meia batida (30/BPM s) do sinal (`0x1424768e0`, buffer `obj+0x78`).
 pub fn soma_meia_batida(sinal: &[i16], comprimento: i32, taxa: i32, bpm: f32, pos: i32) -> f64 {
     soma_janela(sinal, comprimento, taxa, bpm, pos, 30.0)
 }
