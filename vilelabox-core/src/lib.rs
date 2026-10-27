@@ -99,12 +99,28 @@ pub enum Comando {
         canais: u16,
         duracao_frames: i64,
     },
+    /// Leva a coleção de um leitor externo (ANLZ, XML, catálogo) para o
+    /// banco: registra as faixas que faltam, pelo caminho, e sincroniza cada
+    /// lista (pela raiz e pelo nome) com as faixas na ordem dada. Repetir não
+    /// duplica faixas nem listas.
+    SincronizarColecao {
+        faixas: Vec<FaixaExterna>,
+        listas: Vec<(String, Vec<String>)>,
+    },
     /// Substitui os cues do usuário (exceto loops) da faixa no deck; os de
     /// outras origens ficam. Todos entram com origem `User`.
     SubstituirCues {
         deck: Deck,
         cues: Vec<Cue>,
     },
+}
+
+/// Faixa vinda de um leitor externo, identificada pelo caminho do áudio.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FaixaExterna {
+    pub caminho: String,
+    pub titulo: Option<String>,
+    pub artista: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -316,19 +332,40 @@ impl Core {
                 titulo,
                 artista,
             } => {
-                if self.db.id_por_localizacao(&caminho)?.is_some() {
-                    return Ok(());
+                if let (id, true) = self.registrar(&caminho, titulo, artista)? {
+                    self.biblioteca(format!("faixa {} registrada", id.0));
                 }
-                let id = self.db.inserir_faixa(&NovaFaixa {
-                    metadados: TrackMetadata {
-                        title: titulo,
-                        artist: artista,
-                        ..TrackMetadata::default()
-                    },
-                    ..NovaFaixa::default()
-                })?;
-                self.db.adicionar_localizacao(id, &caminho)?;
-                self.biblioteca(format!("faixa {} registrada", id.0));
+                Ok(())
+            }
+            Comando::SincronizarColecao { faixas, listas } => {
+                // ponytail: um INSERT por faixa em modo autocommit; para
+                // coleções de dezenas de milhares, agrupar numa transação.
+                let mut novas = 0;
+                for f in faixas {
+                    if self.registrar(&f.caminho, f.titulo, f.artista)?.1 {
+                        novas += 1;
+                    }
+                }
+                let existentes = self.db.listas()?;
+                for (nome, caminhos) in &listas {
+                    let id = match existentes
+                        .iter()
+                        .find(|l| l.pai.is_none() && !l.pasta && &l.nome == nome)
+                    {
+                        Some(l) => l.id,
+                        None => self.db.criar_lista(nome, None, false)?,
+                    };
+                    self.db.limpar_lista(id)?;
+                    for c in caminhos {
+                        if let Some(f) = self.db.id_por_localizacao(c)? {
+                            self.db.adicionar_a_lista(id, f)?;
+                        }
+                    }
+                }
+                self.biblioteca(format!(
+                    "coleção sincronizada: {novas} faixas novas, {} listas",
+                    listas.len()
+                ));
                 Ok(())
             }
             Comando::RegistrarAudio {
@@ -381,6 +418,28 @@ impl Core {
                 Ok(())
             }
         }
+    }
+
+    /// Cadastra a faixa pelo caminho se faltar; devolve o id e se é nova.
+    fn registrar(
+        &mut self,
+        caminho: &str,
+        titulo: Option<String>,
+        artista: Option<String>,
+    ) -> Result<(TrackId, bool), ErroCore> {
+        if let Some(id) = self.db.id_por_localizacao(caminho)? {
+            return Ok((id, false));
+        }
+        let id = self.db.inserir_faixa(&NovaFaixa {
+            metadados: TrackMetadata {
+                title: titulo,
+                artist: artista,
+                ..TrackMetadata::default()
+            },
+            ..NovaFaixa::default()
+        })?;
+        self.db.adicionar_localizacao(id, caminho)?;
+        Ok((id, true))
     }
 
     fn faixa(&self, id: TrackId) -> Result<FaixaRow, ErroCore> {

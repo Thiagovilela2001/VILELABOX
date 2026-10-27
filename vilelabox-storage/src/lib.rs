@@ -207,6 +207,11 @@ impl Database {
         playlists::mover_faixa(&self.con, lista, de, para)
     }
 
+    /// Esvazia a playlist, mantendo-a na árvore.
+    pub fn limpar_lista(&self, lista: i64) -> Result<(), ErroStorage> {
+        playlists::limpar(&self.con, lista)
+    }
+
     pub fn faixas_da_lista(&self, lista: i64) -> Result<Vec<TrackId>, ErroStorage> {
         playlists::faixas(&self.con, lista)
     }

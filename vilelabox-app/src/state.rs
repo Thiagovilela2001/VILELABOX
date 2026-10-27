@@ -47,6 +47,9 @@ impl SortDirection {
     }
 }
 
+/// Artista exibido quando o nome do arquivo não traz um; não é dado da faixa.
+pub const SEM_ARTISTA: &str = "Vilelabox / Coleção";
+
 pub fn split_artist_title(raw: &str) -> (String, String) {
     let name = raw
         .strip_suffix(".mp3")
@@ -69,7 +72,7 @@ pub fn split_artist_title(raw: &str) -> (String, String) {
     if let Some((artist, title)) = clean.split_once(" - ") {
         (artist.trim().to_string(), title.trim().to_string())
     } else {
-        ("Vilelabox / Coleção".to_string(), clean.trim().to_string())
+        (SEM_ARTISTA.to_string(), clean.trim().to_string())
     }
 }
 

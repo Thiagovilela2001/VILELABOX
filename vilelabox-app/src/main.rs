@@ -435,6 +435,17 @@ fn main() -> Result<(), slint::PlatformError> {
                     (t, Vec::new(), s)
                 }
             };
+            // P5.2: coleção e listas no banco próprio, ainda nesta thread e
+            // com conexão própria (a do AppState segue livre para a tela).
+            let banco = nucleo::caminho_padrao().map(|c| {
+                nucleo::Ponte::abrir(&c)
+                    .and_then(|mut p| p.sincronizar_colecao(&tracks, &playlists))
+            });
+            let summary = match banco {
+                Some(Ok(r)) => format!("{summary} · banco: {r}"),
+                Some(Err(e)) => format!("{summary} · banco indisponível: {e}"),
+                None => summary,
+            };
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     if let Ok(mut st) = state_ref.lock() {

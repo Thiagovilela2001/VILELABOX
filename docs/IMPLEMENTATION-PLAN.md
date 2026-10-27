@@ -440,7 +440,15 @@ playlists servidas pelo banco (P5.2).
 - tarefas longas fora da thread gráfica;
 - nenhuma consulta SQL dentro de componentes Slint.
 
-### P5.2 — Biblioteca
+### P5.2 — Biblioteca — PRIMEIRA ENTREGA (2026-10-27)
+
+Feito: ao terminar a varredura (ANLZ, XML ou catálogo), a coleção e as listas
+vão para o banco pelo núcleo (`Comando::SincronizarColecao`), na thread da
+varredura e com conexão própria; repetir não duplica. Medido na coleção real:
+1 574 faixas. O marcador de exibição "sem artista" não é gravado como dado.
+
+Falta: a tabela, a busca e as listas da tela lidas do banco; seletor de
+pasta; progresso, cancelamento e estados vazios.
 
 - seletor de pasta e importação;
 - busca, filtros, playlists e estados vazios;

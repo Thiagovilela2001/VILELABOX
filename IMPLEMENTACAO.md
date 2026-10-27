@@ -1,5 +1,17 @@
 # Registro de implementação
 
+## Coleção do app sincronizada no banco próprio (P5.2, primeira entrega) — 2026-10-27
+
+| Campo | Resultado |
+| --- | --- |
+| Núcleo | `Comando::SincronizarColecao` com `FaixaExterna`: registra faixas que faltam pelo caminho e sincroniza listas pela raiz e pelo nome; storage ganha `limpar_lista` |
+| App | depois da varredura, `Ponte::sincronizar_colecao` roda na thread da varredura, com conexão própria; o resumo vai para a barra de status |
+| Medição real | 1 574 faixas e 1 574 localizações na coleção do usuário; segunda execução sem duplicatas |
+| Correção | o marcador de exibição "Vilelabox / Coleção" deixou de ser gravado como artista (`state::SEM_ARTISTA`); 328 linhas já gravadas foram limpas no banco, com cópia em `vilelabox.db.antes-limpeza-artista` |
+| Testes | 1 do núcleo (sincronização idempotente com reordenação), 1 da ponte (coleção, listas e artista ausente); workspace verde |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados; app rodado duas vezes contra a coleção real |
+| Próximo gate | tabela, busca e listas da tela lidas do banco; seletor de pasta |
+
 ## App ligado ao núcleo e ao banco próprio (P5.1, primeira entrega) — 2026-10-26
 
 | Campo | Resultado |

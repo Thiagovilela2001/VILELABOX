@@ -312,3 +312,29 @@ fn registrar_faixa_audio_e_substituir_cues() {
     let ev = core.drenar_eventos();
     assert!(ev.contains(&Evento::IdentidadeAtualizada(id)));
 }
+
+#[test]
+fn sincronizar_colecao_e_idempotente() {
+    use vilelabox_core::FaixaExterna;
+    let mut core = Core::novo(Database::open_in_memory().unwrap());
+    let f = |c: &str| FaixaExterna {
+        caminho: c.into(),
+        titulo: Some(c.into()),
+        artista: None,
+    };
+    let cmd = |ordem: Vec<&str>| Comando::SincronizarColecao {
+        faixas: vec![f("a"), f("b"), f("c")],
+        listas: vec![("Set".into(), ordem.into_iter().map(String::from).collect())],
+    };
+    core.executar(cmd(vec!["c", "a", "x"])).unwrap();
+    core.executar(cmd(vec!["b", "c"])).unwrap();
+    assert_eq!(core.pesquisar(&Consulta::default()).unwrap().len(), 3);
+    let listas = core.listas().unwrap();
+    assert_eq!(listas.len(), 1);
+    let id = |c: &str| core.faixa_por_caminho(c).unwrap().unwrap();
+    // A segunda sincronização substitui a ordem; "x" não existe e é ignorado.
+    assert_eq!(
+        core.faixas_da_lista(listas[0].id).unwrap(),
+        vec![id("b"), id("c")]
+    );
+}

@@ -5235,6 +5235,7 @@ dependencies = [
  "vilelabox-audio",
  "vilelabox-catalog",
  "vilelabox-core",
+ "vilelabox-library",
  "vilelabox-storage",
  "vilelabox-types",
  "vilelabox-xml",

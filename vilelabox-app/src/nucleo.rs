@@ -11,7 +11,7 @@
 
 use std::path::{Path, PathBuf};
 use vilelabox_anlz::{Beat, RawCue};
-use vilelabox_core::{Comando, Core, Deck};
+use vilelabox_core::{Comando, Core, Deck, Evento, FaixaExterna};
 use vilelabox_types::{
     Beat as BatidaCore, BeatGrid, Bpm, Cue, CueKind, CueOrigin, Frame, SampleRate, TempoChange,
     TrackId,
@@ -48,6 +48,12 @@ fn deck(i: usize) -> Deck {
     } else {
         Deck::Dois
     }
+}
+
+/// Texto não vazio e diferente do marcador de exibição `SEM_ARTISTA`.
+fn dado(s: &str) -> Option<String> {
+    let s = s.trim();
+    (!s.is_empty() && s != crate::state::SEM_ARTISTA).then(|| s.to_string())
 }
 
 fn erro(e: impl std::fmt::Display) -> String {
@@ -156,12 +162,11 @@ impl Ponte {
     }
 
     fn faixa(&mut self, caminho: &str, titulo: &str, artista: &str) -> Result<TrackId, String> {
-        let vazio = |s: &str| (!s.trim().is_empty()).then(|| s.to_string());
         self.core
             .executar(Comando::RegistrarFaixa {
                 caminho: caminho.into(),
-                titulo: vazio(titulo),
-                artista: vazio(artista),
+                titulo: dado(titulo),
+                artista: dado(artista),
             })
             .map_err(erro)?;
         self.core
@@ -202,6 +207,56 @@ impl Ponte {
                 .collect(),
             grade: d.grade.as_ref().map(|g| (grade_para_app(g), d.bloqueada)),
         })
+    }
+
+    /// Leva a coleção lida pelo app (ANLZ, XML ou catálogo) e suas listas
+    /// para o banco. Faixas sem caminho ficam de fora. Devolve o resumo do
+    /// núcleo.
+    pub fn sincronizar_colecao(
+        &mut self,
+        faixas: &[crate::library::Track],
+        listas: &[crate::library::Playlist],
+    ) -> Result<String, String> {
+        let externas = faixas
+            .iter()
+            .filter_map(|t| {
+                let caminho = t.path.clone()?;
+                let (artista, titulo) = t.artist_title();
+                Some(FaixaExterna {
+                    caminho,
+                    titulo: dado(&titulo),
+                    artista: dado(&artista),
+                })
+            })
+            .collect();
+        let listas = listas
+            .iter()
+            .map(|l| {
+                let caminhos = l
+                    .tracks
+                    .iter()
+                    .filter_map(|&i| faixas.get(i)?.path.clone())
+                    .collect();
+                (l.name.clone(), caminhos)
+            })
+            .collect();
+        self.core
+            .executar(Comando::SincronizarColecao {
+                faixas: externas,
+                listas,
+            })
+            .map_err(erro)?;
+        let resumo = self
+            .core
+            .drenar_eventos()
+            .into_iter()
+            .rev()
+            .find_map(|e| match e {
+                Evento::BibliotecaAlterada { resumo } => Some(resumo),
+                _ => None,
+            })
+            .unwrap_or_default();
+        Ok(resumo)
     }
 
     /// Grava taxa, canais e duração do áudio decodificado.
@@ -315,6 +370,44 @@ mod tests {
         let g = grade_do_app(&beats, 48000).unwrap();
         assert_eq!(g.tempo_map().len(), 2);
         assert_eq!(grade_para_app(&g), beats);
+    }
+
+    #[test]
+    fn colecao_e_listas_vao_para_o_banco() {
+        let t = |p: Option<&str>, titulo: &str| crate::library::Track {
+            title: titulo.into(),
+            dat: None,
+            ext: None,
+            grid: None,
+            path: p.map(String::from),
+            meta: None,
+        };
+        let faixas = vec![
+            t(Some("C:/m/a.mp3"), "DJ A - Um"),
+            t(None, "sem caminho"),
+            t(Some("C:/m/b.mp3"), "Dois"),
+        ];
+        let listas = vec![crate::library::Playlist {
+            name: "Set".into(),
+            tracks: vec![2, 1, 0],
+        }];
+        let mut p = Ponte::em_memoria();
+        let r = p.sincronizar_colecao(&faixas, &listas).unwrap();
+        assert_eq!(r, "coleção sincronizada: 2 faixas novas, 1 listas");
+        let r = p.sincronizar_colecao(&faixas, &listas).unwrap();
+        assert_eq!(r, "coleção sincronizada: 0 faixas novas, 1 listas");
+        let lista = p.core.listas().unwrap()[0].id;
+        let ordem = p.core.faixas_da_lista(lista).unwrap();
+        let b = p.core.faixa_por_caminho("C:/m/b.mp3").unwrap().unwrap();
+        let a = p.core.faixa_por_caminho("C:/m/a.mp3").unwrap().unwrap();
+        assert_eq!(ordem, vec![b, a]);
+        // "Dois" não tem artista no nome: o marcador da tela não vai ao banco.
+        let f = p
+            .core
+            .pesquisar(&vilelabox_library::Consulta::default())
+            .unwrap();
+        let dois = f.iter().find(|x| x.id == b).unwrap();
+        assert_eq!(dois.metadados.artist, None);
     }
 
     #[test]

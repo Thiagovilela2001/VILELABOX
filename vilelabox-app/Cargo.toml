@@ -18,6 +18,7 @@ vilelabox-catalog = { path = "../vilelabox-catalog" }
 vilelabox-audio = { path = "../vilelabox-audio" }
 vilelabox-core = { path = "../vilelabox-core" }
 vilelabox-storage = { path = "../vilelabox-storage" }
+vilelabox-library = { path = "../vilelabox-library" }
 vilelabox-types = { path = "../vilelabox-types" }
 
 [build-dependencies]

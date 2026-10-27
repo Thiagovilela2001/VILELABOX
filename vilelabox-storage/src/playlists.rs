@@ -82,6 +82,15 @@ pub fn mover_faixa(
     Ok(true)
 }
 
+/// Remove todas as faixas da playlist (a lista em si fica).
+pub fn limpar(con: &Connection, lista: i64) -> Result<(), ErroStorage> {
+    con.execute(
+        "DELETE FROM playlist_tracks WHERE playlist_id = ?1",
+        params![lista],
+    )?;
+    Ok(())
+}
+
 /// Faixas da playlist na ordem definida.
 pub fn faixas(con: &Connection, lista: i64) -> Result<Vec<TrackId>, ErroStorage> {
     let mut st = con
