@@ -431,9 +431,17 @@ os JSON existentes migram para o banco. Sem taxa conhecida, ou sem banco, o
 app segue gravando nos JSON. O núcleo ganhou `RegistrarFaixa`,
 `RegistrarAudio` e `SubstituirCues`, com `faixa_por_caminho` e `taxa`.
 
-Falta: canal de comandos e snapshots imutáveis no lugar do `AppState`
-compartilhado; tarefas longas do núcleo fora da thread gráfica; biblioteca e
-playlists servidas pelo banco (P5.2).
+Segunda entrega (2026-10-27): o banco saiu da thread gráfica. Um serviço do
+núcleo (`nucleo::iniciar`) é dono da única conexão e atende `Pedido`s em
+ordem; o `AppState` só envia pedidos por canal e aplica as respostas
+(`Command::RespostaNucleo`) no event loop, descartando as de faixa que já saiu
+do deck. O JSON de reserva só é gravado quando o banco recusa (taxa
+desconhecida). A sincronização da coleção também passa pelo serviço, sem
+conexão paralela. Validado no app real: memory cue gravado no banco pela
+thread do serviço.
+
+Falta: snapshots imutáveis da tela no lugar do `AppState` compartilhado entre
+callbacks; biblioteca e playlists servidas pelo banco (P5.2).
 
 - canal de comandos da UI para o core;
 - snapshots imutáveis do core para a UI;

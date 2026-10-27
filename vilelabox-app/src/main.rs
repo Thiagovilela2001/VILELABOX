@@ -373,14 +373,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let mut initial_state = AppState::new();
     initial_state.cues_dir = cues_store::dir_padrao();
-    // P5.1: banco próprio via núcleo; sem ele, o app segue com os JSON.
-    match nucleo::caminho_padrao().map(|c| nucleo::Ponte::abrir(&c)) {
-        Some(Ok(p)) => {
-            initial_state.nucleo = Some(Arc::new(Mutex::new(p)));
-        }
-        Some(Err(e)) => eprintln!("Banco próprio indisponível: {e}"),
-        None => {}
-    }
     initial_state.clock_text = presentation::system_clock_str();
     initial_state.apply(Command::ScanStarted {
         dir_display: dir.display().to_string(),
@@ -395,6 +387,32 @@ fn main() -> Result<(), slint::PlatformError> {
     // Sem VLBX_ESCALA, a escala acompanha a largura da janela (binding no Slint).
     if let Ok(raw) = std::env::var("VLBX_ESCALA") {
         ui.set_s(presentation::parse_scale(Some(&raw)));
+    }
+
+    // P5.1: serviço do núcleo numa thread própria, dono da conexão com o
+    // banco. A tela envia pedidos; as respostas voltam pelo event loop.
+    match nucleo::caminho_padrao().map(|c| nucleo::Ponte::abrir(&c)) {
+        Some(Ok(ponte)) => {
+            let ui_weak = ui.as_weak();
+            let state_ref = state.clone();
+            let tx = nucleo::iniciar(ponte, move |r| {
+                let ui_weak = ui_weak.clone();
+                let state_ref = state_ref.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Ok(mut st) = state_ref.lock() {
+                        st.apply(Command::RespostaNucleo(r));
+                        if let Some(ui) = ui_weak.upgrade() {
+                            presentation::render(&st, &ui);
+                        }
+                    }
+                });
+            });
+            if let Ok(mut st) = state.lock() {
+                st.nucleo = Some(tx);
+            }
+        }
+        Some(Err(e)) => eprintln!("Banco próprio indisponível: {e}"),
+        None => {}
     }
 
     // Renderiza snapshot inicial imediatamente (janela abre sem esperar o scan)
@@ -435,17 +453,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     (t, Vec::new(), s)
                 }
             };
-            // P5.2: coleção e listas no banco próprio, ainda nesta thread e
-            // com conexão própria (a do AppState segue livre para a tela).
-            let banco = nucleo::caminho_padrao().map(|c| {
-                nucleo::Ponte::abrir(&c)
-                    .and_then(|mut p| p.sincronizar_colecao(&tracks, &playlists))
-            });
-            let summary = match banco {
-                Some(Ok(r)) => format!("{summary} · banco: {r}"),
-                Some(Err(e)) => format!("{summary} · banco indisponível: {e}"),
-                None => summary,
-            };
+            // A coleção vai ao banco pelo serviço do núcleo, pedido no
+            // `ScanFinished` (P5.2).
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(ui) = ui_weak.upgrade() {
                     if let Ok(mut st) = state_ref.lock() {

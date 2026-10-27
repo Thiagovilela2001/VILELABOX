@@ -34,7 +34,7 @@ impl std::fmt::Debug for Ponte {
 }
 
 /// Preparação lida do banco para um deck.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Preparacao {
     /// Cues do usuário, exceto loops (vazio = nada gravado).
     pub cues: Vec<RawCue>,
@@ -155,6 +155,7 @@ impl Ponte {
         })
     }
 
+    #[cfg(test)]
     pub fn em_memoria() -> Self {
         Self {
             core: Core::novo(vilelabox_storage::Database::open_in_memory().expect("banco")),
@@ -330,6 +331,140 @@ impl Ponte {
     }
 }
 
+/// Pedido da tela ao serviço do núcleo. `faixa` é o índice da faixa na
+/// coleção do app, devolvido nas respostas para descartar as que chegam
+/// depois de o deck trocar de faixa.
+#[derive(Debug, Clone)]
+pub enum Pedido {
+    /// Registra a faixa, espelha no deck do núcleo e devolve a preparação.
+    /// `apos_audio` marca a leitura feita depois de gravar a taxa.
+    Carregar {
+        deck: usize,
+        faixa: usize,
+        caminho: String,
+        titulo: String,
+        artista: String,
+        apos_audio: bool,
+    },
+    RegistrarAudio {
+        caminho: String,
+        taxa: u32,
+        canais: u16,
+        frames: u64,
+    },
+    GravarCues {
+        deck: usize,
+        faixa: usize,
+        cues: Vec<RawCue>,
+    },
+    GravarGrade {
+        deck: usize,
+        faixa: usize,
+        beats: Vec<Beat>,
+        bloqueada: bool,
+    },
+    Sincronizar {
+        faixas: Vec<crate::library::Track>,
+        listas: Vec<crate::library::Playlist>,
+    },
+}
+
+/// Resposta do serviço, aplicada ao estado da tela no event loop.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Resposta {
+    Preparacao {
+        deck: usize,
+        faixa: usize,
+        prep: Preparacao,
+        apos_audio: bool,
+    },
+    /// O banco não aceitou (taxa ainda desconhecida): a tela grava no JSON.
+    CuesRecusados {
+        deck: usize,
+        faixa: usize,
+    },
+    GradeRecusada {
+        deck: usize,
+        faixa: usize,
+    },
+    /// Mensagem para a barra de status (resumo ou erro).
+    Status(String),
+}
+
+impl Ponte {
+    /// Atende um pedido; erros viram `Resposta::Status`.
+    pub fn atender(&mut self, pedido: Pedido) -> Vec<Resposta> {
+        let r = match pedido {
+            Pedido::Carregar {
+                deck,
+                faixa,
+                caminho,
+                titulo,
+                artista,
+                apos_audio,
+            } => self
+                .carregar(deck, &caminho, &titulo, &artista)
+                .map(|prep| {
+                    vec![Resposta::Preparacao {
+                        deck,
+                        faixa,
+                        prep,
+                        apos_audio,
+                    }]
+                }),
+            Pedido::RegistrarAudio {
+                caminho,
+                taxa,
+                canais,
+                frames,
+            } => self
+                .registrar_audio(&caminho, taxa, canais, frames)
+                .map(|()| Vec::new()),
+            Pedido::GravarCues { deck, faixa, cues } => self.gravar_cues(deck, &cues).map(|ok| {
+                if ok {
+                    Vec::new()
+                } else {
+                    vec![Resposta::CuesRecusados { deck, faixa }]
+                }
+            }),
+            Pedido::GravarGrade {
+                deck,
+                faixa,
+                beats,
+                bloqueada,
+            } => self.gravar_grade(deck, &beats, bloqueada).map(|ok| {
+                if ok {
+                    Vec::new()
+                } else {
+                    vec![Resposta::GradeRecusada { deck, faixa }]
+                }
+            }),
+            Pedido::Sincronizar { faixas, listas } => self
+                .sincronizar_colecao(&faixas, &listas)
+                .map(|r| vec![Resposta::Status(format!("Banco: {r}"))]),
+        };
+        r.unwrap_or_else(|e| vec![Resposta::Status(format!("Banco: {e}"))])
+    }
+}
+
+/// Serviço do núcleo: uma thread dona da conexão, atendendo pedidos em ordem.
+/// `entregar` recebe cada resposta na thread do serviço (o app a leva ao
+/// event loop). O serviço termina quando todos os `Sender` caem.
+pub fn iniciar(
+    mut ponte: Ponte,
+    entregar: impl Fn(Resposta) + Send + 'static,
+) -> std::sync::mpsc::Sender<Pedido> {
+    let (tx, rx) = std::sync::mpsc::channel::<Pedido>();
+    std::thread::spawn(move || {
+        for pedido in rx {
+            for r in ponte.atender(pedido) {
+                entregar(r);
+            }
+        }
+    });
+    tx
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -428,5 +563,65 @@ mod tests {
         let prep = p.carregar(1, "C:/m/a.mp3", "A", "B").unwrap();
         assert_eq!(prep.cues, vec![hot(1, 2.0), hot(0, 5.0)]);
         assert_eq!(prep.grade, Some((beats, true)));
+    }
+
+    #[test]
+    fn servico_atende_em_ordem_e_responde() {
+        let (rtx, rrx) = std::sync::mpsc::channel();
+        let tx = iniciar(Ponte::em_memoria(), move |r| {
+            let _ = rtx.send(r);
+        });
+        let carregar = |apos_audio| Pedido::Carregar {
+            deck: 0,
+            faixa: 7,
+            caminho: "C:/m/a.mp3".into(),
+            titulo: "A".into(),
+            artista: String::new(),
+            apos_audio,
+        };
+        tx.send(carregar(false)).unwrap();
+        tx.send(Pedido::GravarCues {
+            deck: 0,
+            faixa: 7,
+            cues: vec![hot(1, 2.0)],
+        })
+        .unwrap();
+        tx.send(Pedido::RegistrarAudio {
+            caminho: "C:/m/a.mp3".into(),
+            taxa: 44100,
+            canais: 2,
+            frames: 1,
+        })
+        .unwrap();
+        tx.send(Pedido::GravarCues {
+            deck: 0,
+            faixa: 7,
+            cues: vec![hot(1, 2.0)],
+        })
+        .unwrap();
+        tx.send(carregar(true)).unwrap();
+        let rec = |rrx: &std::sync::mpsc::Receiver<Resposta>| {
+            rrx.recv_timeout(std::time::Duration::from_secs(5)).unwrap()
+        };
+        assert_eq!(
+            rec(&rrx),
+            Resposta::Preparacao {
+                deck: 0,
+                faixa: 7,
+                prep: Preparacao::default(),
+                apos_audio: false
+            }
+        );
+        // Sem taxa: recusado; depois da taxa, aceito (sem resposta).
+        assert_eq!(rec(&rrx), Resposta::CuesRecusados { deck: 0, faixa: 7 });
+        match rec(&rrx) {
+            Resposta::Preparacao {
+                prep, apos_audio, ..
+            } => {
+                assert!(apos_audio);
+                assert_eq!(prep.cues, vec![hot(1, 2.0)]);
+            }
+            outra => panic!("{outra:?}"),
+        }
     }
 }

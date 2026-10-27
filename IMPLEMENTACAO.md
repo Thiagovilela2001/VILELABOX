@@ -1,5 +1,18 @@
 # Registro de implementação
 
+## Banco fora da thread gráfica: serviço do núcleo (P5.1, segunda entrega) — 2026-10-27
+
+| Campo | Resultado |
+| --- | --- |
+| Desenho | `nucleo::iniciar` cria a thread dona da conexão; `Pedido` (carregar, registrar áudio, gravar cues, gravar grade, sincronizar coleção) entra por canal e `Resposta` volta pelo event loop como `Command::RespostaNucleo` |
+| Estado da tela | `AppState::nucleo` virou `Sender<Pedido>`; nenhuma consulta SQLite em callbacks; respostas de faixa que já saiu do deck são descartadas; JSON só quando o banco recusa |
+| Coleção | sincronização pedida no `ScanFinished`, pelo mesmo serviço (sem segunda conexão) |
+| Limite conhecido | a preparação do banco chega milissegundos depois da carga e substitui cues e grade; edição feita nesse intervalo se perde (anotado no código) |
+| Testes | serviço atende em ordem e responde (thread real); estado da tela com pedidos processados como no app (JSON recusado, migração, restauração, resposta descartada); 66 testes do app |
+| Validação real | app aberto pela automação de interface: faixa carregada, tocada, pausada em 3,1 s e MEMORY; cue gravado no banco (memory, 3,17 s, origem user) e status com a sincronização da coleção |
+| Verificação | `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test --workspace --all-features` e `xtask spec-lint` aprovados |
+| Próximo gate | snapshots imutáveis da tela; P5.2 com a tabela lida do banco |
+
 ## Coleção do app sincronizada no banco próprio (P5.2, primeira entrega) — 2026-10-27
 
 | Campo | Resultado |

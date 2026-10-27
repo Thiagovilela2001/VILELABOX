@@ -306,9 +306,10 @@ pub struct AppState {
     pub playlist: Option<usize>,
     /// Pasta dos cues gravados (`cues_store`); None = não persiste.
     pub cues_dir: Option<std::path::PathBuf>,
-    /// Núcleo com o banco próprio (P5.1). Cues e grade vão para ele quando a
-    /// taxa do áudio é conhecida; senão, para os arquivos de `cues_dir`.
-    pub nucleo: Option<std::sync::Arc<std::sync::Mutex<crate::nucleo::Ponte>>>,
+    /// Canal para o serviço do núcleo (P5.1): a tela só envia pedidos; as
+    /// respostas voltam como `Command::RespostaNucleo`. Sem canal, cues e
+    /// grade vão direto para os arquivos de `cues_dir`.
+    pub nucleo: Option<std::sync::mpsc::Sender<crate::nucleo::Pedido>>,
 }
 
 impl Default for AppState {
@@ -356,66 +357,76 @@ impl AppState {
         }
     }
 
-    /// Executa `f` na ponte do núcleo; erro vira aviso na barra de status.
-    fn com_nucleo<T>(
-        &mut self,
-        f: impl FnOnce(&mut crate::nucleo::Ponte) -> Result<T, String>,
-    ) -> Option<T> {
-        let r = {
-            let nucleo = self.nucleo.as_ref()?;
-            let mut p = nucleo.lock().ok()?;
-            f(&mut p)
-        };
-        match r {
-            Ok(v) => Some(v),
-            Err(e) => {
-                self.status_text = format!("Banco: {e}");
-                None
-            }
+    fn deck_ref(&self, i: usize) -> &DeckState {
+        if i == 0 {
+            &self.deck1
+        } else {
+            &self.deck2
         }
     }
 
-    /// Áudio do deck `i` decodificado: grava taxa, canais e duração no banco e
-    /// migra para ele os cues e a grade dos arquivos JSON, se o banco ainda
-    /// não os tiver.
-    pub fn audio_pronto(&mut self, i: usize, taxa: u32, canais: u16, frames: u64) {
-        let d = if i == 0 { &self.deck1 } else { &self.deck2 };
-        let Some(track) = d.loaded_track_idx.and_then(|t| self.tracks.get(t)) else {
-            return;
-        };
-        let Some(path) = track.path.clone() else {
-            return;
-        };
+    /// Caminho, título e artista da faixa no deck `i`, com o índice dela.
+    fn faixa_do_deck(&self, i: usize) -> Option<(usize, String, String, String)> {
+        let t = self.deck_ref(i).loaded_track_idx?;
+        let track = self.tracks.get(t)?;
         let (artist, title) = track.artist_title();
-        if self
-            .com_nucleo(|p| p.registrar_audio(&path, taxa, canais, frames))
-            .is_none()
-        {
-            return;
+        Some((t, track.path.clone()?, title, artist))
+    }
+
+    /// Envia um pedido ao serviço do núcleo; falha vira aviso.
+    fn pedir(&mut self, pedido: crate::nucleo::Pedido) -> bool {
+        let Some(tx) = &self.nucleo else {
+            return false;
+        };
+        if tx.send(pedido).is_err() {
+            self.status_text = "Banco: serviço do núcleo parado".into();
+            self.nucleo = None;
+            return false;
         }
-        let prep = self.com_nucleo(|p| p.carregar(i, &path, &title, &artist));
-        let Some(prep) = prep else {
+        true
+    }
+
+    /// Áudio do deck `i` decodificado: pede ao núcleo para gravar taxa,
+    /// canais e duração e reler a preparação; a resposta migra os JSON.
+    pub fn audio_pronto(&mut self, i: usize, taxa: u32, canais: u16, frames: u64) {
+        let Some((faixa, caminho, titulo, artista)) = self.faixa_do_deck(i) else {
             return;
         };
-        if let Some(dir) = self.cues_dir.clone() {
-            if prep.cues.is_empty() && !crate::cues_store::ler(&dir, &path).is_empty() {
-                self.salvar_cues(i);
-            }
-            if prep.grade.is_none()
-                && crate::grid_store::read(&dir, std::path::Path::new(&path)).is_some()
-            {
-                self.save_beatgrid(i);
-            }
+        if self.pedir(crate::nucleo::Pedido::RegistrarAudio {
+            caminho: caminho.clone(),
+            taxa,
+            canais,
+            frames,
+        }) {
+            self.pedir(crate::nucleo::Pedido::Carregar {
+                deck: i,
+                faixa,
+                caminho,
+                titulo,
+                artista,
+                apos_audio: true,
+            });
         }
     }
 
-    /// Persiste os cues do deck `i` (0/1); falha vira aviso, não derruba o app.
+    /// Persiste os cues do deck `i` (0/1): pelo núcleo quando há canal (o
+    /// JSON só se o banco recusar), senão direto no JSON.
     pub fn salvar_cues(&mut self, i: usize) {
-        let cues = if i == 0 { &self.deck1 } else { &self.deck2 }.cues.clone();
-        if self.com_nucleo(|p| p.gravar_cues(i, &cues)) == Some(true) {
-            return;
+        if let Some((faixa, ..)) = self.faixa_do_deck(i) {
+            let cues = self.deck_ref(i).cues.clone();
+            if self.pedir(crate::nucleo::Pedido::GravarCues {
+                deck: i,
+                faixa,
+                cues,
+            }) {
+                return;
+            }
         }
-        let d = if i == 0 { &self.deck1 } else { &self.deck2 };
+        self.gravar_cues_json(i);
+    }
+
+    fn gravar_cues_json(&mut self, i: usize) {
+        let d = self.deck_ref(i);
         let path = d
             .loaded_track_idx
             .and_then(|t| self.tracks.get(t)?.path.clone());
@@ -423,6 +434,67 @@ impl AppState {
             if let Err(e) = crate::cues_store::gravar(dir, &p, &d.cues) {
                 self.status_text = format!("Cues não gravados: {e}");
             }
+        }
+    }
+
+    /// Resposta do serviço do núcleo; as de faixa que já saiu do deck são
+    /// descartadas.
+    fn aplicar_resposta(&mut self, r: crate::nucleo::Resposta) {
+        use crate::nucleo::Resposta;
+        let atual = |st: &Self, deck: usize, faixa: usize| {
+            st.deck_ref(deck).loaded_track_idx == Some(faixa)
+        };
+        match r {
+            Resposta::Status(texto) => self.status_text = texto,
+            Resposta::CuesRecusados { deck, faixa } if atual(self, deck, faixa) => {
+                self.gravar_cues_json(deck);
+            }
+            Resposta::GradeRecusada { deck, faixa } if atual(self, deck, faixa) => {
+                self.gravar_grade_json(deck);
+            }
+            Resposta::Preparacao {
+                deck,
+                faixa,
+                prep,
+                apos_audio,
+            } if atual(self, deck, faixa) => {
+                if apos_audio {
+                    // Migração: JSON existente e banco ainda vazio.
+                    let Some((_, caminho, ..)) = self.faixa_do_deck(deck) else {
+                        return;
+                    };
+                    let Some(dir) = self.cues_dir.clone() else {
+                        return;
+                    };
+                    if prep.cues.is_empty() && !crate::cues_store::ler(&dir, &caminho).is_empty() {
+                        self.salvar_cues(deck);
+                    }
+                    if prep.grade.is_none()
+                        && crate::grid_store::read(&dir, std::path::Path::new(&caminho)).is_some()
+                    {
+                        self.save_beatgrid(deck);
+                    }
+                    return;
+                }
+                // ponytail: a preparação do banco chega depois da carga e
+                // substitui cues e grade; edições feitas nesse intervalo
+                // (milissegundos) se perdem. Marcar edições pendentes se pesar.
+                let d = if deck == 0 {
+                    &mut self.deck1
+                } else {
+                    &mut self.deck2
+                };
+                if !prep.cues.is_empty() {
+                    d.cues.retain(|c| c.is_loop);
+                    d.cues.extend(prep.cues);
+                }
+                if let Some((beats, locked)) = prep.grade {
+                    d.beats = beats;
+                    self.grid_edit[deck].locked = locked;
+                    self.sync_beatgrid(deck);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -435,6 +507,13 @@ impl AppState {
             Command::ScanFinished { tracks, summary } => {
                 self.scan_in_progress = false;
                 self.tracks = tracks;
+                if self.nucleo.is_some() {
+                    let pedido = crate::nucleo::Pedido::Sincronizar {
+                        faixas: self.tracks.clone(),
+                        listas: self.playlists.clone(),
+                    };
+                    self.pedir(pedido);
+                }
                 self.status_text = summary;
                 self.recompute_filtered_indices();
 
@@ -469,23 +548,6 @@ impl AppState {
                                 self.grid_edit[i].locked = locked;
                             }
                         }
-                        // Banco próprio: o que estiver gravado lá vale sobre o JSON.
-                        if let Some(p) = track.path.clone() {
-                            let i = if deck == DeckId::Deck1 { 0 } else { 1 };
-                            let (artist, title) = track.artist_title();
-                            if let Some(prep) =
-                                self.com_nucleo(|n| n.carregar(i, &p, &title, &artist))
-                            {
-                                if !prep.cues.is_empty() {
-                                    deck_state.cues.retain(|c| c.is_loop);
-                                    deck_state.cues.extend(prep.cues);
-                                }
-                                if let Some((beats, locked)) = prep.grade {
-                                    deck_state.beats = beats;
-                                    self.grid_edit[i].locked = locked;
-                                }
-                            }
-                        }
                         match deck {
                             DeckId::Deck1 => {
                                 self.deck1 = deck_state;
@@ -496,7 +558,20 @@ impl AppState {
                                 self.grid_edit[1].clear_history();
                             }
                         }
-                        self.sync_beatgrid(if deck == DeckId::Deck1 { 0 } else { 1 });
+                        let i = if deck == DeckId::Deck1 { 0 } else { 1 };
+                        self.sync_beatgrid(i);
+                        // Banco próprio: a preparação gravada lá chega como
+                        // resposta e vale sobre o JSON.
+                        if let Some((faixa, caminho, titulo, artista)) = self.faixa_do_deck(i) {
+                            self.pedir(crate::nucleo::Pedido::Carregar {
+                                deck: i,
+                                faixa,
+                                caminho,
+                                titulo,
+                                artista,
+                                apos_audio: false,
+                            });
+                        }
                     }
                 }
             }
@@ -573,6 +648,7 @@ impl AppState {
                 };
                 d.audio_ready = ready;
             }
+            Command::RespostaNucleo(r) => self.aplicar_resposta(r),
             Command::SyncAudioSnapshots {
                 deck1_pos_s,
                 deck1_playing,
@@ -693,12 +769,23 @@ impl AppState {
     }
 
     pub fn save_beatgrid(&mut self, i: usize) {
-        let beats = if i == 0 { &self.deck1 } else { &self.deck2 }.beats.clone();
-        let locked = self.grid_edit[i].locked;
-        if self.com_nucleo(|p| p.gravar_grade(i, &beats, locked)) == Some(true) {
-            return;
+        if let Some((faixa, ..)) = self.faixa_do_deck(i) {
+            let beats = self.deck_ref(i).beats.clone();
+            let bloqueada = self.grid_edit[i].locked;
+            if self.pedir(crate::nucleo::Pedido::GravarGrade {
+                deck: i,
+                faixa,
+                beats,
+                bloqueada,
+            }) {
+                return;
+            }
         }
-        let deck = if i == 0 { &self.deck1 } else { &self.deck2 };
+        self.gravar_grade_json(i);
+    }
+
+    fn gravar_grade_json(&mut self, i: usize) {
+        let deck = self.deck_ref(i);
         let path = deck
             .loaded_track_idx
             .and_then(|idx| self.tracks.get(idx)?.path.clone());
@@ -839,6 +926,8 @@ pub enum Command {
         deck: DeckId,
         ready: bool,
     },
+    /// Resposta do serviço do núcleo (P5.1).
+    RespostaNucleo(crate::nucleo::Resposta),
     SyncAudioSnapshots {
         deck1_pos_s: f64,
         deck1_playing: bool,
@@ -1103,16 +1192,31 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Atende todos os pedidos pendentes na ponte e devolve as respostas ao
+    /// estado, como o serviço e o event loop fazem no app.
+    fn processar(
+        st: &mut AppState,
+        rx: &std::sync::mpsc::Receiver<crate::nucleo::Pedido>,
+        ponte: &mut crate::nucleo::Ponte,
+    ) {
+        while let Ok(p) = rx.try_recv() {
+            for r in ponte.atender(p) {
+                st.apply(Command::RespostaNucleo(r));
+            }
+        }
+    }
+
     #[test]
     fn banco_proprio_migra_o_json_e_restaura_sem_ele() {
         let dir =
             std::env::temp_dir().join(format!("vilelabox-nucleo-state-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        let ponte = std::sync::Arc::new(std::sync::Mutex::new(crate::nucleo::Ponte::em_memoria()));
-        let novo = |dir: Option<std::path::PathBuf>| {
+        let mut ponte = crate::nucleo::Ponte::em_memoria();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let novo = |dir: Option<std::path::PathBuf>, ponte: &mut crate::nucleo::Ponte| {
             let mut st = AppState::new();
             st.cues_dir = dir;
-            st.nucleo = Some(ponte.clone());
+            st.nucleo = Some(tx.clone());
             let mut t = sample_track("A", 120.0, 8);
             t.path = Some("/musica/a.mp3".into());
             st.tracks = vec![t];
@@ -1121,18 +1225,21 @@ mod tests {
                 deck: DeckId::Deck1,
                 filtered_index: 0,
             });
+            processar(&mut st, &rx, ponte);
             st
         };
-        // Sem taxa conhecida, o cue vai para o JSON.
-        let mut st = novo(Some(dir.clone()));
+        // Sem taxa conhecida, o banco recusa e o cue vai para o JSON.
+        let mut st = novo(Some(dir.clone()), &mut ponte);
         crate::sync::gravar_hot_cue(&mut st.deck1.cues, 2, 1.5);
         crate::sync::gravar_memory_cue(&mut st.deck1.cues, 3.25);
         st.salvar_cues(0);
+        processar(&mut st, &rx, &mut ponte);
         assert!(!crate::cues_store::ler(&dir, "/musica/a.mp3").is_empty());
         // Áudio decodificado: identidade gravada e o JSON migra para o banco.
         st.audio_pronto(0, 44100, 2, 44100 * 60);
+        processar(&mut st, &rx, &mut ponte);
         // Sem a pasta de JSON, o banco devolve os cues (ordenados por posição).
-        let st2 = novo(None);
+        let st2 = novo(None, &mut ponte);
         let v: Vec<_> = st2
             .deck1
             .cues
@@ -1141,6 +1248,12 @@ mod tests {
             .map(|c| (c.hot_cue, c.start_time_s))
             .collect();
         assert_eq!(v, [(2, 1.5), (0, 3.25)]);
+        // Resposta de faixa que já saiu do deck é descartada.
+        let mut st3 = novo(None, &mut ponte);
+        st3.deck1 = DeckState::empty();
+        st3.apply(Command::RespostaNucleo(
+            crate::nucleo::Resposta::CuesRecusados { deck: 0, faixa: 0 },
+        ));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
