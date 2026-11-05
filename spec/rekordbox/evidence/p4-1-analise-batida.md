@@ -264,6 +264,24 @@ Estrutura apenas; a semântica de cada característica ainda não foi aberta.
 
 4. Com `+0xb40 == 2`, chama `0x141197890(obj, …)` para o resto.
 
+### Envelope por batida (`0x141187b40`)
+
+Portado em `vilelabox-dsp::EnvelopePorBatida`; conferido no assembly.
+Argumentos: banda `+0xac0`, BPM `+0xb0`, `fs = taxa/32` (`+0xa0`), grade
+`+0x1160`, `n` batidas do lote, saída `+0xc80` (copiada para `+0xca0`).
+
+1. Sinal → passa-baixa 2ª ordem 150 Hz (`+0x470`, `0x141166570`) → valor
+   absoluto (`0x141167080`) → 1ª ordem 5 Hz (`+0x4a8`, `0x141166430`). Os
+   estados dos filtros persistem no objeto entre lotes.
+2. `limite = grade[n − 1] − (int)((−60/bpm)·fs)` (`0x143537ea0` = −60), isto
+   é, a última batida mais uma; se `limite − 1 > len`, vira `len`. A grade
+   local tem `n + 1` entradas com `limite` no fim.
+3. Batida `i`: `soma(env[g[i] − 1 .. g[i + 1] − 1])` (`0x141167150`) se
+   `0 < g[i] <= len` e `g[i + 1] − 1 <= len`; senão **0,0** (`xmm6` zerado).
+   Segmento de comprimento negativo faz `0x141166c30` falhar e a função
+   devolver falso.
+4. Todas as saídas × 4 (`0x1454154c0`).
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

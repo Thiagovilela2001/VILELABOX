@@ -4,7 +4,7 @@
 //! "Estágios da passada A". Ordem das operações em ponto flutuante conferida
 //! no assembly, para reproduzir o arredondamento.
 
-use crate::filtro::Biquad;
+use crate::filtro::{passa_baixa_2, Biquad};
 
 /// Soma dos quadrados (`0x1411671d0`): blocos de 8 com FMA em dois
 /// acumuladores de 4 posições, redução `(s2 + s3) + (s0 + s1)` com
@@ -1673,6 +1673,77 @@ pub fn grades_passada_b(n: [f64; 3], fs: [f64; 3], bpm: f64, ms: i32) -> Option<
     }))
 }
 
+/// `0x143538340` (2π·150).
+const W_150HZ: f64 = 942.477_796_076_937_9;
+
+/// Envelope por batida da banda de taxa/32 (`0x141187b40`, passada C).
+/// Filtros projetados em `0x141187a50` e mantidos no objeto entre lotes:
+/// passa-baixa de 2ª ordem de 150 Hz (`+0x470`) e de 1ª ordem de 5 Hz
+/// (`+0x4a8`).
+#[derive(Debug, Clone)]
+pub struct EnvelopePorBatida {
+    lp150: Biquad,
+    lp5: PrimeiraOrdem,
+}
+
+impl EnvelopePorBatida {
+    pub fn novo(fs: f64) -> Self {
+        let o5 = pre_distorcao(W_5HZ, fs);
+        Self {
+            lp150: passa_baixa_2(W_150HZ, fs),
+            lp5: PrimeiraOrdem::bilinear(0.0, o5, 1.0, o5, fs),
+        }
+    }
+
+    /// Conferido no assembly. `sinal` = banda acumulada (`+0xac0`), `grade` =
+    /// índices 1-based (`+0x1160`), `n` = batidas do lote. Sinal passa pelos
+    /// 150 Hz, valor absoluto (`0x141167080`) e 5 Hz. A grade ganha
+    /// `limite = grade[n − 1] − (int)((−60/bpm)·fs)` (`0x143537ea0` = −60),
+    /// trocado pelo comprimento se `limite − 1` passar dele. Saída `i`:
+    /// `4 · soma(env[g[i] − 1 .. g[i + 1] − 1])` (`0x1454154c0` = 4) se
+    /// `0 < g[i] <= len` e `g[i + 1] − 1 <= len`; senão 0.
+    ///
+    /// Segmento de comprimento negativo faz o original falhar
+    /// (`0x141166c30`): devolve `None`.
+    pub fn processar(
+        &mut self,
+        sinal: &[f64],
+        grade: &[i32],
+        n: usize,
+        bpm: f64,
+        fs: f64,
+    ) -> Option<Vec<f64>> {
+        let mut env = vec![0.0; sinal.len()];
+        self.lp150.processar(sinal, &mut env);
+        for v in env.iter_mut() {
+            *v = v.abs();
+        }
+        self.lp5.processar_no_lugar(&mut env);
+        let len = env.len() as i32;
+        if n == 0 {
+            return Some(Vec::new());
+        }
+        let mut limite = grade[n - 1] - ((-60.0 / bpm) * fs) as i32;
+        if len < limite - 1 {
+            limite = len;
+        }
+        let mut g = grade[..n].to_vec();
+        g.push(limite);
+        g.windows(2)
+            .map(|w| {
+                let (a, b) = (w[0], w[1]);
+                if a > 0 && a <= len && b - 1 <= len {
+                    let ini = (a - 1) as usize;
+                    let fim = ini.checked_add(usize::try_from(b - a).ok()?)?;
+                    Some(4.0 * soma(&env[ini..fim]))
+                } else {
+                    Some(0.0)
+                }
+            })
+            .collect()
+    }
+}
+
 /// Parâmetros fixos do analisador gravados no init (`0x141170020`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ConfigPassadaA {
@@ -2067,6 +2138,25 @@ mod tests {
         // (1000 − 4) / 200 = 4,98 -> 4 índices: 5,5 -> 5, 205, 405, 605.
         assert_eq!(g, vec![5, 205, 405, 605]);
         assert!(grade_de_indices(10, 400.0, 120.0, 1000).is_none());
+    }
+
+    #[test]
+    fn envelope_por_batida_segue_o_assembly() {
+        // Sinal constante 1: ao fim, o envelope tende a 1 (ganho DC 1).
+        let fs = 1378.125;
+        let sinal = vec![1.0; 20000];
+        let mut e = EnvelopePorBatida::novo(fs);
+        // 120 BPM: batida de 689 amostras; limite = 19001 + 689 = 19690.
+        let grade = [17623, 18312, 19001];
+        let v = e.processar(&sinal, &grade, 3, 120.0, fs).unwrap();
+        assert_eq!(v.len(), 3);
+        for (k, n) in v.iter().zip([689.0, 689.0, 689.0]) {
+            assert!((k - 4.0 * n).abs() < 1e-3, "{k}");
+        }
+        // Índice fora do sinal vale 0; segmento invertido falha.
+        let v = e.processar(&sinal, &[0, 100], 1, 120.0, fs).unwrap();
+        assert_eq!(v, vec![0.0]);
+        assert!(e.processar(&sinal, &[200, 100], 2, 120.0, fs).is_none());
     }
 
     #[test]

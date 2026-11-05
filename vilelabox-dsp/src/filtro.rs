@@ -163,7 +163,7 @@ fn pre_distorcao(w: f64, fs: f64) -> f64 {
 }
 
 /// Passa-baixa Butterworth de 2ª ordem (`a1 = √2·Ω`, `0x1454153e8`).
-fn passa_baixa_2(w: f64, fs: f64) -> Biquad {
+pub(crate) fn passa_baixa_2(w: f64, fs: f64) -> Biquad {
     let o = pre_distorcao(w, fs);
     Biquad::bilinear(
         0.0,
