@@ -346,6 +346,17 @@ valor absoluto → 1ª ordem 10 Hz (`+0x14e8`). Máximo por batida sobre a grade
 inteira `+0x1140` mais o limite; inválido 0,0. Saída `+0x1520`, copiada a
 `+0xc60`.
 
+### Energia e pico por quarto, sem filtro (`0x141171510`)
+
+Portado em `vilelabox-dsp::energia_e_pico_por_quarto`. Banda `+0xaa0`
+(taxa/8) crua, grade `+0x1140` limitada a `n`, as mesmas quatro janelas de
+`0x141188d40` (quarta até `grade[i + 1]` enquanto `i < n − 1`). Cada janela
+é copiada (`0x141166bc0`); grava `energia` (`0x1411671d0`) em `+0x1560`
+(copiada a `+0xbc0`) e, após valor absoluto na cópia, o máximo
+(`0x141167280`) em `+0x1580` (copiada a `+0xbe0`). Sem fator × 4 e sem
+somas por compasso. As janelas dos três extratores por quarto ficam em
+`janelas_de_quarto` no porte.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

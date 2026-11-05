@@ -91,6 +91,67 @@ pub fn energia_por_quarto(
     quartos_e_compassos(&y, bpm, fs, grade, 2)
 }
 
+/// Quatro janelas por batida de `0x1411885f0`, `0x141188d40` e
+/// `0x141171510`: três de `q = (int)(fs/bpm·15 + 0,5)` amostras a partir de
+/// `grade[i] − 1` e a quarta até `grade[i + 1]` enquanto `i + folga < n`,
+/// senão até `grade[i] + (int)(fs/bpm·60 + 0,5) − 1`.
+///
+/// ADAPTAÇÃO: janela fora do sinal devolve `None`; o original lê além do fim.
+fn janelas_de_quarto<'a>(
+    y: &'a [f64],
+    bpm: f64,
+    fs: f64,
+    grade: &[i32],
+    folga: usize,
+) -> Option<Vec<&'a [f64]>> {
+    let batida = fs * (1.0 / bpm) * 60.0 + 0.5;
+    let q = (fs * (1.0 / bpm) * 15.0 + 0.5) as i32;
+    let janela = |ini: i32, len: i32| -> Option<&'a [f64]> {
+        if len < 0 || ini < 1 {
+            return None;
+        }
+        let a = (ini - 1) as usize;
+        y.get(a..a + len as usize)
+    };
+    let n = grade.len();
+    let mut out = Vec::with_capacity(n * 4);
+    for i in 0..n {
+        let mut pos = grade[i];
+        let fim = if i + folga < n {
+            grade[i + 1]
+        } else {
+            batida as i32 - 1 + grade[i]
+        };
+        for _ in 0..3 {
+            out.push(janela(pos, q)?);
+            pos += q;
+        }
+        out.push(janela(pos, fim - pos)?);
+    }
+    Some(out)
+}
+
+/// Energia e pico por quarto da banda de taxa/8 crua (`0x141171510`,
+/// passada C), conferido no assembly. Mesmas janelas de `0x141188d40`
+/// (folga 1) sobre `+0xaa0`, grade `+0x1140` limitada às `n` batidas do
+/// lote. Por janela: `energia` (`+0x1560`, copiada a `+0xbc0`) e máximo do
+/// valor absoluto da cópia (`0x141167080`, `0x141167280`; `+0x1580`,
+/// copiada a `+0xbe0`). Sem filtro, sem fator e sem compassos.
+pub fn energia_e_pico_por_quarto(
+    sinal: &[f64],
+    bpm: f64,
+    fs: f64,
+    grade: &[i32],
+) -> Option<(Vec<f64>, Vec<f64>)> {
+    let js = janelas_de_quarto(sinal, bpm, fs, grade, 1)?;
+    let e = js.iter().map(|j| energia(j)).collect();
+    let p = js
+        .iter()
+        .map(|j| maximo(&j.iter().map(|v| v.abs()).collect::<Vec<_>>()))
+        .collect();
+    Some((e, p))
+}
+
 /// Núcleo comum de `0x1411885f0` e `0x141188d40`: a quarta janela da
 /// batida `i` vai até `grade[i + 1]` enquanto `i + folga < n` (2 no
 /// primeiro, 1 no segundo, conferido no assembly).
@@ -101,30 +162,11 @@ fn quartos_e_compassos(
     grade: &[i32],
     folga: usize,
 ) -> Option<(Vec<f64>, Vec<f64>)> {
-    let batida = fs * (1.0 / bpm) * 60.0 + 0.5;
-    let q = (fs * (1.0 / bpm) * 15.0 + 0.5) as i32;
-    let janela = |ini: i32, len: i32| -> Option<f64> {
-        if len < 0 || ini < 1 {
-            return None;
-        }
-        let a = (ini - 1) as usize;
-        y.get(a..a + len as usize).map(energia)
-    };
     let n = grade.len();
-    let mut quartos = Vec::with_capacity(n * 4);
-    for i in 0..n {
-        let mut pos = grade[i];
-        let fim = if i + folga < n {
-            grade[i + 1]
-        } else {
-            batida as i32 - 1 + grade[i]
-        };
-        for _ in 0..3 {
-            quartos.push(janela(pos, q)?);
-            pos += q;
-        }
-        quartos.push(janela(pos, fim - pos)?);
-    }
+    let mut quartos: Vec<f64> = janelas_de_quarto(y, bpm, fs, grade, folga)?
+        .into_iter()
+        .map(energia)
+        .collect();
     if fs <= 5512.45 || 5512.55 <= fs {
         for v in quartos.iter_mut() {
             *v *= 4.0;
@@ -2525,6 +2567,19 @@ mod tests {
             .processar(&vec![1.0; n], &[30001, 32757], 1, 120.0, fs)
             .unwrap();
         assert!(v[0] < 1e-3, "{v:?}");
+    }
+
+    #[test]
+    fn energia_e_pico_por_quarto_sem_filtro() {
+        // 60 BPM a 400 Hz: quarto 100, batida 400. Grade [1, 401].
+        let mut x = vec![0.0; 1000];
+        x[50] = -3.0; // 1º quarto da batida 0
+        x[350] = 2.0; // 4º quarto da batida 0 (até grade[1])
+        let (e, p) = energia_e_pico_por_quarto(&x, 60.0, 400.0, &[1, 401]).unwrap();
+        assert_eq!(e.len(), 8);
+        assert_eq!((e[0], p[0]), (9.0, 3.0));
+        assert_eq!((e[3], p[3]), (4.0, 2.0));
+        assert!(e[4..].iter().chain(&p[4..]).all(|v| *v == 0.0));
     }
 
     #[test]
