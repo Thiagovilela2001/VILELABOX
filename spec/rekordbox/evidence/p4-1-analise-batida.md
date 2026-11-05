@@ -174,7 +174,7 @@ Portada em `vilelabox-dsp::grades_passada_b`; conferida no assembly.
 - Chamada por `0x141195ed0` como `(obj, n1, fs1, n2, fs2, n3, fs3, bpm, ms)`,
   com `ni = frames (obj+0xc0) / Mi` em `f64` (`Mi` = `i32` em `+0x78`,
   `+0x7c`, `+0x80`), `fsi` = `f64` em `+0x90`, `+0x98`, `+0xa0`, BPM em
-  `+0xb0` e `ms` = 2º argumento do chamador. **Não estima BPM**: o BPM chega
+  `+0xb0` e `ms` = 2º argumento do chamador. O laço por bloco (`0x1411702d0`) chama `0x141195ed0(obj, +0x208, +0x20c)` ao fechar a passada A, salvo com `+0xc9` ligado: `ms` é o deslocamento final da A e `arg3` o número da batida. **Não estima BPM**: o BPM chega
   pronto, como na passada A.
 - Por banda: passo `(60/bpm)·fs` (`0x145415638` = 60), início
   `(int)fma(ms·0,001, fs, 0,5)` (`0x145414e88`, `0x1454152a0`), quantidade
@@ -185,7 +185,7 @@ Portada em `vilelabox-dsp::grades_passada_b`; conferida no assembly.
 - O índice `q − 1` (penúltimo) é limitado a `(int)n`. Devolve falso só em
   falha de alocação (`q + 1 < 0`).
 - Depois, o chamador grava `+0xb48 = 60/bpm`, `+0xb50 = ms·0,001`, liga
-  `+0xc8` se `q − arg3 + 1 >= 32`, guarda `ms`/`arg3` em `+0xb90..+0xb98`,
+  `+0xc8` se `q − número + 1 >= 32`, guarda `ms`/`arg3` em `+0xb90..+0xb98`,
   aloca cerca de 25 vetores e encadeia `0x141187f60`, `0x141187a50`,
   `0x141188560`, `0x141188c50`, `0x141189410`, `0x1411898c0`, `0x14118e120`,
   `0x14118cf70`, `0x14117e830`, `0x14117ff60`, `0x14117b170`, `0x14117ac40`,
@@ -221,6 +221,48 @@ Passa-baixa de 2ª ordem = numerador `(0, 0, Ω²)`, `a1 = √2·Ω`
 Conclusão: a estimativa de BPM não está na passada B nem na sua
 inicialização. Falta portar os **consumidores** desse estado, no
 processamento por bloco (`0x1411702d0`, estados 1 e 2) e nas passadas C/D.
+
+## Laço por bloco das passadas C/D (`0x141170430`)
+
+Estados 3 e 4. Exige `+0xc8` ligado (grade da B com ≥ 32 batidas desde o
+número da batida). No estado 3, cada bloco vai a `0x1411965b0` até
+`+0xb40 == 2`; então o estado vira 4 e fecha com `0x141197d60` (estado 5).
+No estado 2, `0x1411702d0` fecha a A e chama a init da B; não há consumidor
+da B ali.
+
+## Passada C por bloco (`0x1411965b0`) — mapa observado
+
+Estrutura apenas; a semântica de cada característica ainda não foi aberta.
+
+1. Filtra o bloco nas três bandas da B (`0x14118ae80` em `+0x768`,
+   `0x1411913c0` em `+0x850` e `+0x938`) e acumula em `+0xa80` (taxa/2),
+   `+0xaa0` (taxa/8) e `+0xac0` (taxa/32).
+2. Avança o relógio da grade (`+0xb48` = 60/bpm, `+0xb50`/`+0xb58`/`+0xb60`,
+   contadores `+0xb68`–`+0xb7c`). Ao cobrir a janela, `+0xb40 = 1` e os sinais
+   são recortados a partir das grades `+0x1120`/`+0x1140`/`+0x1160`; no fim do
+   sinal, `+0xb40 = 2`.
+3. Por lote de batidas (cursor `+0xde0`, via `0x1411c5cb0`), cada extrator
+   grava no buffer indicado:
+
+| Extrator | Banda | Saída |
+| --- | --- | --- |
+| `0x141188050` | `+0xac0` + grade `+0x1160` | `+0xc00`, `+0xc40` (×4 por batida), `+0xc20` |
+| `0x141187b40` | `+0xac0` | `+0xca0` |
+| `0x1411885f0`, `0x141188d40` | `+0xac0` | `+0xba0`, `+0xd20` |
+| `0x141189500` | `+0xaa0` | `+0xcc0` |
+| `0x141189ab0` | `+0xaa0` | `+0xc60` |
+| `0x1411711f0` | `+0xaa0` | `+0xd40` |
+| `0x141171510` | `+0xaa0` | `+0xbc0`, `+0xbe0` |
+| `0x14118e450` | `+0xaa0` | `+0xd80` |
+| `0x14118d310` | `+0xaa0` | `+0xda0` |
+| `0x14117e850` | `+0xa80` + grade `+0x1120` | `+0xdc0` |
+| `0x1411803f0` | `+0xaa0` | `+0xdf8` (72 colunas, via `+0x1a18`; usa o núcleo de tonalidade) |
+| `0x14117b1b0` | `+0xaa0` | `+0xe10` (via `+0x1a70`) |
+| `0x14117ac80` | `+0xaa0` | `+0xe28` (via `+0x1ac0`) |
+| `0x14117a200` | `+0xac0` e `+0xaa0` | `+0xce0`, `+0xd00` |
+| `0x14117e3a0` | `+0xa80` | `+0xd60` |
+
+4. Com `+0xb40 == 2`, chama `0x141197890(obj, …)` para o resto.
 
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
@@ -493,7 +535,7 @@ de índices: passo `(60/bpm)·fs`, início `fs · deslocamento_ms · 0,001 + 0,5
 `0x141188560`, `0x1411885f0`, `0x141176680`, `0x141178330`, `0x1411786a0`,
 `0x141179530`, `0x141178df0`, `0x141172490`, nova grade, `0x14118be60`,
 `0x14118c1b0`, `0x141177b30`, `0x141171760` (sobre 30 s) e, quando aplicável,
-`0x1411718e0`. Resultados em `+0x208` (BPM × 100), `+0x20c`, `+0x210`,
+`0x1411718e0`. Resultados em `+0x208` (deslocamento final em ms, copiado de `+0xac`), `+0x20c` (número da batida, de `+0xbc`), `+0x210`,
 `+0x218`, `+0x238` e `+0x258`..`+0x260`.
 
 O BPM, o deslocamento e o tom de partida vêm da thread, que os lê dos dados
@@ -529,8 +571,10 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 
 ## Próximos alvos
 
-1. Consumidores do estado da passada B: ramo do estado 2 em `0x1411702d0`
-   (quem lê `+0x1120`–`+0x1180`, `+0x1188`, `+0x1998`).
+1. Extratores da passada C, um por vez, do menor ao maior (tabela em
+   "Passada C por bloco"), cada um conferido no assembly; depois
+   `0x141197890` e o fechamento `0x141197d60`, que deve ser onde o BPM é
+   decidido.
 2. Passadas C/D: `0x1411965b0` (682 linhas) e `0x141197d60` (2 067 linhas),
    com cerca de 100 funções auxiliares no total (as maiores: `0x141192c60`,
    `0x1411913e0`, `0x1411c1d70`, `0x1411c0b90`, `0x1411bdfc0`).
