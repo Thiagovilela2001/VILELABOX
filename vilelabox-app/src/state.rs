@@ -955,6 +955,7 @@ mod tests {
             title: title.to_string(),
             dat: None,
             path: None,
+            audio_ms: None,
             meta: None,
             ext: None,
             grid: Some(Grid {

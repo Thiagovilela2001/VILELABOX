@@ -49,6 +49,7 @@ impl App {
                     title: format!("A - Faixa {d}.mp3"),
                     dat: None,
                     path: Some(format!("/musica/{nome}-{d}.mp3")),
+                    audio_ms: None,
                     meta: None,
                     ext: None,
                     grid: grid.clone(),

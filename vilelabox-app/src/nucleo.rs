@@ -515,6 +515,7 @@ mod tests {
             ext: None,
             grid: None,
             path: p.map(String::from),
+            audio_ms: None,
             meta: None,
         };
         let faixas = vec![

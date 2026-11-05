@@ -92,6 +92,51 @@ impl AudioBuffer {
     }
 }
 
+/// Duração de um `.wav` só pelo cabeçalho, sem decodificar. O tamanho
+/// declarado do bloco `data` é limitado ao que existe no arquivo: gravadores
+/// em fluxo deixam `0xFFFFFFFF` ali (o rekordbox 7.2.8 aceita esse valor e
+/// analisa ~22 370 s a 48 kHz estéreo). `None` se não for RIFF/WAVE legível.
+pub fn duracao_wav(path: &Path) -> Option<f64> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = std::fs::File::open(path).ok()?;
+    let tamanho = f.metadata().ok()?.len();
+    let mut cab = [0u8; 12];
+    f.read_exact(&mut cab).ok()?;
+    if &cab[..4] != b"RIFF" || &cab[8..] != b"WAVE" {
+        return None;
+    }
+    let (mut taxa, mut bloco) = (0u32, 0u16);
+    let mut pos = 12u64;
+    loop {
+        let mut c = [0u8; 8];
+        f.read_exact(&mut c).ok()?;
+        let n = u32::from_le_bytes([c[4], c[5], c[6], c[7]]);
+        pos += 8;
+        match &c[..4] {
+            b"fmt " => {
+                let mut fmt = [0u8; 16];
+                f.read_exact(&mut fmt).ok()?;
+                taxa = u32::from_le_bytes([fmt[4], fmt[5], fmt[6], fmt[7]]);
+                bloco = u16::from_le_bytes([fmt[12], fmt[13]]);
+                f.seek(SeekFrom::Start(pos + u64::from(n) + u64::from(n & 1)))
+                    .ok()?;
+            }
+            b"data" => {
+                if taxa == 0 || bloco == 0 {
+                    return None;
+                }
+                let dados = u64::from(n).min(tamanho.saturating_sub(pos));
+                return Some((dados / u64::from(bloco)) as f64 / f64::from(taxa));
+            }
+            _ => {
+                f.seek(SeekFrom::Start(pos + u64::from(n) + u64::from(n & 1)))
+                    .ok()?;
+            }
+        }
+        pos += u64::from(n) + u64::from(n & 1);
+    }
+}
+
 /// Decodifica um arquivo `.wav` para `AudioBuffer` estéreo em `f32`.
 pub fn decode_wav(path: &Path) -> Result<AudioBuffer, AudioError> {
     if !path.exists() {
@@ -300,5 +345,32 @@ pub fn decode_audio(path: &Path) -> Result<AudioBuffer, AudioError> {
         "wav" => decode_wav(path).or_else(|_| decode_with_symphonia(path)),
         "mp3" | "flac" | "aac" | "m4a" | "ogg" | "aiff" => decode_with_symphonia(path),
         _ => decode_with_symphonia(path),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duracao_wav_limita_tamanho_declarado_ao_arquivo() {
+        let dir = std::env::temp_dir().join("vlbx_duracao_wav");
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("fluxo.wav");
+        let mut b = Vec::new();
+        b.extend_from_slice(b"RIFF\xff\xff\xff\xffWAVEfmt ");
+        b.extend_from_slice(&16u32.to_le_bytes());
+        b.extend_from_slice(&1u16.to_le_bytes());
+        b.extend_from_slice(&2u16.to_le_bytes());
+        b.extend_from_slice(&48_000u32.to_le_bytes());
+        b.extend_from_slice(&192_000u32.to_le_bytes());
+        b.extend_from_slice(&4u16.to_le_bytes());
+        b.extend_from_slice(&16u16.to_le_bytes());
+        b.extend_from_slice(b"data\xff\xff\xff\xff");
+        b.resize(b.len() + 4 * 48_000 * 3, 0);
+        std::fs::write(&p, &b).unwrap();
+        assert_eq!(duracao_wav(&p), Some(3.0));
+        std::fs::remove_file(&p).unwrap();
+        assert_eq!(duracao_wav(&p), None);
     }
 }

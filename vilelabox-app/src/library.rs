@@ -12,6 +12,8 @@ pub struct Track {
     pub path: Option<String>,
     /// Metadados do documento XML, quando a coleção vem dele.
     pub meta: Option<Meta>,
+    /// Duração medida no cabeçalho do áudio (`.wav`), quando acessível no scan.
+    pub audio_ms: Option<u64>,
 }
 
 /// Metadados de uma faixa vindos do XML (12-xml).
@@ -47,7 +49,9 @@ impl Track {
     pub fn dur_ms(&self) -> u64 {
         match &self.meta {
             Some(m) if m.total_s > 0 => u64::from(m.total_s) * 1000,
-            _ => crate::state::duration_ms(self.grid.as_ref()),
+            _ => self
+                .audio_ms
+                .unwrap_or_else(|| crate::state::duration_ms(self.grid.as_ref())),
         }
     }
 }
@@ -188,6 +192,7 @@ pub fn load_xml(
             });
             Track {
                 title: x.name.clone(),
+                audio_ms: anlz.and_then(|a| a.audio_ms),
                 dat: anlz.and_then(|a| a.dat.clone()),
                 ext: anlz.and_then(|a| a.ext.clone()),
                 grid,
@@ -238,6 +243,7 @@ pub fn load_catalogo(
                 .and_then(|a| analises.remove(&chave(&share.join(a.trim_start_matches('/')))));
             Track {
                 title: f.titulo,
+                audio_ms: anlz.as_ref().and_then(|a| a.audio_ms),
                 dat: anlz.as_ref().and_then(|a| a.dat.clone()),
                 ext: anlz.as_ref().and_then(|a| a.ext.clone()),
                 grid: anlz.and_then(|a| a.grid),
@@ -339,9 +345,20 @@ pub fn scan(dir: &Path) -> Vec<Track> {
                 .as_deref()
                 .map_or_else(|| dat_path.display().to_string(), title_from_path);
             let grid = dat_secs.get(b"PQTZ").and_then(|p| parse_pqtz(p));
+            // A grade e a forma de onda do rekordbox seguem o tamanho declarado
+            // no WAV; com `0xFFFFFFFF` elas passam de 6 h. O cabeçalho
+            // limitado ao arquivo dá a duração real. O PPTH pode vir sem pasta
+            // (`?/nome.wav`): o arquivo é localizado como no carregamento do deck.
+            let audio_ms = ppth
+                .as_deref()
+                .filter(|p| p.to_lowercase().ends_with(".wav"))
+                .and_then(|p| crate::find_audio_file(Some(p), &title))
+                .and_then(|p| vilelabox_audio::decode::duracao_wav(&p))
+                .map(|s| (s * 1000.0) as u64);
             Some(Track {
                 path: ppth.clone(),
                 meta: None,
+                audio_ms,
                 title,
                 dat: Some(dat_path.clone()),
                 ext: ext.is_some().then_some(ext_path),
