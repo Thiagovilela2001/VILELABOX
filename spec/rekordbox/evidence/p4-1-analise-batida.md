@@ -191,6 +191,37 @@ Portada em `vilelabox-dsp::grades_passada_b`; conferida no assembly.
   `0x14118cf70`, `0x14117e830`, `0x14117ff60`, `0x14117b170`, `0x14117ac40`,
   `0x141194730`, `0x14117a050` e `0x14117e1b0`.
 
+## Inicialização da passada B (cadeia de `0x141195ed0`)
+
+Todas as 15 funções após `0x141173370` só **configuram** estado (filtros,
+buffers, núcleos); nenhuma processa sinal nem estima BPM. Filtros via
+`0x141165dc0` (pré-distorção), `0x141165eb0` (biquad bilinear),
+`0x141165e30` (1ª ordem bilinear), `0x141165da0` (zera estado) e
+`0x141165d70(destino, origem)`. `fs` é o argumento recebido
+(`taxa/32` = `obj+0xa0` ou `taxa/8` = `obj+0x98`, conforme o chamador).
+Passa-baixa de 2ª ordem = numerador `(0, 0, Ω²)`, `a1 = √2·Ω`
+(`0x1454153e8`); passa-alta de 2ª ordem = numerador `(1, 0, 0)`.
+
+| Função | fs | Estado configurado |
+| --- | --- | --- |
+| `0x141187f60` | taxa/32 | PB2 100 Hz (`0x1434e55e8`) em `+0x1188`; PB1 5 Hz (`0x1435380c8`) em `+0x11c0` |
+| `0x141187a50` | taxa/32 | PB2 150 Hz (`0x143538340`) em `+0x470`; PB1 5 Hz em `+0x4a8` |
+| `0x141188560` | taxa/32 | ver "Filtros do envelope" |
+| `0x141188c50` | taxa/32 | PB2 40 Hz (`0x143538368`) em `+0x1258`, repassado a `+0x1290`, `+0x12c8`, `+0x1300` |
+| `0x141189410` | taxa/8 | PA2 500 Hz (`0x1435380f0`) em `+0x1378`; PB1 5 Hz em `+0x13b0` |
+| `0x1411898c0` | taxa/8 | duas seções Butterworth (`a1 = 2·cos(i·π/4 + π/8)·Ω`, `0x1435380b0`, `0x1435380a8`): PA 400 Hz (`0x1434e5608`) em `+0x1408`/`+0x1440` e PB 1 kHz (`0x143538378`) em `+0x1478`/`+0x14b0`; PB1 10 Hz (`0x143538160`) em `+0x14e8` |
+| `0x14118e120` | taxa/8 | PB 200 Hz (`0x1434e55f0`) em `+0x15a8`, ordem em `+0x15a0` pela mesma tabela de `fs` de `FiltrosEnvelope` (`0x1435383b0`–`0x143538408`); PB2 10 Hz em `+0x1688` (fs 0 vira 5512,5, `0x1435380d0`); guarda args em `+0x16c0..+0x16d0` |
+| `0x14118cf70` | taxa/8 | idem em `+0x1700`/`+0x16f8`; PB2 10 Hz em `+0x17e0` (copiado a `+0x18f8`); PA4 110 Hz (`0x143538410`) em `+0x1818`; args em `+0x1930..+0x1940` |
+| `0x14117e830` | — | grava os dois args (0, 0) em `+0x1968`, `+0x1970` |
+| `0x14117ff60` | taxa/8 | núcleo de **tonalidade**: 73 frequências `27,5 · 2^(k/12)` (`0x143538200`, `0x1435381e0`, `0x1435381c0` = 1/12), 72 bins (6 oitavas × 12), cos/sen de `2π·f·t`; buffer `fs·3` (`0x1454154a0`) em `+0x1998` |
+| `0x14117b170`, `0x14117ac40`, `0x141194730` | — | `0x1411645f0` + `0x141165390` com 4096, 2048 e 256 em `+0x1a38`, `+0x1a88`, `+0x1ad8` |
+| `0x14117a050` | taxa/32 e taxa/8 | PB2 500 Hz em `+0x1b28` (fs 1º arg) e PA2 500 Hz em `+0x1b60` (fs 2º arg); PB1 5 Hz em `+0x1b98`/`+0x1bd0` |
+| `0x14117e1b0` | taxa/2 | Butterworth de duas seções: PA 5 kHz (`0x143538168`) em `+0x1c48`, PB 7 kHz (`0x143538170`) em `+0x1cb8`; PB1 10 Hz em `+0x1d28` |
+
+Conclusão: a estimativa de BPM não está na passada B nem na sua
+inicialização. Falta portar os **consumidores** desse estado, no
+processamento por bloco (`0x1411702d0`, estados 1 e 2) e nas passadas C/D.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
@@ -498,8 +529,8 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 
 ## Próximos alvos
 
-1. Cadeia de fechamento da passada B (15 funções listadas em "Grades da
-   passada B"), começando por `0x141187f60`.
+1. Consumidores do estado da passada B: ramo do estado 2 em `0x1411702d0`
+   (quem lê `+0x1120`–`+0x1180`, `+0x1188`, `+0x1998`).
 2. Passadas C/D: `0x1411965b0` (682 linhas) e `0x141197d60` (2 067 linhas),
    com cerca de 100 funções auxiliares no total (as maiores: `0x141192c60`,
    `0x1411913e0`, `0x1411c1d70`, `0x1411c0b90`, `0x1411bdfc0`).
