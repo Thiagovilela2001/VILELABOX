@@ -373,6 +373,47 @@ vem antes do BPM.
   `[g + 1 + k·e, g + (k + 1)·e]` (k = 1..6) e `[g + 7e + 1, g' − 1]`; o
   máximo de cada uma vai a `+0x1d60` (8 por batida, copiada a `+0xd60`).
 
+### Tonalidade: transformada de Q constante (`0x14117ff60`, `0x1411803f0`)
+
+Portada em `vilelabox-dsp::tonalidade`; conferida no assembly.
+
+**Init** (`0x14117ff60`, `fs = taxa/8`):
+
+- Sobra `+0x1998` com capacidade `(int)(fs·3)` (`0x1454154a0`), quantidade
+  `+0x19b8 = 0`.
+- 73 frequências: `f0 = 27,5`, `fk = pow(2, k·(1/12))·27,5`
+  (`0x1426086a0`, `pow` vetorial de 4 vias; `0x145416b40` = 0, 1, 2, 3).
+- `Lk = (int)(2fs / (f(k+1) − fk))` em `+0x19c0`; pesos `+0x19e0`:
+  `w0 = 1`, `wk = L0/Lk`.
+- Núcleos `+0x1a00` (72 × `2·L0`): bins 0–11 `(cos, sen)((2π·fk)·t)`,
+  `t = (j + 1)·(1/fs)`; bins 12–71 = quadrado complexo do bin `k − 12`
+  (`re = fma(re, re, −im²)` via `vfmsub231sd`, `im = (re + re)·im`), antes
+  da janela.
+- Janela de Hann `0x14117dfc0` de `Lk`: `(1 − cos(i·2π·(1/(L+1))))·0,5`
+  espelhada; meio ímpar `fma(−cos(m·2π/(L+1)), 0,5, 0,5)`. O laço que a
+  aplica vai até `L0`, reaproveitando o buffer da janela anterior; o
+  consumidor só lê as `Lk` primeiras amostras, então isso não altera o
+  resultado.
+- `0x1427a51e0` (par de `cos`) é tratado como seno: INFERIDO pela função
+  ímpar (guarda o sinal em `r11`) com a mesma redução de argumento de `cos`.
+
+**Lote** (`0x1411803f0`, chamado com `(obj, +0xaa0, bpm, 0, p5, fs, +0xb40)`):
+
+- `+0x1a34 = ceil(fma(1/bpm, (p5 − 1)·0,234375, p4·3,90625e−6)·fs)`
+  (`0x1435381b8`, `0x1435381b0`, `vroundsd` modo 2).
+- Sinal = sobra + banda; `quadros = (int)((len − L0)·(1/256))`
+  (`0x145414f10`); matriz `+0x1a18` (72 × quadros, zerada).
+- Quadro `m`, bins 23–71 (`0x17`–`0x47`): segmento a partir de
+  `(int)(L0·0,5) − (int)(Lk·0,5) + 256m`, `Lk` amostras; produto interno
+  em blocos de 4 (`re += x0·k0`, `re = x1·k1 + re`, `fma(x2, k2)`,
+  `fma(x3, k3)`), cauda sem fusão; valor `sqrt(fma(im, im, re²))·wk`.
+  Bins 0–22 ficam 0.
+- Com `+0xb40 < 2`, guarda `x[256·quadros..]` como sobra; `+0x1a30 =
+  quadros`. O chamador acumula `+0x1a30` em `+0xde8`, copia cada linha para
+  `+0xdf8` e, com `+0xb80 == 1`, grava `+0x1a34` em `+0xdec`.
+- Limitação: `f64::powf` no lugar do `pow` vetorial pode diferir no último
+  bit.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

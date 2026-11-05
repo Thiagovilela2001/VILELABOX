@@ -7,6 +7,7 @@
 
 pub mod estagios;
 pub mod filtro;
+pub mod tonalidade;
 
 /// Faixas de BPM da preferência de análise, `(mínimo, máximo)` em BPM inteiro.
 /// Tabela em `0x1434eb4b0`; o índice 0 repete o padrão do índice 1.
