@@ -77,19 +77,21 @@ impl Fft {
     }
 }
 
-/// Espectro em dB de cada meio compasso (`0x14117b1b0`, passada C),
-/// conferido no assembly. Chamada `(obj, +0xaa0, fs = taxa/8, bpm, s, fim,
-/// grade +0x1140)`; FFT de 4096 em `+0x1a38` (init `0x14117b170`).
+/// Espectro em dB por trecho de compasso, conferido no assembly:
+/// `0x14117b1b0` (FFT de 4096 em `+0x1a38`, 2 por compasso, matriz `+0x1a70`)
+/// e `0x14117ac80` (FFT de 2048 em `+0x1a88`, 4 por compasso, uma por
+/// batida, matriz `+0x1ac0`). Chamada `(obj, +0xaa0, fs = taxa/8, bpm, s,
+/// fim, grade +0x1140)`.
 ///
 /// `C = (fim − s + 1) / 4` compassos; buffer local de
-/// `4·ceil((60/bpm)·fs) + 4097` amostras. Compasso `c` (1-based):
+/// `4·ceil((60/bpm)·fs) + N + 1` amostras. Compasso `c` (1-based):
 /// `g0 = grade[s − 1 + 4(c − 1)]`, próximo `grade[s + 3 + 4(c − 1)]` (no
 /// último, `g0 + len_buffer`); copia `x[g0 − 1 ..= min(próximo − 1, len) − 1]`
-/// para o buffer zerado. Duas FFTs, a partir de `0` e de
-/// `grade[s + 1 + 4(c − 1)] − g0`, com 4096 amostras reais; linha
-/// `2(c − 1) + k`, 2048 bins: `20·log10(sqrt(fma(im, im, re²)))` se o módulo
+/// para o buffer zerado. FFT `k` a partir de
+/// `grade[s − 1 + 4(c − 1) + k·4/por_compasso] − g0`, com `N` amostras reais;
+/// linha `por_compasso·(c − 1) + k`, `N/2` bins: `20·log10(sqrt(fma(im, im, re²)))` se o módulo
 /// for `>= 1e−10` (`0x143538100`, `0x1454155b0`), senão −200 (`0x143538108`).
-/// Matriz `+0x1a70` com `2C × 2048`, linha por meio compasso.
+/// Matriz `por_compasso·C × N/2`.
 ///
 /// ADAPTAÇÃO: leitura fora do sinal ou do buffer devolve `None`.
 pub fn espectro_por_compasso(
@@ -98,18 +100,19 @@ pub fn espectro_por_compasso(
     fs: f64,
     bpm: f64,
     grade: &[i32],
-    s: i32,
-    fim: i32,
+    (s, fim): (i32, i32),
+    por_compasso: i32,
 ) -> Option<Vec<f64>> {
-    const N: usize = 4096;
-    const BINS: usize = 2048;
+    let n = fft.n;
+    let bins = n / 2;
     let compassos = (fim - s + 1) / 4;
     let batida = (60.0 / bpm) * fs;
-    let len_buffer = usize::try_from(4 * batida.ceil() as i32 + 0x1001).ok()?;
+    let len_buffer = usize::try_from(4 * batida.ceil() as i32 + n as i32 + 1).ok()?;
     let mut b: Vec<f64> = Vec::new();
-    let mut out = Vec::with_capacity(usize::try_from(compassos).unwrap_or(0) * 2 * BINS);
+    let mut out =
+        Vec::with_capacity(usize::try_from(compassos).unwrap_or(0) * por_compasso as usize * bins);
     let idx = |i: i32| -> Option<i32> { grade.get(usize::try_from(i).ok()?).copied() };
-    let mut buf = vec![(0.0, 0.0); N];
+    let mut buf = vec![(0.0, 0.0); n];
     for c in 1..=compassos {
         if b.len() < len_buffer {
             b.resize(len_buffer, 0.0);
@@ -132,14 +135,14 @@ pub fn espectro_por_compasso(
             let qtd = qtd as usize;
             b[..qtd].copy_from_slice(sinal.get(ini..ini + qtd)?);
         }
-        for desl in [0, idx(base + 2)? - g0] {
-            let desl = usize::try_from(desl).ok()?;
-            let seg = b.get(desl..desl + N)?;
+        for k in 0..por_compasso {
+            let desl = usize::try_from(idx(base + k * (4 / por_compasso))? - g0).ok()?;
+            let seg = b.get(desl..desl + n)?;
             for (v, &x) in buf.iter_mut().zip(seg) {
                 *v = (x, 0.0);
             }
             fft.processar(&mut buf);
-            out.extend(buf[..BINS].iter().map(|&(re, im)| {
+            out.extend(buf[..bins].iter().map(|&(re, im)| {
                 let m = im.mul_add(im, re * re).sqrt();
                 if m >= 1e-10 {
                     m.log10() * 20.0
@@ -196,6 +199,24 @@ mod tests {
     }
 
     #[test]
+    fn espectro_por_batida_gera_quatro_linhas_por_compasso() {
+        let fft = Fft::nova(2048).unwrap();
+        let fs = 5512.5;
+        let sinal: Vec<f64> = (0..40000)
+            .map(|i| (2.0 * std::f64::consts::PI * 1000.0 * i as f64 / fs).sin())
+            .collect();
+        let grade: Vec<i32> = (0..12).map(|i| 1 + (i as f64 * 2756.25) as i32).collect();
+        let m = espectro_por_compasso(&fft, &sinal, fs, 120.0, &grade, (1, 8), 4).unwrap();
+        assert_eq!(m.len(), 2 * 4 * 1024);
+        // 1 kHz: bin 1000·2048/5512,5 ≈ 371,5.
+        let linha = &m[3 * 1024..4 * 1024];
+        let max = (0..1024)
+            .max_by(|&a, &b| linha[a].total_cmp(&linha[b]))
+            .unwrap();
+        assert!((371..=372).contains(&max), "{max}");
+    }
+
+    #[test]
     fn espectro_por_compasso_gera_duas_linhas_por_compasso() {
         let fft = Fft::nova(4096).unwrap();
         let fs = 5512.5;
@@ -204,7 +225,7 @@ mod tests {
             .collect();
         // 120 BPM: batida 2756,25 amostras.
         let grade: Vec<i32> = (0..12).map(|i| 1 + (i as f64 * 2756.25) as i32).collect();
-        let m = espectro_por_compasso(&fft, &sinal, fs, 120.0, &grade, 1, 8).unwrap();
+        let m = espectro_por_compasso(&fft, &sinal, fs, 120.0, &grade, (1, 8), 2).unwrap();
         assert_eq!(m.len(), 2 * 2 * 2048);
         // 1 kHz: bin 1000·4096/5512,5 ≈ 743.
         let linha = &m[..2048];

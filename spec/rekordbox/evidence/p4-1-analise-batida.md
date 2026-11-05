@@ -449,6 +449,12 @@ grade +0x1140)`):
   `0x143d0bff0`).
 - Matriz `+0x1a70` (`2C × 2048`), copiada pelo chamador a `+0xe10`.
 
+**Gêmeo por batida** (`0x14117ac80`): mesma rotina com a FFT de 2048 em
+`+0x1a88` (init `0x14117ac40`), buffer `4·ceil(batida) + 0x801`, quatro FFTs
+por compasso a partir de `grade[s − 1 + r] − g0` com `r = 4(c − 1) + k`
+(linha `r`), 1024 bins, matriz `+0x1ac0` (`4C × 1024`), copiada a `+0xe28`.
+No porte, os dois são `espectro_por_compasso` com `por_compasso` 2 e 4.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
