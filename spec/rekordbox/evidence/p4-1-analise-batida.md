@@ -357,6 +357,22 @@ Portado em `vilelabox-dsp::energia_e_pico_por_quarto`. Banda `+0xaa0`
 somas por compasso. As janelas dos três extratores por quarto ficam em
 `janelas_de_quarto` no porte.
 
+### Pico de 5 a 7 kHz em oitavos de batida (`0x14117e3a0`)
+
+Portado em `vilelabox-dsp::PicoAgudosPorOitavo`; conferido no assembly.
+Chamada `(obj, +0xa80, fs = taxa/2, bpm, grade +0x1120, n)` — aqui `fs`
+vem antes do BPM.
+
+- Banda `+0xa80` → passa-altas de 5 kHz (`+0x1c48`, `+0x1c80`) →
+  passa-baixas de 7 kHz (`+0x1cb8`, `+0x1cf0`), seções de `0x14117e1b0` →
+  valor absoluto → 1ª ordem 10 Hz (`+0x1d28`).
+- Grade copiada, truncada a `n + 1` (`0x141167f00`) com
+  `g[n] = g[n − 1] + (int)((60/bpm)·fs)`, trocado por `len` se `g[n] − 1 > len`.
+- Oitavo `e = (int)fma((int)(batida + 0,5), 0,125, 0,5)` (`0x145415198`).
+  Por batida, oito janelas fechadas 1-based: `[g, g + e]`,
+  `[g + 1 + k·e, g + (k + 1)·e]` (k = 1..6) e `[g + 7e + 1, g' − 1]`; o
+  máximo de cada uma vai a `+0x1d60` (8 por batida, copiada a `+0xd60`).
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

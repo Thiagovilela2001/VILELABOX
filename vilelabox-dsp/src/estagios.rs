@@ -1995,6 +1995,96 @@ impl PicoMediosPorBatida {
     }
 }
 
+/// `0x143538168` (2π·5000) e `0x143538170` (2π·7000).
+const W_5KHZ: f64 = 31_415.926_535_897_932;
+const W_7KHZ: f64 = 43_982.297_150_257_1;
+
+/// Pico de 5 a 7 kHz em oitavos de batida (`0x14117e3a0`, passada C),
+/// conferido no assembly. Banda de taxa/2 (`+0xa80`) → duas passa-altas de
+/// 5 kHz (`+0x1c48`, `+0x1c80`) → duas passa-baixas de 7 kHz (`+0x1cb8`,
+/// `+0x1cf0`), seções de `0x14117e1b0` → valor absoluto → 1ª ordem de 10 Hz
+/// (`+0x1d28`). Grade `+0x1120` truncada em `n` com
+/// `g[n] = g[n − 1] + (int)((60/bpm)·fs)` (trocado por `len` se `g[n] − 1 >
+/// len`). Oitavo `e = (int)fma((int)(batida + 0,5), 0,125, 0,5)`. Janelas
+/// fechadas por batida: `[g, g + e]`, `[g + 1 + k·e, g + (k + 1)·e]` para
+/// `k = 1..6` e `[g + 7e + 1, g' − 1]`, 1-based; máximo de cada uma em
+/// `+0x1d60` (8 por batida, copiada a `+0xd60`).
+///
+/// ADAPTAÇÃO: janela fora do sinal devolve `None`; o original lê além dele.
+#[derive(Debug, Clone)]
+pub struct PicoAgudosPorOitavo {
+    secoes: [Biquad; 4],
+    lp10: PrimeiraOrdem,
+}
+
+impl PicoAgudosPorOitavo {
+    pub fn novo(fs: f64) -> Self {
+        let oa = pre_distorcao(W_5KHZ, fs);
+        let ob = pre_distorcao(W_7KHZ, fs);
+        let k = |i: i32| {
+            let c = (i as f64 * std::f64::consts::FRAC_PI_4 + std::f64::consts::FRAC_PI_8).cos();
+            c + c
+        };
+        let pa = |i| Biquad::bilinear(1.0, 0.0, 0.0, 1.0, k(i) * oa, oa * oa, fs);
+        let pb = |i| Biquad::bilinear(0.0, 0.0, ob * ob, 1.0, k(i) * ob, ob * ob, fs);
+        let o10 = pre_distorcao(W_10HZ, fs);
+        Self {
+            secoes: [pa(0), pa(1), pb(0), pb(1)],
+            lp10: PrimeiraOrdem::bilinear(0.0, o10, 1.0, o10, fs),
+        }
+    }
+
+    pub fn processar(
+        &mut self,
+        sinal: &[f64],
+        grade: &[i32],
+        n: usize,
+        bpm: f64,
+        fs: f64,
+    ) -> Option<Vec<f64>> {
+        let mut y = vec![0.0; sinal.len()];
+        self.secoes[0].processar(sinal, &mut y);
+        for s in &mut self.secoes[1..] {
+            s.processar_no_lugar(&mut y);
+        }
+        for v in y.iter_mut() {
+            *v = v.abs();
+        }
+        self.lp10.processar_no_lugar(&mut y);
+        if n == 0 {
+            return Some(Vec::new());
+        }
+        let len = y.len() as i32;
+        let batida = (60.0 / bpm) * fs;
+        let mut g = grade[..n].to_vec();
+        let mut limite = g[n - 1] + batida as i32;
+        if len < limite - 1 {
+            limite = len;
+        }
+        g.push(limite);
+        let e = ((batida + 0.5) as i32 as f64).mul_add(0.125, 0.5) as i32;
+        let mut out = Vec::with_capacity(n * 8);
+        for w in g.windows(2) {
+            let (b, prox) = (w[0], w[1]);
+            for k in 0..8 {
+                let (ini, fim) = match k {
+                    0 => (b, b + e),
+                    7 => (b + 7 * e + 1, prox - 1),
+                    _ => (b + 1 + k * e, b + (k + 1) * e),
+                };
+                if ini < 1 {
+                    return None;
+                }
+                let j = y.get(
+                    (ini - 1) as usize..(ini - 1) as usize + usize::try_from(fim - ini + 1).ok()?,
+                )?;
+                out.push(maximo(j));
+            }
+        }
+        Some(out)
+    }
+}
+
 /// Soma do intervalo fechado (`0x141167180`): `soma(v[a..=b])` se
 /// `0 <= a <= b < len`; senão 0.
 fn soma_intervalo(v: &[f64], a: i32, b: i32) -> f64 {
@@ -2580,6 +2670,28 @@ mod tests {
         assert_eq!((e[0], p[0]), (9.0, 3.0));
         assert_eq!((e[3], p[3]), (4.0, 2.0));
         assert!(e[4..].iter().chain(&p[4..]).all(|v| *v == 0.0));
+    }
+
+    #[test]
+    fn pico_agudos_por_oitavo_divide_a_batida() {
+        // 120 BPM a 22050 Hz: batida 11025, oitavo (int)(11025·0,125 + 0,5) = 1378.
+        let fs = 22050.0;
+        let n = 60000;
+        let tom: Vec<f64> = (0..n)
+            .map(|i| (2.0 * std::f64::consts::PI * 6000.0 * i as f64 / fs).sin())
+            .collect();
+        let mut p = PicoAgudosPorOitavo::novo(fs);
+        let v = p.processar(&tom, &[30001], 1, 120.0, fs).unwrap();
+        assert_eq!(v.len(), 8);
+        // Tom estacionário: os oito oitavos têm o mesmo pico, abaixo de 2/π
+        // pela atenuação do passa-banda estreito.
+        assert!(
+            v.iter()
+                .all(|x| (x - v[0]).abs() < 1e-6 && *x > 0.5 && *x < 0.64),
+            "{v:?}"
+        );
+        let mut p = PicoAgudosPorOitavo::novo(fs);
+        assert!(p.processar(&tom, &[0], 1, 120.0, fs).is_none());
     }
 
     #[test]
