@@ -414,6 +414,41 @@ Portada em `vilelabox-dsp::tonalidade`; conferida no assembly.
 - Limitação: `f64::powf` no lugar do `pow` vetorial pode diferir no último
   bit.
 
+### FFT e espectro por compasso (`0x14117b1b0`)
+
+Portados em `vilelabox-dsp::espectro`; conferidos no assembly; a FFT bate
+com a DFT direta nos testes.
+
+**FFT** (objeto em `+0x1a38`, `N = 4096`, init `0x14117b170`):
+
+- `0x1411645f0`: exige `N > 7` potência de 2; `1/N` em `+0x10`; tabela
+  `sen((2π/N)·i)`, `i < N + N/4` (`+0x30`), com `0x1427a51e0`; pares de
+  troca por bits invertidos (`+0x18`, `+0x20`, quantidade `+0x28`).
+- `0x141165390`: janela `fma(cos((i − h)·π/(h + 1)), 0,5, 0,5)`,
+  `h = (N − 1)·0,5` (`0x143537e00` = π, `0x145416f80` = 0,5), com `cos`
+  vetorial `0x142608cd0` (porte usa `f64::cos`: pode diferir no último bit).
+- `0x1411655f0`: multiplica real e imaginário pela janela.
+- `0x141164e90`: trocas e borboletas radix-2 DIT; por meia largura `l`,
+  `(c, s) = (tab[m·N/(2l) + N/4], tab[m·N/(2l)])`, `tr = fma(s, im, c·re)`,
+  `ti = fma(c, im, −s·re)`, `x[j] = x[j−l] − t`, `x[j−l] = t + x[j−l]`.
+
+**Espectro** (`0x14117b1b0`, chamada `(obj, +0xaa0, taxa/8, bpm, s, fim,
+grade +0x1140)`):
+
+- `C = (fim − s + 1)/4`; buffer de `4·ceil((60/bpm)·fs) + 0x1001`
+  amostras, zerado por compasso.
+- Compasso `c`: `g0 = grade[s − 1 + 4(c − 1)]`, próximo `grade[s + 3 + 4(c −
+  1)]` (último: `g0 + len_buffer`); copia o sinal de `g0` até
+  `min(próximo − 1, len)`.
+- Duas FFTs, a partir de 0 e de `grade[s + 1 + 4(c − 1)] − g0`, 4096
+  amostras reais; linha `2(c − 1) + k` (contador iniciado em 2 em
+  `0x14117b2fa`).
+- 2048 bins: `20·log10(sqrt(fma(im, im, re²)))` se `>= 1e−10`
+  (`0x143538100`, `0x1454155b0`), senão −200 (`0x143538108`).
+  `0x1427a25f0` é `log10` (usa log10(e) e log10(2) em `0x143d0bfc0`,
+  `0x143d0bff0`).
+- Matriz `+0x1a70` (`2C × 2048`), copiada pelo chamador a `+0xe10`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
