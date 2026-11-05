@@ -1897,6 +1897,62 @@ impl AgudosPorBatida {
     }
 }
 
+/// `0x1434e5608` (2π·400), `0x143538378` (2π·1000), `0x143538160` (2π·10).
+const W_400HZ: f64 = 2_513.274_122_871_834_6;
+const W_1KHZ: f64 = 6_283.185_307_179_586;
+const W_10HZ: f64 = 62.831_853_071_795_86;
+
+/// Pico da banda de 400 Hz a 1 kHz por batida (`0x141189ab0`, passada C),
+/// conferido no assembly. Banda de taxa/8 (`+0xaa0`) → duas seções
+/// passa-alta de 400 Hz (`+0x1408`, `+0x1440`) → duas passa-baixa de 1 kHz
+/// (`+0x1478`, `+0x14b0`), com `a1 = 2·cos(i·π/4 + π/8)·Ω` (projeto em
+/// `0x1411898c0`) → valor absoluto → 1ª ordem de 10 Hz (`+0x14e8`). Máximo
+/// por batida sobre a grade inteira (`+0x1140`) como em `pico_por_batida`.
+/// Saída `+0x1520` (copiada a `+0xc60`).
+#[derive(Debug, Clone)]
+pub struct PicoMediosPorBatida {
+    secoes: [Biquad; 4],
+    lp10: PrimeiraOrdem,
+}
+
+impl PicoMediosPorBatida {
+    pub fn novo(fs: f64) -> Self {
+        let oa = pre_distorcao(W_400HZ, fs);
+        let ob = pre_distorcao(W_1KHZ, fs);
+        let k = |i: i32| {
+            let c = (i as f64 * std::f64::consts::FRAC_PI_4 + std::f64::consts::FRAC_PI_8).cos();
+            c + c
+        };
+        let pa = |i| Biquad::bilinear(1.0, 0.0, 0.0, 1.0, k(i) * oa, oa * oa, fs);
+        let pb = |i| Biquad::bilinear(0.0, 0.0, ob * ob, 1.0, k(i) * ob, ob * ob, fs);
+        let o10 = pre_distorcao(W_10HZ, fs);
+        Self {
+            secoes: [pa(0), pa(1), pb(0), pb(1)],
+            lp10: PrimeiraOrdem::bilinear(0.0, o10, 1.0, o10, fs),
+        }
+    }
+
+    pub fn processar(
+        &mut self,
+        sinal: &[f64],
+        grade: &[i32],
+        n: usize,
+        bpm: f64,
+        fs: f64,
+    ) -> Option<Vec<f64>> {
+        let mut y = vec![0.0; sinal.len()];
+        self.secoes[0].processar(sinal, &mut y);
+        for s in &mut self.secoes[1..] {
+            s.processar_no_lugar(&mut y);
+        }
+        for v in y.iter_mut() {
+            *v = v.abs();
+        }
+        self.lp10.processar_no_lugar(&mut y);
+        por_segmento(&y, grade, n, bpm, fs, true, maximo)
+    }
+}
+
 /// Soma do intervalo fechado (`0x141167180`): `soma(v[a..=b])` se
 /// `0 <= a <= b < len`; senão 0.
 fn soma_intervalo(v: &[f64], a: i32, b: i32) -> f64 {
@@ -2451,6 +2507,24 @@ mod tests {
             .unwrap();
         assert_eq!(v.len(), 1);
         assert!(v[0].abs() < 1e-3, "{v:?}");
+    }
+
+    #[test]
+    fn pico_medios_passa_600hz_e_rejeita_dc() {
+        let fs = 5512.5;
+        let n = 40000;
+        let tom: Vec<f64> = (0..n)
+            .map(|i| (2.0 * std::f64::consts::PI * 600.0 * i as f64 / fs).sin())
+            .collect();
+        let mut p = PicoMediosPorBatida::novo(fs);
+        let v = p.processar(&tom, &[30001, 32757], 1, 120.0, fs).unwrap();
+        // Envelope de |sen| filtrado em 10 Hz tende à média 2/π.
+        assert!((v[0] - 2.0 / std::f64::consts::PI).abs() < 0.05, "{v:?}");
+        let mut p = PicoMediosPorBatida::novo(fs);
+        let v = p
+            .processar(&vec![1.0; n], &[30001, 32757], 1, 120.0, fs)
+            .unwrap();
+        assert!(v[0] < 1e-3, "{v:?}");
     }
 
     #[test]

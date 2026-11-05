@@ -337,6 +337,15 @@ ordem 5 Hz (`+0x13b0`), projetados em `0x141189410`; métrica `soma`
 `+0xcc0`. Os três extratores de segmento (`0x141187b40`, `0x1411711f0`,
 `0x141189500`) compartilham `por_segmento` no porte.
 
+### Pico de 400 Hz a 1 kHz por batida (`0x141189ab0`)
+
+Portado em `vilelabox-dsp::PicoMediosPorBatida`; conferido no assembly.
+Banda `+0xaa0` (taxa/8) → passa-altas de 400 Hz (`+0x1408`, `+0x1440`) →
+passa-baixas de 1 kHz (`+0x1478`, `+0x14b0`), seções de `0x1411898c0` →
+valor absoluto → 1ª ordem 10 Hz (`+0x14e8`). Máximo por batida sobre a grade
+inteira `+0x1140` mais o limite; inválido 0,0. Saída `+0x1520`, copiada a
+`+0xc60`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
