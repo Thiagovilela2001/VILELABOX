@@ -298,6 +298,20 @@ Argumentos: banda `+0xac0`, BPM `+0xb0`, `fs = taxa/32` (`+0xa0`), grade
   (contador iniciado em 2 em `0x1411886ea`). Saídas `+0x1338` (copiada a
   `+0xd20`) e `+0x1358`.
 
+### Pico por batida (`0x1411711f0`)
+
+Portado em `vilelabox-dsp::pico_por_batida`; conferido no assembly.
+Banda `+0xaa0`, `fs = taxa/8` (`+0x98`), BPM `+0xb0`, grade `+0x1140`.
+
+- Sem filtro: cópia do sinal (`0x141166a30`) e valor absoluto.
+- Limite como no envelope por batida (`grade[n − 1]` mais uma batida,
+  `0x143537ea0` = −60), mas a grade local é a grade **inteira**
+  (`0x141168020`) com o limite acrescentado (`0x141168220`): a última batida
+  do lote termina em `grade[n]` quando ele existe.
+- Batida `i < n`: máximo do segmento (`0x141167280` → `0x142604de0`, parte
+  de −∞ em `0x145415fa0`; vazio dá 0) ou 0,0 fora do sinal. Sem fator.
+- Saída `+0x1540`, copiada a `+0xd40`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

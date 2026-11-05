@@ -1796,6 +1796,58 @@ impl EnvelopePorBatida {
     }
 }
 
+/// Máximo (`0x141167280` → `0x142604de0`): parte de −∞ (`0x145415fa0`) e
+/// troca só com `>`; vetor vazio dá 0.
+pub fn maximo(x: &[f64]) -> f64 {
+    if x.is_empty() {
+        return 0.0;
+    }
+    x.iter()
+        .fold(f64::NEG_INFINITY, |m, &v| if m < v { v } else { m })
+}
+
+/// Pico por batida da banda de taxa/8 (`0x1411711f0`, passada C), conferido
+/// no assembly. Sem filtro: só valor absoluto (`0x141167080`) de uma cópia.
+/// A grade local é a grade **inteira** (`+0x1140`) com
+/// `limite = grade[n − 1] − (int)((−60/bpm)·fs)` acrescentado no fim
+/// (limitado ao comprimento como em `EnvelopePorBatida`). Saída `i < n`:
+/// `maximo(|x|[g[i] − 1 .. g[i + 1] − 1])` se `0 < g[i] <= len` e
+/// `g[i + 1] − 1 <= len`; senão 0. Saída em `+0x1540` (copiada a `+0xd40`).
+///
+/// Segmento de comprimento negativo faz o original falhar: `None`.
+pub fn pico_por_batida(
+    sinal: &[f64],
+    grade: &[i32],
+    n: usize,
+    bpm: f64,
+    fs: f64,
+) -> Option<Vec<f64>> {
+    let abs: Vec<f64> = sinal.iter().map(|v| v.abs()).collect();
+    let len = abs.len() as i32;
+    if n == 0 {
+        return Some(Vec::new());
+    }
+    let mut limite = grade[n - 1] - ((-60.0 / bpm) * fs) as i32;
+    if len < limite - 1 {
+        limite = len;
+    }
+    let mut g = grade.to_vec();
+    g.push(limite);
+    g.windows(2)
+        .take(n)
+        .map(|w| {
+            let (a, b) = (w[0], w[1]);
+            if a > 0 && a <= len && b - 1 <= len {
+                let ini = (a - 1) as usize;
+                let fim = ini.checked_add(usize::try_from(b - a).ok()?)?;
+                Some(maximo(&abs[ini..fim]))
+            } else {
+                Some(0.0)
+            }
+        })
+        .collect()
+}
+
 /// Parâmetros fixos do analisador gravados no init (`0x141170020`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ConfigPassadaA {
@@ -2207,6 +2259,23 @@ mod tests {
             assert!((v - 4.0 * x).abs() < 1e-3, "{v}");
         }
         assert!(c.is_empty());
+    }
+
+    #[test]
+    fn pico_por_batida_usa_a_grade_inteira() {
+        assert_eq!(maximo(&[]), 0.0);
+        let mut x = vec![0.0; 100];
+        x[10] = -5.0; // batida 0: [5, 20)
+        x[25] = 3.0; // batida 1: [20, 40) — fim vem de grade[2], não do limite
+        x[45] = 9.0; // fora das batidas pedidas
+        let v = pico_por_batida(&x, &[6, 21, 41], 2, 120.0, 40.0).unwrap();
+        assert_eq!(v, vec![5.0, 3.0]);
+        // Índice zero vale 0; segmento invertido falha.
+        assert_eq!(
+            pico_por_batida(&x, &[0, 10], 1, 120.0, 40.0).unwrap(),
+            vec![0.0]
+        );
+        assert!(pico_por_batida(&x, &[30, 10], 1, 120.0, 40.0).is_none());
     }
 
     #[test]
