@@ -312,6 +312,21 @@ Banda `+0xaa0`, `fs = taxa/8` (`+0x98`), BPM `+0xb0`, grade `+0x1140`.
   de −∞ em `0x145415fa0`; vazio dá 0) ou 0,0 fora do sinal. Sem fator.
 - Saída `+0x1540`, copiada a `+0xd40`.
 
+### Graves e agudos de 500 Hz por batida (`0x14117a200`)
+
+Portado em `vilelabox-dsp::Bandas500PorBatida`; conferido no assembly.
+
+- Banda `+0xac0` (taxa/32) → passa-baixa 2ª ordem 500 Hz (`+0x1b28`,
+  `0x1435380f0`) → valor absoluto → 1ª ordem 5 Hz (`+0x1b98`). Banda `+0xaa0`
+  (taxa/8) → passa-alta 2ª ordem 500 Hz (`+0x1b60`) → valor absoluto → 5 Hz
+  (`+0x1bd0`). Projeto em `0x14117a050`; estados mantidos entre lotes.
+- Grades `+0x1160` (graves) e `+0x1140` (agudos), `n` do lote. Batida
+  `i < n − 1`: `0x141167180(env, g[i] − 1, g[i + 1] − 2)`; a última vai até
+  `len − 1`. `0x141167180(v, a, b)` = soma do intervalo fechado
+  (`0x14116ef60`) se `0 <= a <= b < len`, senão 0.
+- Saídas `+0x1c08` (copiada a `+0xce0`) e `+0x1c28` (copiada a `+0xd00`).
+  Com `n = 0` o original grava no índice −1; o porte devolve `None`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

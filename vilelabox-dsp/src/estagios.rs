@@ -1848,6 +1848,99 @@ pub fn pico_por_batida(
         .collect()
 }
 
+/// `0x1435380f0` (2π·500).
+const W_500HZ: f64 = 3_141.592_653_589_793;
+
+/// Soma do intervalo fechado (`0x141167180`): `soma(v[a..=b])` se
+/// `0 <= a <= b < len`; senão 0.
+fn soma_intervalo(v: &[f64], a: i32, b: i32) -> f64 {
+    if a < 0 || a > b || b as usize >= v.len() {
+        return 0.0;
+    }
+    soma(&v[a as usize..=b as usize])
+}
+
+/// Graves e agudos de 500 Hz por batida (`0x14117a200`, passada C), conferido
+/// no assembly. Filtros projetados em `0x14117a050` e mantidos entre lotes:
+/// banda de taxa/32 (`+0xac0`) → passa-baixa de 2ª ordem de 500 Hz
+/// (`+0x1b28`) → valor absoluto → 1ª ordem de 5 Hz (`+0x1b98`); banda de
+/// taxa/8 (`+0xaa0`) → passa-alta de 2ª ordem de 500 Hz (`+0x1b60`) → valor
+/// absoluto → 5 Hz (`+0x1bd0`).
+#[derive(Debug, Clone)]
+pub struct Bandas500PorBatida {
+    lp500: Biquad,
+    hp500: Biquad,
+    lp5_graves: PrimeiraOrdem,
+    lp5_agudos: PrimeiraOrdem,
+}
+
+impl Bandas500PorBatida {
+    pub fn novo(fs32: f64, fs8: f64) -> Self {
+        let o8 = pre_distorcao(W_500HZ, fs8);
+        let lp5 = |fs| {
+            let o = pre_distorcao(W_5HZ, fs);
+            PrimeiraOrdem::bilinear(0.0, o, 1.0, o, fs)
+        };
+        Self {
+            lp500: passa_baixa_2(W_500HZ, fs32),
+            hp500: Biquad::bilinear(
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                o8 * std::f64::consts::SQRT_2,
+                o8 * o8,
+                fs8,
+            ),
+            lp5_graves: lp5(fs32),
+            lp5_agudos: lp5(fs8),
+        }
+    }
+
+    /// `grade32` = `+0x1160`, `grade8` = `+0x1140`, `n` batidas do lote.
+    /// Batida `i < n − 1`: `soma_intervalo(env, g[i] − 1, g[i + 1] − 2)`; a
+    /// última vai até `len − 1`. Saídas `+0x1c08` (graves, copiada a
+    /// `+0xce0`) e `+0x1c28` (agudos, copiada a `+0xd00`).
+    ///
+    /// ADAPTAÇÃO: `n = 0` dá `None` (o original grava no índice −1).
+    pub fn processar(
+        &mut self,
+        graves: &[f64],
+        agudos: &[f64],
+        grade32: &[i32],
+        grade8: &[i32],
+        n: usize,
+    ) -> Option<(Vec<f64>, Vec<f64>)> {
+        if n == 0 {
+            return None;
+        }
+        let env = |sinal: &[f64], f: &mut Biquad, lp5: &mut PrimeiraOrdem| {
+            let mut y = vec![0.0; sinal.len()];
+            f.processar(sinal, &mut y);
+            for v in y.iter_mut() {
+                *v = v.abs();
+            }
+            lp5.processar_no_lugar(&mut y);
+            y
+        };
+        let eg = env(graves, &mut self.lp500, &mut self.lp5_graves);
+        let ea = env(agudos, &mut self.hp500, &mut self.lp5_agudos);
+        let por_batida = |e: &[f64], g: &[i32]| -> Vec<f64> {
+            (0..n)
+                .map(|i| {
+                    let fim = if i + 1 < n {
+                        g[i + 1] - 2
+                    } else {
+                        e.len() as i32 - 1
+                    };
+                    soma_intervalo(e, g[i] - 1, fim)
+                })
+                .collect()
+        };
+        Some((por_batida(&eg, grade32), por_batida(&ea, grade8)))
+    }
+}
+
 /// Parâmetros fixos do analisador gravados no init (`0x141170020`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ConfigPassadaA {
@@ -2276,6 +2369,31 @@ mod tests {
             vec![0.0]
         );
         assert!(pico_por_batida(&x, &[30, 10], 1, 120.0, 40.0).is_none());
+    }
+
+    #[test]
+    fn bandas_500_por_batida_somam_intervalos_fechados() {
+        assert_eq!(soma_intervalo(&[1.0, 2.0, 3.0], 1, 2), 5.0);
+        assert_eq!(soma_intervalo(&[1.0, 2.0, 3.0], 2, 1), 0.0);
+        assert_eq!(soma_intervalo(&[1.0, 2.0, 3.0], 0, 3), 0.0);
+        // Constante 1: graves ≈ 1 (ganho DC 1), agudos ≈ 0 (passa-alta).
+        let (fs32, fs8) = (1378.125, 5512.5);
+        let mut b = Bandas500PorBatida::novo(fs32, fs8);
+        let (g, a) = b
+            .processar(
+                &vec![1.0; 20000],
+                &vec![1.0; 80000],
+                &[18001, 19001],
+                &[72001, 76001],
+                2,
+            )
+            .unwrap();
+        assert!(
+            (g[0] - 1000.0).abs() < 1e-3 && (g[1] - 1000.0).abs() < 1e-3,
+            "{g:?}"
+        );
+        assert!(a.iter().all(|v| v.abs() < 1e-3), "{a:?}");
+        assert!(b.processar(&[], &[], &[], &[], 0).is_none());
     }
 
     #[test]
