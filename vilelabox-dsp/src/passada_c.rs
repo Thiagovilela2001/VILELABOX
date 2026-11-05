@@ -130,9 +130,104 @@ impl FiltroGraves {
     }
 }
 
+/// Ataques contados por batida (`0x14117e850`, passada C), conferido no
+/// assembly. Chamada `(obj, +0xa80, bpm, _, fs = taxa/2, grade +0x1120, n)`;
+/// saída `+0x1978` (`n` bytes, copiada a `+0xdc0`).
+///
+/// 1. `x = |banda|` (cópia, sem filtro).
+/// 2. Dois seguidores, rápido `r` e lento `l`, partindo de `ini` (`+0x1968`,
+///    `+0x1970`, ambos 0 em `0x14117e830`). Coeficiente por amostra: rápido
+///    `2000/fs` se `r <= x`, senão `20/fs`; lento `1000/fs` se `l <= x`,
+///    senão `13,33…/fs` (`0x143538188`, `0x1454155b0`, `0x1454157b8`,
+///    `0x143537b30`). Nas amostras dos blocos de 4 do laço desenrolado,
+///    `y = fma(a, x, fma(−y, a, y))`; nas `len mod 4` finais,
+///    `y = (1 − a)·y + x·a` sem fusão.
+/// 3. Ataque na posição `i + 1` quando `r > l` e `r > 0,06` (`0x143538178`).
+/// 4. Mantém o ataque se `(double)(pos − último_mantido) > (13,33…/bpm)·fs`
+///    (`0x143538180`; o último começa em 0).
+/// 5. Conta (`u8`, com volta) por batida `j`: `g[j] <= pos < g[j + 1]`, e a
+///    última batida recebe todo `pos >= g[n − 1]`.
+pub fn ataques_por_batida(
+    banda: &[f64],
+    grade: &[i32],
+    n: usize,
+    bpm: f64,
+    fs: f64,
+    ini: (f64, f64),
+) -> Vec<u8> {
+    let inv = 1.0 / fs;
+    let (sobe_r, desce_r) = (inv * 2000.0, inv * 20.0);
+    let (sobe_l, desce_l) = (inv * 1000.0, inv * 13.333_333_333_333_334);
+    let minimo = (13.333_333_333_333_332 / bpm) * fs;
+    let len = banda.len();
+    let fundidas = if len >= 4 { len - len % 4 } else { 0 };
+    let (mut r, mut l) = ini;
+    let mut ataques = Vec::new();
+    for (i, v) in banda.iter().enumerate() {
+        let x = v.abs();
+        let ar = if r <= x { sobe_r } else { desce_r };
+        let al = if l <= x { sobe_l } else { desce_l };
+        if i < fundidas {
+            r = ar.mul_add(x, (-r).mul_add(ar, r));
+            l = al.mul_add(x, (-l).mul_add(al, l));
+        } else {
+            r = (1.0 - ar) * r + x * ar;
+            l = (1.0 - al) * l + x * al;
+        }
+        if l < r && 0.06 < r {
+            ataques.push(i as i32 + 1);
+        }
+    }
+    let mut ultimo = 0;
+    let mantidos: Vec<i32> = ataques
+        .into_iter()
+        .filter(|&p| {
+            let ok = minimo < f64::from(p - ultimo);
+            if ok {
+                ultimo = p;
+            }
+            ok
+        })
+        .collect();
+    let mut cont = vec![0u8; n];
+    if n == 0 {
+        return cont;
+    }
+    for p in mantidos {
+        for j in 0..n - 1 {
+            if grade[j] <= p && p < grade[j + 1] {
+                cont[j] = cont[j].wrapping_add(1);
+            }
+        }
+        if grade[n - 1] <= p {
+            cont[n - 1] = cont[n - 1].wrapping_add(1);
+        }
+    }
+    cont
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ataques_caem_nas_batidas_certas() {
+        let fs = 22050.0;
+        // Cliques de 1 ms a cada 0,5 s (120 BPM), começando em 0,1 s.
+        let mut x = vec![0.0; 44100];
+        for k in 0..4 {
+            let i0 = 2205 + k * 11025;
+            x[i0..i0 + 22].fill(1.0);
+        }
+        let grade = [1, 11026, 22051, 33076];
+        let c = ataques_por_batida(&x, &grade, 4, 120.0, fs, (0.0, 0.0));
+        assert_eq!(c, vec![1, 1, 1, 1]);
+        // Silêncio: nada.
+        assert_eq!(
+            ataques_por_batida(&vec![0.0; 1000], &grade, 4, 120.0, fs, (0.0, 0.0)),
+            vec![0; 4]
+        );
+    }
 
     #[test]
     fn picos_graves_marcam_subida_e_queda() {

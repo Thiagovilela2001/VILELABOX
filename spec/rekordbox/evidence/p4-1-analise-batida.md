@@ -474,6 +474,24 @@ Chamada `(obj, +0xac0, bpm, _, fs = taxa/32, grade +0x1160, n, +0xb88)`.
   se `v > p·1,77` (`0x143538350`); × 0,8 (`0x145415338`) quando `v` e `p`
   são `<= 0,09` (`0x143538238`).
 
+### Ataques por batida (`0x14117e850`)
+
+Portado em `vilelabox-dsp::passada_c::ataques_por_batida`; conferido no
+assembly. Chamada `(obj, +0xa80, bpm, _, fs = taxa/2, grade +0x1120, n)`.
+
+- `x = |banda|` (cópia, sem filtro).
+- Seguidores rápido e lento a partir de `+0x1968`/`+0x1970` (0 em
+  `0x14117e830`); coeficientes `2000/fs` ou `20/fs` (rápido) e `1000/fs` ou
+  `13,33…/fs` (lento), o primeiro quando o seguidor está `<= x`.
+- Duas aritméticas no mesmo laço: blocos de 4 com
+  `fma(a, x, fma(−y, a, y))` (`vfnmadd231sd` + `vfmadd231sd`) e as
+  `len mod 4` amostras finais com `(1 − a)·y + x·a` sem fusão.
+- Ataque em `i + 1` quando rápido > lento e rápido > 0,06 (`0x143538178`);
+  descartado se a distância ao último mantido não passar de
+  `(13,33…/bpm)·fs` (`0x143538180`).
+- Contagem `u8` por batida em `+0x1978` (copiada a `+0xdc0`):
+  `g[j] <= pos < g[j + 1]`, e a última recebe `pos >= g[n − 1]`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
