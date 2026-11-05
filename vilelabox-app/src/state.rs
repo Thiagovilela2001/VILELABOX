@@ -210,7 +210,19 @@ impl DeckState {
             .collect();
         let ler = |p: &Option<std::path::PathBuf>| p.as_ref().and_then(|p| std::fs::read(p).ok());
         let (dat, ext) = (ler(&track.dat), ler(&track.ext));
-        let (preview, detail) = ext.as_deref().map_or((None, None), waveform_from_ext);
+        let (mut preview, mut detail) = ext.as_deref().map_or((None, None), waveform_from_ext);
+        // WAV com tamanho declarado 0xFFFFFFFF: o rekordbox grava as ondas para
+        // ~22 370 s. Com a duração medida no arquivo, o detalhe é cortado nela e a
+        // visão geral é refeita a partir dele (a do PWV4 teria ~20 colunas úteis).
+        if let (Some(ms), Some(d)) = (track.audio_ms, detail.as_mut()) {
+            let n = (ms as usize * crate::waveform::DETALHE_POR_SEGUNDO) / 1000;
+            if n + crate::waveform::DETALHE_POR_SEGUNDO < d.height.len() {
+                for v in [&mut d.height, &mut d.red, &mut d.green, &mut d.blue] {
+                    v.truncate(n);
+                }
+                preview = Some(crate::waveform::visao_do_detalhe(d, 1200));
+            }
+        }
         // Cues: do XML quando houver (o ANLZ local não os guarda); senão, do ANLZ.
         let cues = match track.meta.as_ref().filter(|m| !m.cues.is_empty()) {
             Some(m) => m.cues.clone(),

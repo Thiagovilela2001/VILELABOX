@@ -37,6 +37,41 @@ fn coluna(buf: &mut SharedPixelBuffer<Rgba8Pixel>, x: u32, y0: u32, y1: u32, cor
     }
 }
 
+/// Visão geral montada do detalhe, para quando o PWV4 não cobre a faixa real:
+/// cada coluna leva a entrada mais alta do seu trecho, com altura 0..31 e cor
+/// 0..7 do PWV5 levadas à escala 0..127 do PWV4.
+pub fn visao_do_detalhe(d: &WaveformDetail, colunas: usize) -> WaveformPreview {
+    let n = d.height.len();
+    let mut p = WaveformPreview::default();
+    if n == 0 || colunas == 0 {
+        return p;
+    }
+    let escala = |v: u8, max: u8| ((u16::from(v) * 127) / u16::from(max)) as u8;
+    for c in 0..colunas {
+        let (a, b) = (
+            c * n / colunas,
+            ((c + 1) * n / colunas).max(c * n / colunas + 1).min(n),
+        );
+        let i = (a..b).max_by_key(|&i| d.height[i]).unwrap_or(a);
+        let h = escala(d.height[i], 31);
+        let (r, g, bl) = (d.red[i], d.green[i], d.blue[i]);
+        let pico = r.max(g).max(bl);
+        // Cor em proporção, altura pelo detalhe; sem cor (PWV3) vira branco.
+        let cor = |v: u8| {
+            if pico == 0 {
+                h
+            } else {
+                ((u16::from(v) * u16::from(h)) / u16::from(pico)) as u8
+            }
+        };
+        p.red.push(cor(r));
+        p.green.push(cor(g));
+        p.blue.push(cor(bl));
+        p.raw.push([0; 6]);
+    }
+    p
+}
+
 /// Visão geral: uma coluna por entrada do PWV4.
 pub fn render_preview(p: &WaveformPreview) -> SharedPixelBuffer<Rgba8Pixel> {
     let n = p.red.len().min(p.green.len()).min(p.blue.len());
@@ -129,6 +164,20 @@ pub fn detail_blocks(d: &WaveformDetail) -> Vec<(usize, SharedPixelBuffer<Rgba8P
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn visao_do_detalhe_pega_o_pico_de_cada_trecho() {
+        let d = WaveformDetail {
+            height: vec![0, 31, 10, 0],
+            red: vec![0, 7, 0, 0],
+            green: vec![0, 0, 7, 0],
+            blue: vec![0, 0, 0, 0],
+        };
+        let p = visao_do_detalhe(&d, 2);
+        assert_eq!(p.red, vec![127, 0]);
+        assert_eq!(p.green, vec![0, 40]);
+        assert_eq!(p.red.len(), 2);
+    }
 
     #[test]
     fn janela_visual_compensa_pitch() {
