@@ -1725,6 +1725,51 @@ pub fn grades_passada_b(n: [f64; 3], fs: [f64; 3], bpm: f64, ms: i32) -> Option<
     }))
 }
 
+/// Núcleo de `0x141187b40`, `0x1411711f0` e `0x141189500`: grade local com
+/// `limite = grade[n − 1] − (int)((−60/bpm)·fs)` (`0x143537ea0` = −60) no
+/// fim, trocado por `len` se `limite − 1 > len`. `inteira` diz se a grade
+/// local parte da grade inteira (`0x141168020`) ou só das `n` primeiras.
+/// Batida `i < n`: `f(x[g[i] − 1 .. g[i + 1] − 1])` se `0 < g[i] <= len` e
+/// `g[i + 1] − 1 <= len`; senão 0. Segmento negativo: `None` (o original
+/// falha em `0x141166c30`).
+fn por_segmento(
+    x: &[f64],
+    grade: &[i32],
+    n: usize,
+    bpm: f64,
+    fs: f64,
+    inteira: bool,
+    f: fn(&[f64]) -> f64,
+) -> Option<Vec<f64>> {
+    let len = x.len() as i32;
+    if n == 0 {
+        return Some(Vec::new());
+    }
+    let mut limite = grade[n - 1] - ((-60.0 / bpm) * fs) as i32;
+    if len < limite - 1 {
+        limite = len;
+    }
+    let mut g = if inteira {
+        grade.to_vec()
+    } else {
+        grade[..n].to_vec()
+    };
+    g.push(limite);
+    g.windows(2)
+        .take(n)
+        .map(|w| {
+            let (a, b) = (w[0], w[1]);
+            if a > 0 && a <= len && b - 1 <= len {
+                let ini = (a - 1) as usize;
+                let fim = ini.checked_add(usize::try_from(b - a).ok()?)?;
+                Some(f(&x[ini..fim]))
+            } else {
+                Some(0.0)
+            }
+        })
+        .collect()
+}
+
 /// `0x143538340` (2π·150).
 const W_150HZ: f64 = 942.477_796_076_937_9;
 
@@ -1771,28 +1816,11 @@ impl EnvelopePorBatida {
             *v = v.abs();
         }
         self.lp5.processar_no_lugar(&mut env);
-        let len = env.len() as i32;
-        if n == 0 {
-            return Some(Vec::new());
+        let mut v = por_segmento(&env, grade, n, bpm, fs, false, soma)?;
+        for x in v.iter_mut() {
+            *x *= 4.0;
         }
-        let mut limite = grade[n - 1] - ((-60.0 / bpm) * fs) as i32;
-        if len < limite - 1 {
-            limite = len;
-        }
-        let mut g = grade[..n].to_vec();
-        g.push(limite);
-        g.windows(2)
-            .map(|w| {
-                let (a, b) = (w[0], w[1]);
-                if a > 0 && a <= len && b - 1 <= len {
-                    let ini = (a - 1) as usize;
-                    let fim = ini.checked_add(usize::try_from(b - a).ok()?)?;
-                    Some(4.0 * soma(&env[ini..fim]))
-                } else {
-                    Some(0.0)
-                }
-            })
-            .collect()
+        Some(v)
     }
 }
 
@@ -1823,33 +1851,51 @@ pub fn pico_por_batida(
     fs: f64,
 ) -> Option<Vec<f64>> {
     let abs: Vec<f64> = sinal.iter().map(|v| v.abs()).collect();
-    let len = abs.len() as i32;
-    if n == 0 {
-        return Some(Vec::new());
-    }
-    let mut limite = grade[n - 1] - ((-60.0 / bpm) * fs) as i32;
-    if len < limite - 1 {
-        limite = len;
-    }
-    let mut g = grade.to_vec();
-    g.push(limite);
-    g.windows(2)
-        .take(n)
-        .map(|w| {
-            let (a, b) = (w[0], w[1]);
-            if a > 0 && a <= len && b - 1 <= len {
-                let ini = (a - 1) as usize;
-                let fim = ini.checked_add(usize::try_from(b - a).ok()?)?;
-                Some(maximo(&abs[ini..fim]))
-            } else {
-                Some(0.0)
-            }
-        })
-        .collect()
+    por_segmento(&abs, grade, n, bpm, fs, true, maximo)
 }
 
 /// `0x1435380f0` (2π·500).
 const W_500HZ: f64 = 3_141.592_653_589_793;
+
+/// Agudos por batida da banda de taxa/8 (`0x141189500`, passada C),
+/// conferido no assembly. Passa-alta de 2ª ordem de 500 Hz (`+0x1378`) →
+/// valor absoluto → 1ª ordem de 5 Hz (`+0x13b0`), projetados em
+/// `0x141189410` e mantidos entre lotes. Soma por batida sobre a grade
+/// inteira (`+0x1140`) como em `pico_por_batida`; sem fator. Saída
+/// `+0x13e8` (copiada a `+0xcc0`).
+#[derive(Debug, Clone)]
+pub struct AgudosPorBatida {
+    hp500: Biquad,
+    lp5: PrimeiraOrdem,
+}
+
+impl AgudosPorBatida {
+    pub fn novo(fs: f64) -> Self {
+        let o = pre_distorcao(W_500HZ, fs);
+        let o5 = pre_distorcao(W_5HZ, fs);
+        Self {
+            hp500: Biquad::bilinear(1.0, 0.0, 0.0, 1.0, o * std::f64::consts::SQRT_2, o * o, fs),
+            lp5: PrimeiraOrdem::bilinear(0.0, o5, 1.0, o5, fs),
+        }
+    }
+
+    pub fn processar(
+        &mut self,
+        sinal: &[f64],
+        grade: &[i32],
+        n: usize,
+        bpm: f64,
+        fs: f64,
+    ) -> Option<Vec<f64>> {
+        let mut y = vec![0.0; sinal.len()];
+        self.hp500.processar(sinal, &mut y);
+        for v in y.iter_mut() {
+            *v = v.abs();
+        }
+        self.lp5.processar_no_lugar(&mut y);
+        por_segmento(&y, grade, n, bpm, fs, true, soma)
+    }
+}
 
 /// Soma do intervalo fechado (`0x141167180`): `soma(v[a..=b])` se
 /// `0 <= a <= b < len`; senão 0.
@@ -2394,6 +2440,17 @@ mod tests {
         );
         assert!(a.iter().all(|v| v.abs() < 1e-3), "{a:?}");
         assert!(b.processar(&[], &[], &[], &[], 0).is_none());
+    }
+
+    #[test]
+    fn agudos_por_batida_rejeitam_dc() {
+        let fs = 5512.5;
+        let mut a = AgudosPorBatida::novo(fs);
+        let v = a
+            .processar(&vec![1.0; 40000], &[30001, 32757], 1, 120.0, fs)
+            .unwrap();
+        assert_eq!(v.len(), 1);
+        assert!(v[0].abs() < 1e-3, "{v:?}");
     }
 
     #[test]

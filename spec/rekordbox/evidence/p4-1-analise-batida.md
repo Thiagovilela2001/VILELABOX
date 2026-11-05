@@ -327,6 +327,16 @@ Portado em `vilelabox-dsp::Bandas500PorBatida`; conferido no assembly.
 - Saídas `+0x1c08` (copiada a `+0xce0`) e `+0x1c28` (copiada a `+0xd00`).
   Com `n = 0` o original grava no índice −1; o porte devolve `None`.
 
+### Agudos por batida (`0x141189500`)
+
+Portado em `vilelabox-dsp::AgudosPorBatida`; conferido no assembly. Mesmo
+molde de `0x1411711f0` (grade inteira `+0x1140` mais o limite), com banda
+`+0xaa0` → passa-alta 2ª ordem 500 Hz (`+0x1378`) → valor absoluto → 1ª
+ordem 5 Hz (`+0x13b0`), projetados em `0x141189410`; métrica `soma`
+(`0x141167150`), inválido 0,0, sem fator. Saída `+0x13e8`, copiada a
+`+0xcc0`. Os três extratores de segmento (`0x141187b40`, `0x1411711f0`,
+`0x141189500`) compartilham `por_segmento` no porte.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
