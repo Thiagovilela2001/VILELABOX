@@ -1,5 +1,30 @@
 # Registro de implementação
 
+## Passadas B e C do detector legado de BPM (P4.1) — 2026-11-05
+
+| Campo | Resultado |
+| --- | --- |
+| Achado principal | a passada B **não** estima o BPM: `0x141173370` monta só as grades das três bandas a partir do BPM já conhecido (`obj+0xb0`). As 15 funções seguintes de `0x141195ed0` só inicializam filtros, buffers, uma FFT e um núcleo de tonalidade. A passada C (`0x1411965b0`) extrai características por batida; o BPM deve ser decidido no fechamento `0x141197d60` (inferência, ainda não aberto) |
+| Correção no dossiê | `+0x208` é o deslocamento final da passada A em ms, não BPM × 100 (o porte já estava certo) |
+| Passada B | `grades_passada_b` (`0x141173370`); mapa da inicialização (tabela no dossiê) |
+| Passada C portada | 15 extratores ao todo; 13 portados e conferidos no assembly; `0x1411885f0` é a mesma `energia_por_quarto` da passada A |
+| Novos módulos | `vilelabox-dsp::tonalidade` (transformada de Q constante, `0x14117ff60`/`0x1411803f0`), `espectro` (FFT radix-2 própria e espectro em dB por compasso/batida, `0x14117b1b0`/`0x14117ac80`), `passada_c` (`0x141188050`, `0x14117e850`) |
+| Em `estagios` | `EnvelopePorBatida`, `EnergiaPorQuarto40`, `pico_por_batida`, `Bandas500PorBatida`, `AgudosPorBatida`, `PicoMediosPorBatida`, `energia_e_pico_por_quarto`, `PicoAgudosPorOitavo`; núcleos comuns `por_segmento` e `janelas_de_quarto` |
+| Limitações registradas | `pow` e `cos` vetoriais próprios (`0x1426086a0`, `0x142608cd0`) trocados por `f64::powf`/`f64::cos` (podem diferir no último bit); `0x1427a51e0` tratado como seno por inferência (função ímpar, par do `cos`) |
+| Pendente | `0x14118d310` e `0x14118e450` (marcas por 16 avos, ~620 linhas cada, só mapeados: argumentos perdidos pelo Ghidra exigem leitura do assembly); depois `0x141197890` e o fechamento `0x141197d60` |
+| Verificação | `cargo fmt`, `cargo clippy --all-targets -- -D warnings` e `cargo test` em `vilelabox-dsp` (49 testes); `xtask spec-lint` aprovado |
+
+## Duração e ondas de WAVs com tamanho 0xFFFFFFFF — 2026-11-05
+
+| Campo | Resultado |
+| --- | --- |
+| Sintoma | ao rodar o app sobre uma cópia de 40 análises, 8 faixas `.wav` apareciam com 372:49 na lista e no deck, e a visão geral da onda espremida no início |
+| Causa | o cabeçalho desses WAVs declara o bloco `data` com `0xFFFFFFFF`; o rekordbox 7.2.8 aceita o valor e grava grade e ondas para ~22 370 s (2³² bytes a 48 kHz estéreo 16 bits). Exemplo: `ATW - 100%.wav` tem 363,5 s reais |
+| Correção | `vilelabox-audio::decode::duracao_wav` lê o cabeçalho limitando o bloco ao tamanho real do arquivo; o scan localiza o áudio pelo nome (o PPTH vem como `?/nome.wav`) e guarda `Track::audio_ms`; `dur_ms` o prefere à grade. No deck, o detalhe é cortado na duração real e a visão geral é refeita a partir dele (`waveform::visao_do_detalhe`). Grade e ondas do rekordbox não são alteradas |
+| Validação real | app aberto no modo de captura sobre cópia dos dados: lista com 06:03 e 02:23, deck com −06:03.4 e visão geral ocupando a largura toda |
+| Verificação | `cargo fmt`, `cargo clippy --all-targets -- -D warnings` e `cargo test` em `vilelabox-app` e `vilelabox-audio` |
+| Fora do escopo | capa, álbum, gênero e tonalidade vazios quando só as análises são abertas: vêm do XML ou do catálogo |
+
 ## Banco fora da thread gráfica: serviço do núcleo (P5.1, segunda entrega) — 2026-10-27
 
 | Campo | Resultado |

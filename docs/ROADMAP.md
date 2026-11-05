@@ -21,7 +21,7 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 
 ## C3 — Análise
 
-- [ ] BPM e grade (primitivas em `vilelabox-dsp`; dossiê `p4-1` parcial);
+- [ ] BPM e grade (passadas A e B portadas, passada C em 13 de 15 extratores; falta o fechamento `0x141197d60`; dossiê `p4-1`);
 - frases, tonalidade, energia, waveform e vocal;
 - comparação diferencial e benchmarks reproduzíveis.
 

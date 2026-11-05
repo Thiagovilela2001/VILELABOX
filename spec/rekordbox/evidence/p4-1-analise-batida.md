@@ -830,13 +830,10 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 
 ## Próximos alvos
 
-1. Extratores da passada C, um por vez, do menor ao maior (tabela em
-   "Passada C por bloco"), cada um conferido no assembly; depois
-   `0x141197890` e o fechamento `0x141197d60`, que deve ser onde o BPM é
-   decidido.
-2. Passadas C/D: `0x1411965b0` (682 linhas) e `0x141197d60` (2 067 linhas),
-   com cerca de 100 funções auxiliares no total (as maiores: `0x141192c60`,
-   `0x1411913e0`, `0x1411c1d70`, `0x1411c0b90`, `0x1411bdfc0`).
+1. Portar `0x14118d310` pelo assembly (filtros; 16 picos por compasso e
+   marcas; busca de alinhamento), depois a gêmea `0x14118e450`. Os outros
+   13 extratores da passada C estão portados.
+2. `0x141197890` e o fechamento `0x141197d60`, onde o BPM deve ser decidido.
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
 4. Teste diferencial: analisar uma fixture WAV no programa de referência e
    comparar deslocamento, número da batida e grade com o porte.
