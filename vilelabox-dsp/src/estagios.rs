@@ -1642,6 +1642,37 @@ pub fn grade_de_indices(n: usize, fs: f64, bpm: f64, ms: i32) -> Option<Vec<i32>
     Some(g)
 }
 
+/// Grades das três bandas da passada B (`0x141173370`, chamada por
+/// `0x141195ed0`), conferidas no assembly. Por banda: passo `(60/bpm)·fs`,
+/// início `(int)fma(ms·0,001, fs, 0,5)` e quantidade
+/// `(int)((n − início) / passo)`, com `n = frames / M` em `f64`. A quantidade
+/// comum `q` é o mínimo das três (gravado em `+0x1180`); cada grade tem
+/// `q + 1` índices `(int)((i·passo + início) + 1,5)` (`+0x1120`, `+0x1140`,
+/// `+0x1160`) e o índice `q − 1` (o penúltimo) é limitado a `(int)n`.
+///
+/// ADAPTAÇÃO: `q < 0` dá `None` (o original falha na alocação ou, com
+/// `q = −1`, lê o índice −2) e `q = 0` não lê o índice −1.
+pub fn grades_passada_b(n: [f64; 3], fs: [f64; 3], bpm: f64, ms: i32) -> Option<[Vec<i32>; 3]> {
+    let passo = fs.map(|f| (60.0 / bpm) * f);
+    let inicio = fs.map(|f| (ms as f64 * 0.001).mul_add(f, 0.5) as i32 as f64);
+    let q = (0..3)
+        .map(|b| ((n[b] - inicio[b]) / passo[b]) as i32)
+        .min()?;
+    if q < 0 {
+        return None;
+    }
+    Some(std::array::from_fn(|b| {
+        let mut g: Vec<i32> = (0..=q)
+            .map(|i| ((i as f64 * passo[b] + inicio[b]) + 1.5) as i32)
+            .collect();
+        if q > 0 {
+            let u = &mut g[q as usize - 1];
+            *u = (*u).min(n[b] as i32);
+        }
+        g
+    }))
+}
+
 /// Parâmetros fixos do analisador gravados no init (`0x141170020`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ConfigPassadaA {
@@ -2036,6 +2067,18 @@ mod tests {
         // (1000 − 4) / 200 = 4,98 -> 4 índices: 5,5 -> 5, 205, 405, 605.
         assert_eq!(g, vec![5, 205, 405, 605]);
         assert!(grade_de_indices(10, 400.0, 120.0, 1000).is_none());
+    }
+
+    #[test]
+    fn grades_passada_b_seguem_o_assembly() {
+        // 120 BPM, 10 ms; passos 200, 50 e 12,5; inícios 4, 1 e 0.
+        // Quantidades 3 (646/200), 4 (249/50) e 5 (62,5/12,5): q = 3.
+        let [a, b, c] =
+            grades_passada_b([650.0, 250.0, 62.5], [400.0, 100.0, 25.0], 120.0, 10).unwrap();
+        assert_eq!(a, vec![5, 205, 405, 605]);
+        assert_eq!(b, vec![2, 52, 102, 152]);
+        assert_eq!(c, vec![1, 14, 26, 39]);
+        assert!(grades_passada_b([10.0; 3], [400.0; 3], 120.0, 1000).is_none());
     }
 
     #[test]

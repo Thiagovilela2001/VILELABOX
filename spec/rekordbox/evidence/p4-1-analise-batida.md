@@ -167,6 +167,30 @@ Portados em `vilelabox-dsp::filtro`.
   passa-baixa em `fs/32 · 0,4` com ÷32; buffers de `40 s` por banda
   (`0x145415608` = 40). Depois chama `0x141173370` com as três taxas.
 
+## Grades da passada B (`0x141173370`)
+
+Portada em `vilelabox-dsp::grades_passada_b`; conferida no assembly.
+
+- Chamada por `0x141195ed0` como `(obj, n1, fs1, n2, fs2, n3, fs3, bpm, ms)`,
+  com `ni = frames (obj+0xc0) / Mi` em `f64` (`Mi` = `i32` em `+0x78`,
+  `+0x7c`, `+0x80`), `fsi` = `f64` em `+0x90`, `+0x98`, `+0xa0`, BPM em
+  `+0xb0` e `ms` = 2º argumento do chamador. **Não estima BPM**: o BPM chega
+  pronto, como na passada A.
+- Por banda: passo `(60/bpm)·fs` (`0x145415638` = 60), início
+  `(int)fma(ms·0,001, fs, 0,5)` (`0x145414e88`, `0x1454152a0`), quantidade
+  `(int)((n − início) / passo)`.
+- `q` = mínimo das três quantidades, gravado em `+0x1180`; cada grade tem
+  `q + 1` índices `(int)((i·passo + início) + 1,5)` (`0x145415408`) em
+  `+0x1120`, `+0x1140` e `+0x1160` (vetores de `0x141167dc0`).
+- O índice `q − 1` (penúltimo) é limitado a `(int)n`. Devolve falso só em
+  falha de alocação (`q + 1 < 0`).
+- Depois, o chamador grava `+0xb48 = 60/bpm`, `+0xb50 = ms·0,001`, liga
+  `+0xc8` se `q − arg3 + 1 >= 32`, guarda `ms`/`arg3` em `+0xb90..+0xb98`,
+  aloca cerca de 25 vetores e encadeia `0x141187f60`, `0x141187a50`,
+  `0x141188560`, `0x141188c50`, `0x141189410`, `0x1411898c0`, `0x14118e120`,
+  `0x14118cf70`, `0x14117e830`, `0x14117ff60`, `0x14117b170`, `0x14117ac40`,
+  `0x141194730`, `0x14117a050` e `0x14117e1b0`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
@@ -474,9 +498,8 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 
 ## Próximos alvos
 
-1. Passada B: `0x141173370` (85 linhas), chamada por `0x141195ed0` com as
-   três bandas; é onde o BPM deve ser estimado, já que a passada A o recebe
-   pronto.
+1. Cadeia de fechamento da passada B (15 funções listadas em "Grades da
+   passada B"), começando por `0x141187f60`.
 2. Passadas C/D: `0x1411965b0` (682 linhas) e `0x141197d60` (2 067 linhas),
    com cerca de 100 funções auxiliares no total (as maiores: `0x141192c60`,
    `0x1411913e0`, `0x1411c1d70`, `0x1411c0b90`, `0x1411bdfc0`).
