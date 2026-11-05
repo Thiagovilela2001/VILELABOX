@@ -8,6 +8,7 @@
 pub mod espectro;
 pub mod estagios;
 pub mod filtro;
+pub mod passada_c;
 pub mod tonalidade;
 
 /// Faixas de BPM da preferência de análise, `(mínimo, máximo)` em BPM inteiro.

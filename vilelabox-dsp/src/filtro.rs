@@ -157,7 +157,7 @@ pub fn diferenca(y: &[f64], anterior: f64) -> Vec<f64> {
 }
 
 /// Pré-distorção `0x141165dc0` com `ω` já em rad/s.
-fn pre_distorcao(w: f64, fs: f64) -> f64 {
+pub(crate) fn pre_distorcao(w: f64, fs: f64) -> f64 {
     let dois_fs = fs + fs;
     (w / dois_fs).tan() * dois_fs
 }

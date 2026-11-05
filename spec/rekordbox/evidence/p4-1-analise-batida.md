@@ -455,6 +455,25 @@ por compasso a partir de `grade[s − 1 + r] − g0` com `r = 4(c − 1) + k`
 (linha `r`), 1024 bins, matriz `+0x1ac0` (`4C × 1024`), copiada a `+0xe28`.
 No porte, os dois são `espectro_por_compasso` com `por_compasso` 2 e 4.
 
+### Picos de graves e marcas por batida (`0x141188050`)
+
+Portado em `vilelabox-dsp::passada_c::FiltroGraves`; conferido no assembly.
+Chamada `(obj, +0xac0, bpm, _, fs = taxa/32, grade +0x1160, n, +0xb88)`.
+
+- Banda → passa-baixa 2ª ordem 100 Hz (`+0x1188`) → valor absoluto → 1ª
+  ordem 5 Hz (`+0x11c0`), de `0x141187f60`.
+- Grade local `g[..n]` mais `g[n − 1] + (int)((60/bpm)·fs)`, **sem** limite
+  no comprimento.
+- Pico por batida (máximo, `0x141167280`; 0 fora do sinal) em `+0x11f8`
+  (copiado a `+0xc00`; o último vira `+0xb88`).
+- Pico por quarto: `q = (int)fma(g' − g, 0,25, 0,5)` (`0x145415208`),
+  janelas `[g + kq, g + (k + 1)q − 1]`, a quarta até `g' − 1`; em `+0x1218`
+  (copiado a `+0xc40`).
+- Marca por batida em `+0x1238` (copiada a `+0xc20`), contra o pico anterior
+  `p` (na primeira, `+0xb88`, pulada se 0): 0,5 se `v < p` e `2v < p`; 1,0
+  se `v > p·1,77` (`0x143538350`); × 0,8 (`0x145415338`) quando `v` e `p`
+  são `<= 0,09` (`0x143538238`).
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
