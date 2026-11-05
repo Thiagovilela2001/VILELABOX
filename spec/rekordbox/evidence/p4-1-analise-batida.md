@@ -492,6 +492,37 @@ assembly. Chamada `(obj, +0xa80, bpm, _, fs = taxa/2, grade +0x1120, n)`.
 - Contagem `u8` por batida em `+0x1978` (copiada a `+0xdc0`):
   `g[j] <= pos < g[j + 1]`, e a última recebe `pos >= g[n − 1]`.
 
+### Marcas por 16 avos de compasso (`0x14118d310`, `0x14118e450`) — mapa
+
+Estrutura observada no decompilado; **porte pendente**: vários argumentos
+foram perdidos pelo Ghidra (`0x141166c30`, `0x141167340`, `0x1411672c0`) e
+precisam ser lidos no assembly.
+
+- Chamadas `(obj, +0xaa0, bpm, ms, s = +0xb98, fs = taxa/8, +0xb80, grade
+  +0x1140, n)`. Saída: um byte por 16 avo de compasso, `+0x1948`
+  (`0x14118d310`) e `+0x16d8` (`0x14118e450`), copiados pelo chamador a
+  `+0xda0` e `+0xd80` a partir de `16·(int)((de − b94 + 1)·0x1435384e8)`.
+- Estado entre lotes: última amostra filtrada (`+0x1930` / `+0x16c0`),
+  posição (`+0x1938` / `+0x16c8`) e pico de referência (`+0x1940` /
+  `+0x16d0`, reiniciado com `0x145414da0` quando `+0xb80 <= 1`).
+- `0x14118d310`: passa-baixa 200 Hz de 4ª ou 2ª ordem conforme `fs`
+  (`+0x1700`…`+0x17a8`, ordem em `+0x16f8`), valor absoluto, passa-baixa
+  10 Hz (`+0x17e0`); depois passa-alta 110 Hz em quatro seções (`+0x1818`…
+  `+0x18c0`), valor absoluto, 10 Hz (`+0x18f8`) e diferença de 1ª ordem com
+  a amostra anterior do lote. `0x14118e450` usa só a primeira cadeia
+  (`+0x15a8`…, ordem `+0x15a0`, 10 Hz em `+0x1688`).
+- Batida: `(60/bpm)·fs`; 16 avo `(int)(batida·0,25)`; início
+  `(int)(batida·(s − 1) + (int)(fs·ms·0,001 + 0,5) + 1)`; compassos
+  `C = (n − s + 1)/4`, um a menos se o último não couber no sinal.
+- Com `C >= 2`, busca de alinhamento em até 8 candidatos (limiares
+  `0x1454151e0`, `0x143538398`, `0x1435383a8`, `0x143537ec0`,
+  `0x143538128`), que pode deslocar o início.
+- Por compasso: 16 máximos (4 batidas × 4 avos) em janelas de
+  `(int)(batida·0,25)`; até 12 rodadas escolhem o maior; marca 1 no avo se
+  ele passar `0x145414da0`, metade do primeiro máximo da rodada
+  (`0x1454152a0`) e `ref·0x143538390`, e zera o valor. `ref` vira o máximo
+  entre ele e o primeiro máximo do compasso.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.
