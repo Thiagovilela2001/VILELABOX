@@ -282,6 +282,22 @@ Argumentos: banda `+0xac0`, BPM `+0xb0`, `fs = taxa/32` (`+0xa0`), grade
    devolver falso.
 4. Todas as saídas × 4 (`0x1454154c0`).
 
+### Energia por quarto na passada C (`0x1411885f0`, `0x141188d40`)
+
+- `0x1411885f0` é a mesma função da passada A (`energia_por_quarto`), agora
+  com a banda `+0xac0`, `fs = taxa/32`, grade `+0x1160` limitada às `n`
+  batidas do lote e o passa-baixa de 100 Hz em `+0x3a0` reprojetado em
+  taxa/32 e zerado por `0x141188560` na init da B. Quartos em `+0x3d8`,
+  copiados a `+0xba0`. Não há código novo.
+- `0x141188d40`, portado em `EnergiaPorQuarto40` e conferido no assembly:
+  quatro passa-baixas de 40 Hz em cascata (`+0x1258`, `+0x1290`, `+0x12c8`,
+  `+0x1300`), depois o mesmo cálculo (janelas `(int)(fs/bpm·15 + 0,5)`,
+  `energia` = `0x1411671d0`, × 4 fora de 5512,45–5512,55, mesma árvore de
+  16 termos por compasso). Única diferença: a quarta janela usa
+  `grade[i + 1]` enquanto `i + 1 < n`, contra `i + 2 < n` em `0x1411885f0`
+  (contador iniciado em 2 em `0x1411886ea`). Saídas `+0x1338` (copiada a
+  `+0xd20`) e `+0x1358`.
+
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
 Projetados à taxa decimada `fs = taxa/8`; portados em `FiltrosEnvelope`.

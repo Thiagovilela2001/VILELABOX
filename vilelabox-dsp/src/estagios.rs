@@ -88,6 +88,19 @@ pub fn energia_por_quarto(
 ) -> Option<(Vec<f64>, Vec<f64>)> {
     let mut y = vec![0.0; sinal.len()];
     lp100.processar(sinal, &mut y);
+    quartos_e_compassos(&y, bpm, fs, grade, 2)
+}
+
+/// Núcleo comum de `0x1411885f0` e `0x141188d40`: a quarta janela da
+/// batida `i` vai até `grade[i + 1]` enquanto `i + folga < n` (2 no
+/// primeiro, 1 no segundo, conferido no assembly).
+fn quartos_e_compassos(
+    y: &[f64],
+    bpm: f64,
+    fs: f64,
+    grade: &[i32],
+    folga: usize,
+) -> Option<(Vec<f64>, Vec<f64>)> {
     let batida = fs * (1.0 / bpm) * 60.0 + 0.5;
     let q = (fs * (1.0 / bpm) * 15.0 + 0.5) as i32;
     let janela = |ini: i32, len: i32| -> Option<f64> {
@@ -101,7 +114,7 @@ pub fn energia_por_quarto(
     let mut quartos = Vec::with_capacity(n * 4);
     for i in 0..n {
         let mut pos = grade[i];
-        let fim = if i + 2 < n {
+        let fim = if i + folga < n {
             grade[i + 1]
         } else {
             batida as i32 - 1 + grade[i]
@@ -130,6 +143,45 @@ pub fn energia_por_quarto(
         })
         .collect();
     Some((quartos, compassos))
+}
+
+/// `0x143538368` (2π·40).
+const W_40HZ: f64 = 251.327_412_287_183_45;
+
+/// Energia por quarto da banda de taxa/32 (`0x141188d40`, passada C).
+/// Quatro passa-baixas de 2ª ordem de 40 Hz em cascata (`+0x1258`, `+0x1290`,
+/// `+0x12c8`, `+0x1300`, projetados em `0x141188c50`), com estado mantido
+/// entre lotes. Saídas em `+0x1338` (quartos, copiados a `+0xd20`) e
+/// `+0x1358` (compassos). Mesmo cálculo de `energia_por_quarto`, salvo a
+/// quarta janela, que usa `grade[i + 1]` até a penúltima batida.
+#[derive(Debug, Clone)]
+pub struct EnergiaPorQuarto40 {
+    secoes: [Biquad; 4],
+}
+
+impl EnergiaPorQuarto40 {
+    pub fn novo(fs: f64) -> Self {
+        let b = passa_baixa_2(W_40HZ, fs);
+        Self {
+            secoes: [b.clone(), b.clone(), b.clone(), b],
+        }
+    }
+
+    /// `grade` = primeiras `n` batidas do lote (`+0x1160`).
+    pub fn processar(
+        &mut self,
+        sinal: &[f64],
+        bpm: f64,
+        fs: f64,
+        grade: &[i32],
+    ) -> Option<(Vec<f64>, Vec<f64>)> {
+        let mut y = vec![0.0; sinal.len()];
+        self.secoes[0].processar(sinal, &mut y);
+        for s in &mut self.secoes[1..] {
+            s.processar_no_lugar(&mut y);
+        }
+        quartos_e_compassos(&y, bpm, fs, grade, 1)
+    }
 }
 
 /// `0x1434e5600` (2π·300) e `0x1435380c8` (2π·5).
@@ -2138,6 +2190,23 @@ mod tests {
         // (1000 − 4) / 200 = 4,98 -> 4 índices: 5,5 -> 5, 205, 405, 605.
         assert_eq!(g, vec![5, 205, 405, 605]);
         assert!(grade_de_indices(10, 400.0, 120.0, 1000).is_none());
+    }
+
+    #[test]
+    fn energia_por_quarto_40_usa_a_grade_ate_a_penultima() {
+        // Sinal constante 1: energia ≈ comprimento da janela (ganho DC 1).
+        let fs = 400.0;
+        let sinal = vec![1.0; 8000];
+        // 60 BPM: batida 400, quarto 100. Penúltima vai até grade[1] = 7300;
+        // a última, até 400 − 1 + 7300 = 7699.
+        let grade = [6800, 7300];
+        let mut e = EnergiaPorQuarto40::novo(fs);
+        let (q, c) = e.processar(&sinal, 60.0, fs, &grade).unwrap();
+        let esperado = [100.0, 100.0, 100.0, 200.0, 100.0, 100.0, 100.0, 99.0];
+        for (v, x) in q.iter().zip(esperado) {
+            assert!((v - 4.0 * x).abs() < 1e-3, "{v}");
+        }
+        assert!(c.is_empty());
     }
 
     #[test]
