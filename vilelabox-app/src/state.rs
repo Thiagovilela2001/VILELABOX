@@ -322,6 +322,9 @@ pub struct AppState {
     /// respostas voltam como `Command::RespostaNucleo`. Sem canal, cues e
     /// grade vão direto para os arquivos de `cues_dir`.
     pub nucleo: Option<std::sync::mpsc::Sender<crate::nucleo::Pedido>>,
+    /// Edições locais desde a carga: respostas de leitura não podem desfazê-las.
+    cues_editados: [bool; 2],
+    grade_editada: [bool; 2],
 }
 
 impl Default for AppState {
@@ -366,6 +369,8 @@ impl AppState {
             playlist: None,
             cues_dir: None,
             nucleo: None,
+            cues_editados: [false; 2],
+            grade_editada: [false; 2],
         }
     }
 
@@ -424,6 +429,7 @@ impl AppState {
     /// Persiste os cues do deck `i` (0/1): pelo núcleo quando há canal (o
     /// JSON só se o banco recusar), senão direto no JSON.
     pub fn salvar_cues(&mut self, i: usize) {
+        self.cues_editados[i] = true;
         if let Some((faixa, ..)) = self.faixa_do_deck(i) {
             let cues = self.deck_ref(i).cues.clone();
             if self.pedir(crate::nucleo::Pedido::GravarCues {
@@ -488,19 +494,17 @@ impl AppState {
                     }
                     return;
                 }
-                // ponytail: a preparação do banco chega depois da carga e
-                // substitui cues e grade; edições feitas nesse intervalo
-                // (milissegundos) se perdem. Marcar edições pendentes se pesar.
+                // Uma leitura anterior à edição não deve desfazer o trabalho local.
                 let d = if deck == 0 {
                     &mut self.deck1
                 } else {
                     &mut self.deck2
                 };
-                if !prep.cues.is_empty() {
+                if !self.cues_editados[deck] && !prep.cues.is_empty() {
                     d.cues.retain(|c| c.is_loop);
                     d.cues.extend(prep.cues);
                 }
-                if let Some((beats, locked)) = prep.grade {
+                if let Some((beats, locked)) = prep.grade.filter(|_| !self.grade_editada[deck]) {
                     d.beats = beats;
                     self.grid_edit[deck].locked = locked;
                     self.sync_beatgrid(deck);
@@ -571,6 +575,8 @@ impl AppState {
                             }
                         }
                         let i = if deck == DeckId::Deck1 { 0 } else { 1 };
+                        self.cues_editados[i] = false;
+                        self.grade_editada[i] = false;
                         self.sync_beatgrid(i);
                         // Banco próprio: a preparação gravada lá chega como
                         // resposta e vale sobre o JSON.
@@ -781,6 +787,7 @@ impl AppState {
     }
 
     pub fn save_beatgrid(&mut self, i: usize) {
+        self.grade_editada[i] = true;
         if let Some((faixa, ..)) = self.faixa_do_deck(i) {
             let beats = self.deck_ref(i).beats.clone();
             let bloqueada = self.grid_edit[i].locked;
@@ -1217,6 +1224,46 @@ mod tests {
                 st.apply(Command::RespostaNucleo(r));
             }
         }
+    }
+
+    #[test]
+    fn leitura_atrasada_preserva_edicoes_e_nova_carga_restaura_banco() {
+        let mut st = AppState::new();
+        st.tracks = vec![sample_track("A", 120.0, 8)];
+        st.filtered_indices = vec![0];
+        let carregar = |st: &mut AppState| {
+            st.apply(Command::LoadToDeck {
+                deck: DeckId::Deck1,
+                filtered_index: 0,
+            })
+        };
+        carregar(&mut st);
+        let mut cues_antigos = Vec::new();
+        crate::sync::gravar_memory_cue(&mut cues_antigos, 1.0);
+        let grade_antiga = st.deck1.beats.clone();
+        let resposta = crate::nucleo::Resposta::Preparacao {
+            deck: 0,
+            faixa: 0,
+            prep: crate::nucleo::Preparacao {
+                cues: cues_antigos.clone(),
+                grade: Some((grade_antiga.clone(), true)),
+            },
+            apos_audio: false,
+        };
+        crate::sync::gravar_memory_cue(&mut st.deck1.cues, 2.0);
+        st.salvar_cues(0);
+        assert!(st.edit_beatgrid(0, GridAction::ShiftMs(3), 0.0));
+        let cues_editados = st.deck1.cues.clone();
+        let grade_editada = st.deck1.beats.clone();
+        st.apply(Command::RespostaNucleo(resposta.clone()));
+        assert_eq!(st.deck1.cues, cues_editados);
+        assert_eq!(st.deck1.beats, grade_editada);
+        assert!(!st.grid_edit[0].locked);
+        carregar(&mut st);
+        st.apply(Command::RespostaNucleo(resposta));
+        assert_eq!(st.deck1.cues, cues_antigos);
+        assert_eq!(st.deck1.beats, grade_antiga);
+        assert!(st.grid_edit[0].locked);
     }
 
     #[test]

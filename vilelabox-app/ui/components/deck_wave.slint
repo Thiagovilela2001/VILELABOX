@@ -109,6 +109,7 @@ export component DeckWave inherits Rectangle {
 
     // agulha no centro
     Rectangle {
+        visible: root.tiles.length > 0;
         x: parent.width / 2 - (1px * s);
         width: ((2px * s));
         height: parent.height;

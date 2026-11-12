@@ -83,7 +83,7 @@ export component Deck inherits Rectangle {
         return (root.espelho ? x2 : x1) * 1px * root.s;
     }
 
-    background: #0f0f0f;
+    background: #1e1e1e;
 
     // ---------- CABEÇALHO ----------
     Text {
@@ -95,29 +95,24 @@ export component Deck inherits Rectangle {
         font_weight: 700;
     }
 
-    // capa / botão LOAD circular
+    // Capa neutra de disco, como no estado vazio da referência. Clique carrega.
     Rectangle {
         x: ((30px * s));
         y: ((14px * s));
         width: ((42px * s));
         height: ((42px * s));
-        background: load_art_touch.has_hover ? (root.numero == 1 ? #2e6bb0 : #c05c2a) : (root.carregado ? #1e1e1e : (root.numero == 1 ? #14273d : #3a1c10));
-        border_radius: ((21px * s));
-        border_width: ((1px * s));
-        border_color: root.numero == 1 ? #2b598f : #8c4220;
-        if root.carregado: Rectangle {
-            width: ((10px * s));
-            height: ((10px * s));
-            border_radius: ((5px * s));
-            background: #0f0f0f;
-        }
-        if !root.carregado: Text {
-            text: "LOAD";
-            color: #ffffff;
-            font_size: ((9px * s));
-            font_weight: 700;
-            horizontal_alignment: center;
-            vertical_alignment: center;
+        background: load_art_touch.has_hover ? #292929 : #111111;
+        Rectangle {
+            x: ((3px * s)); y: ((3px * s));
+            width: ((36px * s)); height: ((36px * s));
+            border_radius: ((18px * s));
+            background: #222222;
+            Rectangle {
+                x: ((12px * s)); y: ((12px * s));
+                width: ((12px * s)); height: ((12px * s));
+                border_radius: ((6px * s));
+                background: #111111;
+            }
         }
         load_art_touch := TouchArea { clicked => { root.load_clicked(); } }
     }
@@ -134,8 +129,8 @@ export component Deck inherits Rectangle {
             x: 0px;
             y: ((2px * s));
             width: parent.width;
-            text: root.carregado ? root.titulo : "Not Loaded — clique para carregar";
-            color: root.carregado ? #ffffff : (title_touch.has_hover ? #4fa3ff : #5a5a5a);
+            text: root.carregado ? root.titulo : "Not Loaded.";
+            color: root.carregado ? #ffffff : (title_touch.has_hover ? #777777 : #383838);
             font_size: ((19px * s));
             font_weight: 700;
             overflow: elide;
@@ -336,7 +331,8 @@ export component Deck inherits Rectangle {
         y: (132 + mod(i, 4) * 26) * 1px * s;
         width: ((233px * s));
         height: ((24px * s));
-        background: #1e1e1e;
+        background: #0f0f0f;
+        border_radius: ((2px * s));
         TouchArea {
             enabled: root.audio_ready;
             clicked => { root.cue_linha(i); }
@@ -539,10 +535,12 @@ export component Deck inherits Rectangle {
         border_width: ((4px * s));
         background: root.carregado ? #000000 : #141414;
         Rectangle {
+            x: ((8px * s));
+            y: ((8px * s));
             width: ((108px * s));
             height: ((108px * s));
             border_radius: ((54px * s));
-            border_color: root.carregado ? #1f6fd1 : #1e1e1e;
+            border_color: #174575;
             border_width: ((2px * s));
         }
         Text {

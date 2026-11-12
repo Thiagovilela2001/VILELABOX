@@ -1,5 +1,21 @@
 # Registro de implementação
 
+## Aproximação visual ao rekordbox 7.2.8 — 2026-11-10
+
+- Referência: captura local `third_party/rekordbox/ui-workbench/medicoes/captura.png`, modo 2Deck Horizontal, e medidas de `spec/rekordbox/evidence/p3-1-ui-medido.md`.
+- Decks: fundo cinza neutro, capa vazia quadrada com disco desenhado, título `Not Loaded.`, anel interno do prato centralizado e azul, slots de cue escuros.
+- Mixer e faixa inferior: fundos cinza; TRIM com anel neutro. Biblioteca e árvore: texto com peso maior, conforme a captura.
+- Waveform vazia deixa de exibir agulha. Callbacks e comportamento dos controles preservados.
+- Conferência visual pelo app em execução; esta entrega cobre o estado vazio. Capas reais, prévias da tabela e comparação de todos os estados continuam pendentes.
+
+## Preservar edição durante leitura assíncrona (P5.1) — 2026-11-10
+
+- Correção em `state.rs`: cues e grade têm marcadores independentes de edição por deck; uma resposta de preparação não substitui o domínio editado desde a carga.
+- Uma nova carga limpa os marcadores para permitir restauração do banco. Transporte e layout permanecem como antes.
+- Regressão: resposta atrasada depois de criar cue e deslocar grade preserva ambos e o bloqueio local; recarregar aceita novamente a preparação persistida.
+- Validação: 68 testes do app aprovados, formatação e Clippy com `-D warnings`. Sem validação visual nesta entrega.
+- Pendente: tabela, busca e playlists servidas pelo banco; importação pela interface; análise própria e validação diferencial.
+
 ## Passadas B e C do detector legado de BPM (P4.1) — 2026-11-05
 
 | Campo | Resultado |

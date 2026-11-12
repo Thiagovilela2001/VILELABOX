@@ -316,6 +316,7 @@ component TreeRow inherits Rectangle {
         text: root.text;
         color: #ffffff;
         font_size: ((17px * s));
+        font_weight: 700;
         vertical_alignment: center;
     }
 }
@@ -325,7 +326,7 @@ export component NavigationSidebar inherits Rectangle {
     in property <[string]> playlists;
     in property <int> selecionada: -1;
     callback escolhida(int);
-    background: #0f0f0f;
+    background: #1e1e1e;
     clip: true;
     Flickable {
         VerticalLayout {

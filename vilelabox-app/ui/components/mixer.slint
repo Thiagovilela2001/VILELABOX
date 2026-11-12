@@ -11,7 +11,7 @@ export component MixerStrip inherits Rectangle {
     in property <[float]> trim: [0, 0];
     callback fader_mudou(int, float);
     callback trim_mudou(int, float);
-    background: #0f0f0f;
+    background: #1e1e1e;
 
     // separador entre os canais
     Rectangle { x: ((67px * s)); y: ((14px * s)); width: ((1px * s)); height: ((158px * s)); background: #2a2a2a; }
@@ -32,7 +32,7 @@ export component MixerStrip inherits Rectangle {
                 width: ((18px * s));
                 height: ((18px * s));
                 border_radius: ((9px * s));
-                border_color: i == 0 ? #1f6fd1 : #6b6b6b;
+                border_color: #505050;
                 border_width: ((2px * s));
                 // indicador: meio-dia no centro; TRIM gira ±135° com o valor
                 property <angle> giro: i == 0 ? root.trim[ch] / 10 * 135deg : 0deg;
@@ -137,7 +137,7 @@ export component MixerBar inherits Rectangle {
     // Crossfader nas unidades do rekordbox: -10 (deck 1) .. 10 (deck 2), p7-0.
     in property <float> crossfader: 0;
     callback crossfader_mudou(float);
-    background: #0a0a0a;
+    background: #1e1e1e;
 
     Text {
         x: ((566px * s));
