@@ -3,7 +3,7 @@
 //! `spec/rekordbox/evidence/p4-1-analise-batida.md`.
 
 use crate::estagios::{maximo, PrimeiraOrdem};
-use crate::filtro::{passa_baixa_2, pre_distorcao, Biquad};
+use crate::filtro::{passa_baixa_2, pre_distorcao, Biquad, FiltrosBanda};
 
 /// `0x1434e55e8` (2π·100) e `0x1435380c8` (2π·5).
 const W_100HZ: f64 = 628.318_530_717_958_7;
@@ -206,9 +206,426 @@ pub fn ataques_por_batida(
     cont
 }
 
+/// Elemento `i` (base 0) ou `None` fora do vetor: onde o original leria fora
+/// do buffer, o porte desiste.
+fn em(v: &[f64], i: i32) -> Option<f64> {
+    v.get(usize::try_from(i).ok()?).copied()
+}
+
+/// Fatia `v[ini .. ini + len]`, ou `None` fora do vetor.
+fn fatia(v: &[f64], ini: i32, len: i32) -> Option<&[f64]> {
+    let ini = usize::try_from(ini).ok()?;
+    v.get(ini..ini.checked_add(usize::try_from(len).ok()?)?)
+}
+
+/// Primeiro máximo por `>` estrito e seu índice; vazio dá `(0, 0)`.
+fn primeiro_maximo(x: &[f64]) -> (usize, f64) {
+    let Some(&v0) = x.first() else {
+        return (0, 0.0);
+    };
+    let (mut i, mut m) = (0, v0);
+    for (k, &v) in x.iter().enumerate().skip(1) {
+        if v > m {
+            i = k;
+        }
+        if m < v {
+            m = v;
+        }
+    }
+    (i, m)
+}
+
+/// Primeiro mínimo (`0x1412c6820` → `0x14280a400`); vazio dá 0.
+fn primeiro_minimo(x: &[f64]) -> f64 {
+    x.iter()
+        .copied()
+        .reduce(|m, v| if v < m { v } else { m })
+        .unwrap_or(0.0)
+}
+
+/// Busca de alinhamento de `0x14118d310` (7.2.19: `0x1412ec9d0`), conferida
+/// no assembly. `b` = envelope `|200 Hz| → 10 Hz`, `u` = início em amostras
+/// (base 1), `compassos` = `C >= 2`. Devolve o deslocamento em amostras.
+///
+/// 1. `seg = b[barI − 1 + u ..][..(C − 1)·barI]`, com `barI = (int)(4·batida)`.
+/// 2. Até 8 candidatos. Antes de cada um, zera o máximo do anterior. Pega o
+///    primeiro máximo `m` de `seg` (índice `p`, base 1) e
+///    `c = ((int)(p / barra) + 1)·barI`.
+/// 3. Segue se `b[c + u − 2] > 0,2·m` (`0x1457ff7a0`; fora do sinal vale o
+///    último), `c < len(seg) − barI` e `b[c+u−2] <= b[c+u−1] <= b[c+u] <=
+///    b[c+u+1]`.
+/// 4. Pico: primeira queda `b[c+u−1+r] < b[c+u−2+r]`, `r = 1..=w`
+///    (`w = (int)(batida/4)`): `pos = c + r`, `pv = b[pos + u − 2]`. Sem queda,
+///    `pos` e `pv` ficam os do candidato anterior (0 no início).
+/// 5. Segue se `pv > 0,595662·m` (`0x143826758`). Limiar `(m + mín)·0,5`, com
+///    o mínimo de `b[c + u − 2 ..][..barI + 1]`.
+/// 6. Volta de `pos` por até `(int)(1,25·batida)` amostras (`0x1438264e8`).
+///    O vale é a primeira amostra `y <= anterior` e `y <` limiar. Depois, cada
+///    amostra `<= 1,12·vale` (`0x143826280`) conta como quieta; uma maior
+///    reinicia a busca do vale. Com `(int)(batida/16)` quietas: vale 0 dá
+///    deslocamento 0. Se `pv/vale > 2,11` (`0x143826768`), o deslocamento é
+///    `min((int)(c − j + 0,5), u)`, com `j` = posição do vale. Senão, vai
+///    para o próximo candidato.
+/// 7. Sem decisão nos 8 candidatos: 0.
+// As negações reproduzem os saltos do `comisd`: com NaN, o original segue o outro ramo.
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
+pub fn deslocamento_de_alinhamento(b: &[f64], u: i32, batida: f64, compassos: i32) -> Option<i32> {
+    let barra = batida * 4.0;
+    let bar_i = barra as i32;
+    let w = (batida * 0.25) as i32;
+    let quietas = (batida * 0.25 * 0.25) as i32;
+    let voltas = (batida * 1.25) as i32;
+    let len_b = b.len() as i32;
+    let len_seg = (compassos - 1) * bar_i;
+    let mut seg = fatia(b, bar_i - 1 + u, len_seg)?.to_vec();
+    let mut idx = [0i32; 8];
+    let (mut pos, mut pv) = (0i32, 0.0f64);
+    for k in 0..8 {
+        if k > 0 && idx[k - 1] <= len_seg {
+            // shortcut: índice 0 (seg vazio) escreveria em seg[−1] no original; aqui é ignorado.
+            if let Some(v) = usize::try_from(idx[k - 1] - 1)
+                .ok()
+                .and_then(|i| seg.get_mut(i))
+            {
+                *v = 0.0;
+            }
+        }
+        let m = if seg.is_empty() {
+            0.0
+        } else {
+            let (i, m) = primeiro_maximo(&seg);
+            idx[k] = i as i32 + 1;
+            m
+        };
+        let c = if barra != 0.0 {
+            (f64::from(idx[k]) / barra) as i32
+        } else {
+            0xffff
+        };
+        let c = (c + 1) * bar_i;
+        let v0 = if c + u - 1 <= len_b {
+            em(b, c + u - 2)?
+        } else {
+            em(b, len_b - 1)?
+        };
+        if !(v0 > m * 0.2) || c >= len_seg - bar_i {
+            continue;
+        }
+        let (x0, x1, x2) = (em(b, c + u - 1)?, em(b, c + u)?, em(b, c + u + 1)?);
+        if v0 > x0 || x0 > x1 || x1 > x2 {
+            continue;
+        }
+        for r in 1..=w {
+            let d = em(b, c + u - 1 + r)? - em(b, c + u - 2 + r)?;
+            if !(d >= 0.0) {
+                pos = c + r;
+                pv = em(b, pos + u - 2)?;
+                break;
+            }
+        }
+        if !(pv > m * 0.595_662) || voltas <= 0 {
+            continue;
+        }
+        // O original empresta esta janela antes da subida e só a lê aqui.
+        let limiar = (m + primeiro_minimo(fatia(b, c + u - 2, bar_i + 1)?)) * 0.5;
+        let (mut achou, mut quietos, mut vale, mut j) = (false, 0, m, 0);
+        for t in 1..=voltas {
+            let y = em(b, pos - t + u - 2)?;
+            if !achou {
+                if y > em(b, pos - t + u - 3)? || y >= limiar {
+                    continue;
+                }
+                achou = true;
+                j = pos - t;
+                vale = y;
+            } else if y > vale * 1.12 {
+                achou = false;
+                quietos = 0;
+            } else {
+                quietos += 1;
+                if quietos >= quietas {
+                    if !(vale != 0.0) {
+                        return Some(0);
+                    }
+                    if pv / vale > 2.11 {
+                        return Some((((c as f64) - (j as f64)) + 0.5) as i32).map(|d| d.min(u));
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    Some(0)
+}
+
+/// Marcas por 16 avos de compasso (`0x14118d310`; 7.2.19: `0x1412ec9d0`),
+/// conferido no assembly. Chamada `(obj, +0xaa0, bpm, ms, s = +0xb98,
+/// fs = taxa/8, lote = +0xb80, grade +0x1140, n)`. Filtros de `0x14118cf70`
+/// (`FiltrosBanda`); estado inicial `(0, 0, 1e−4)` gravado pela init da B.
+#[derive(Debug, Clone)]
+pub struct MarcasPorDezesseisAvos {
+    filtros: FiltrosBanda,
+    /// Última amostra do envelope de 110 Hz antes da diferença (`+0x1930`).
+    pub anterior: f64,
+    /// Deslocamento achado no último lote (`+0x1938`).
+    pub deslocamento: i32,
+    /// Pico de referência (`+0x1940`).
+    pub referencia: f64,
+}
+
+impl MarcasPorDezesseisAvos {
+    /// `None` para `fs <= 0`.
+    pub fn novo(fs: f64) -> Option<Self> {
+        Some(Self {
+            filtros: FiltrosBanda::novo(fs)?,
+            anterior: 0.0,
+            deslocamento: 0,
+            referencia: 1e-4,
+        })
+    }
+
+    /// Um byte por 16 avo dos `C` compassos do lote (`+0x1948`).
+    ///
+    /// 1. `batida = (60/bpm)·fs`, `w = (int)(batida/4)`, `barI = (int)(4·batida)`,
+    ///    `u = (int)fma(batida, s − 1, (int)fma(ms·0,001, fs, 0,5) + 1)`.
+    ///    `limite = g[n−1] − 1 + (int)batida`, ou `g[n−1]` se passar de `len`.
+    ///    `C = (n − s + 1)/4`, um a menos se `barI·C − 1 + u > len`.
+    /// 2. A referência volta a 1e−4 com `lote <= 1`. Banda → 200 Hz (4ª ou 2ª
+    ///    ordem; outra taxa devolve `None`), `b = |·| → 10 Hz`.
+    /// 3. `C <= 0`: devolve `[0]`. Guarda `anterior = b[len − 1]` (o envelope de
+    ///    200 Hz, não o de 110 Hz) e mantém o deslocamento. O passa-alta não
+    ///    roda.
+    /// 4. `C >= 2`: `deslocamento_de_alinhamento`; `C = 1`: 0. O valor é
+    ///    guardado, mas com `lote > 1` vale o do lote anterior.
+    /// 5. Saída do 200 Hz → passa-alta de 110 Hz → `|·|` → 10 Hz →
+    ///    diferença com `anterior`. `W` = diferença a partir de `u − desl − 1`
+    ///    se `u > desl` e `limite − desl <= len` (`limite − u + 1` amostras).
+    ///    Se `u < desl` e `limite − desl − 1 <= len`: `desl − u + 1` zeros e a
+    ///    diferença do início (o resto do buffer fica como estava). Senão, a
+    ///    diferença inteira.
+    /// 6. Compasso `k`, batida `i` (número `s + 4k + i`, para quando passa do
+    ///    tamanho da grade), avo `e`: máximo de `W[ini ..][..w]`, com
+    ///    `ini = (int)((e·batida/4 + (g − u)) + 0,5)`. Para quando
+    ///    `ini + w > len(W)`.
+    /// 7. 12 rodadas: o primeiro máximo dos 16 marca 1 e é zerado se
+    ///    `> 1e−4`, `> 0,5·`(máximo da 1ª rodada) e `> 0,178·ref`
+    ///    (`0x143826750`). Depois, `ref = max(máximo da 1ª rodada, ref)`.
+    ///
+    /// Leitura fora do buffer no original (índices negativos) devolve `None`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn processar(
+        &mut self,
+        banda: &[f64],
+        bpm: f64,
+        ms: i32,
+        s: i32,
+        fs: f64,
+        lote: i32,
+        grade: &[i32],
+        n: usize,
+    ) -> Option<Vec<u8>> {
+        let len = banda.len() as i32;
+        let batida = (60.0 / bpm) * fs;
+        let quarto = batida * 0.25;
+        let w = quarto as i32;
+        let bar_i = (batida * 4.0) as i32;
+        let k0 = (f64::from(ms) * 0.001).mul_add(fs, 0.5) as i32 + 1;
+        let u = batida.mul_add(f64::from(s - 1), f64::from(k0)) as i32;
+        let gl = *grade.get(n.checked_sub(1)?)?;
+        let limite = match gl - 1 + batida as i32 {
+            v if v <= len => v,
+            _ => gl,
+        };
+        let mut compassos = (n as i32 - s + 1) / 4;
+        let mut referencia = if lote > 1 { self.referencia } else { 1e-4 };
+        let deslocamento_anterior = self.deslocamento;
+        let anterior = self.anterior;
+        self.deslocamento = 0;
+
+        let f = &mut self.filtros;
+        let (primeira, demais) = f.base.passa_baixa_200.split_first_mut()?;
+        let mut a = vec![0.0; banda.len()];
+        primeira.processar(banda, &mut a);
+        for sec in demais {
+            sec.processar_no_lugar(&mut a);
+        }
+        let mut b: Vec<f64> = a.iter().map(|v| v.abs()).collect();
+        f.base.passa_baixa_10.processar_no_lugar(&mut b);
+
+        if bar_i * compassos - 1 + u > len {
+            compassos -= 1;
+        }
+        if compassos <= 0 {
+            self.anterior = em(&b, len - 1)?;
+            self.referencia = referencia;
+            self.deslocamento = deslocamento_anterior;
+            return Some(vec![0]);
+        }
+        let novo = if compassos >= 2 {
+            deslocamento_de_alinhamento(&b, u, batida, compassos)?
+        } else {
+            0
+        };
+        self.deslocamento = novo;
+        let desl = if lote > 1 {
+            deslocamento_anterior
+        } else {
+            novo
+        };
+
+        for sec in &mut f.passa_alta_110 {
+            sec.processar_no_lugar(&mut a);
+        }
+        let mut e2: Vec<f64> = a.iter().map(|v| v.abs()).collect();
+        f.passa_baixa_10_b.processar_no_lugar(&mut e2);
+        self.anterior = em(&e2, len - 1)?;
+        let d = crate::filtro::diferenca(&e2, anterior);
+
+        let sinal = if u > desl && limite - desl <= len {
+            fatia(&d, u - desl - 1, limite - u + 1)?.to_vec()
+        } else if limite - desl - 1 <= len && u < desl {
+            let inicio = fatia(&d, 0, limite - desl - 1)?.to_vec();
+            let mut v = d;
+            let novo_len = usize::try_from(limite - u).ok()?;
+            if v.len() < novo_len {
+                v.resize(novo_len, 0.0);
+            }
+            let zeros = (desl - u + 1) as usize;
+            v[..zeros].fill(0.0);
+            v[zeros..zeros + inicio.len()].copy_from_slice(&inicio);
+            v
+        } else {
+            d
+        };
+        let len_w = sinal.len() as i32;
+
+        let mut marcas = vec![0u8; compassos as usize * 16];
+        'compassos: for k in 0..compassos {
+            let mut v = [0.0f64; 16];
+            for i in 0..4 {
+                let numero = s + 4 * k + i;
+                if numero > grade.len() as i32 {
+                    break 'compassos;
+                }
+                let g = *grade.get(usize::try_from(numero - 1).ok()?)? - u;
+                for e in 0..4 {
+                    let ini = ((f64::from(e) * quarto + f64::from(g)) + 0.5) as i32;
+                    if ini + w > len_w {
+                        break 'compassos;
+                    }
+                    v[(i * 4 + e) as usize] = maximo(fatia(&sinal, ini, w)?);
+                }
+            }
+            let mut primeiro = 0.0;
+            for rodada in 0..12 {
+                let (i, m) = primeiro_maximo(&v);
+                if rodada == 0 {
+                    primeiro = m;
+                }
+                if m > 1e-4 && m > primeiro * 0.5 && m > referencia * 0.178 {
+                    marcas[k as usize * 16 + i] = 1;
+                    v[i] = 0.0;
+                }
+            }
+            referencia = if primeiro > referencia {
+                primeiro
+            } else {
+                referencia
+            };
+        }
+        self.referencia = referencia;
+        Some(marcas)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Envelope feito à mão para a busca: batida 16 (barI 64, w 4, 1,25·batida
+    /// = 20 voltas, 1 quieta), base 0,1, subida no início do 2º compasso de
+    /// `b` e vale 3 amostras antes dela. `o` desloca tudo (u − 1).
+    fn envelope_de_busca(o: usize, antes_do_pico: [f64; 3]) -> Vec<f64> {
+        let mut b = vec![0.1; 320];
+        b[50 + o..=59 + o].fill(0.05);
+        b[60 + o] = 0.05;
+        b[61 + o..=63 + o].copy_from_slice(&antes_do_pico);
+        b[64 + o..=67 + o].copy_from_slice(&[0.6, 0.9, 1.0, 0.8]);
+        b
+    }
+
+    #[test]
+    fn busca_acha_o_vale_antes_da_subida() {
+        // Pico b[66]; primeira queda r = 4 → pos = 68, pv = b[67] = 0,8.
+        // Vale em b[60] (j = 61): desl = c − j = 64 − 61 = 3, limitado a u.
+        let b = envelope_de_busca(4, [0.2, 0.25, 0.3]);
+        assert_eq!(deslocamento_de_alinhamento(&b, 5, 16.0, 4), Some(3));
+        let b = envelope_de_busca(0, [0.2, 0.25, 0.3]);
+        assert_eq!(deslocamento_de_alinhamento(&b, 1, 16.0, 4), Some(1));
+    }
+
+    #[test]
+    fn busca_sem_contraste_nao_desloca() {
+        // Vale 0,4 (abaixo do limiar 0,55): 0,8/0,4 = 2 não passa de 2,11.
+        let b = envelope_de_busca(4, [0.4, 0.4, 0.4]);
+        assert_eq!(deslocamento_de_alinhamento(&b, 5, 16.0, 4), Some(0));
+        // Sinal plano: nunca há queda, pv = 0.
+        assert_eq!(
+            deslocamento_de_alinhamento(&[0.1; 320], 5, 16.0, 4),
+            Some(0)
+        );
+        // C = 3: c = 64 não fica antes de len(seg) − barI = 64.
+        let b = envelope_de_busca(4, [0.2, 0.25, 0.3]);
+        assert_eq!(deslocamento_de_alinhamento(&b, 5, 16.0, 3), Some(0));
+    }
+
+    /// Rajadas de 150 Hz e 50 ms no início de cada batida, a 120 BPM e
+    /// taxa/8 de 44,1 kHz; grade como a da passada B com `ms = 0`.
+    fn rajadas(batidas: usize) -> (Vec<f64>, Vec<i32>, f64, f64) {
+        let fs = 44100.0 / 8.0;
+        let bpm = 120.0;
+        let passo = (60.0 / bpm) * fs;
+        let grade: Vec<i32> = (0..=batidas)
+            .map(|i| (i as f64 * passo + 1.5) as i32)
+            .collect();
+        let len = (batidas as f64 * passo) as usize + 2000;
+        let mut x = vec![0.0; len];
+        for &g in &grade[..batidas] {
+            let i0 = (g - 1) as usize;
+            for (k, v) in x[i0..i0 + 275].iter_mut().enumerate() {
+                *v = (std::f64::consts::TAU * 150.0 * k as f64 / fs).sin();
+            }
+        }
+        (x, grade, bpm, fs)
+    }
+
+    #[test]
+    fn marca_o_primeiro_avo_de_cada_batida() {
+        let (x, grade, bpm, fs) = rajadas(9);
+        let mut m = MarcasPorDezesseisAvos::novo(fs).unwrap();
+        let marcas = m.processar(&x, bpm, 0, 1, fs, 1, &grade, 9).unwrap();
+        // C = (9 − 1 + 1)/4 = 2 compassos.
+        let batida = [1, 0, 0, 0];
+        assert_eq!(marcas, batida.repeat(8));
+        assert!(m.referencia > 1e-4);
+        assert!((0..=1).contains(&m.deslocamento));
+    }
+
+    #[test]
+    fn lote_curto_devolve_um_zero_e_guarda_o_envelope() {
+        let (x, grade, bpm, fs) = rajadas(9);
+        let mut m = MarcasPorDezesseisAvos::novo(fs).unwrap();
+        m.deslocamento = 7;
+        // n − s + 1 = 3 batidas: nenhum compasso.
+        let marcas = m.processar(&x, bpm, 0, 1, fs, 2, &grade, 3).unwrap();
+        assert_eq!(marcas, vec![0]);
+        assert_eq!(m.deslocamento, 7);
+        assert_eq!(m.referencia, 1e-4);
+        assert!(m.anterior.is_finite());
+        // Taxa sem ordem de 200 Hz na tabela.
+        let mut m = MarcasPorDezesseisAvos::novo(12000.0).unwrap();
+        assert!(m.processar(&x, bpm, 0, 1, 12000.0, 1, &grade, 9).is_none());
+    }
 
     #[test]
     fn ataques_caem_nas_batidas_certas() {

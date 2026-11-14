@@ -5,7 +5,7 @@ param(
 
     [string]$List,
 
-    [string]$Ghidra = "C:\Tools\ghidra_12.1.4_PUBLIC",
+    [string]$Ghidra = "C:\Users\Thiago\Downloads\ghidra_12.2_PUBLIC",
 
     [string]$Out = "third_party\rekordbox\re\export",
 

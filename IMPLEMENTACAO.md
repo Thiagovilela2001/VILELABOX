@@ -1,5 +1,13 @@
 # Registro de implementação
 
+## Marcas por 16 avos da passada C e reancoragem no 7.2.19 (P4.1) — 2026-11-14
+
+- Reancoragem: o 7.2.8 saiu da máquina, e o projeto Ghidra agora é o 7.2.19. Dos 146 endereços de código do dossiê, 138 foram mapeados por strings de log, contagem por bloco e callgraph (`spec/rekordbox/evidence/p4-1-enderecos-7.2.19.tsv`). Ficaram sem âncora `0x1410bab80` e as rotinas de libm.
+- Porte: `0x14118d310` (7.2.19: `0x1412ec9d0`) virou `vilelabox-dsp::passada_c::MarcasPorDezesseisAvos`, conferido no assembly. A busca de alinhamento é `deslocamento_de_alinhamento`, e os argumentos que o Ghidra perdia foram lidos no assembly. O banco de filtros reaproveita `FiltrosBanda`.
+- Ferramentas: `tools/re/RefsTo.java` (quem referencia um endereço) e `tools/re/DisasmList.java` (assembly com constantes).
+- Validação: 53 testes do `vilelabox-dsp`, `fmt --check` e Clippy com `-D warnings`. Não há comparação com o programa de referência.
+- Pendente: a gêmea `0x14118e450` (`0x1412edb10`), `0x141197890` e o fechamento `0x141197d60`.
+
 ## Aproximação visual ao rekordbox 7.2.8 — 2026-11-10
 
 - Referência: captura local `third_party/rekordbox/ui-workbench/medicoes/captura.png`, modo 2Deck Horizontal, e medidas de `spec/rekordbox/evidence/p3-1-ui-medido.md`.

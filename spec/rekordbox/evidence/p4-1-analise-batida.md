@@ -492,11 +492,12 @@ assembly. Chamada `(obj, +0xa80, bpm, _, fs = taxa/2, grade +0x1120, n)`.
 - Contagem `u8` por batida em `+0x1978` (copiada a `+0xdc0`):
   `g[j] <= pos < g[j + 1]`, e a última recebe `pos >= g[n − 1]`.
 
-### Marcas por 16 avos de compasso (`0x14118d310`, `0x14118e450`) — mapa
+### Marcas por 16 avos de compasso (`0x14118d310`, `0x14118e450`)
 
-Estrutura observada no decompilado; **porte pendente**: vários argumentos
-foram perdidos pelo Ghidra (`0x141166c30`, `0x141167340`, `0x1411672c0`) e
-precisam ser lidos no assembly.
+`0x14118d310` está portado em `vilelabox-dsp::passada_c::MarcasPorDezesseisAvos`
+e conferido no assembly do 7.2.19 (`0x1412ec9d0`, 2026-11-14). A gêmea
+`0x14118e450` (`0x1412edb10`) continua só mapeada. O mapa abaixo veio do
+decompilado do 7.2.8; a leitura do assembly vem depois dele.
 
 - Chamadas `(obj, +0xaa0, bpm, ms, s = +0xb98, fs = taxa/8, +0xb80, grade
   +0x1140, n)`. Saída: um byte por 16 avo de compasso, `+0x1948`
@@ -522,6 +523,46 @@ precisam ser lidos no assembly.
   ele passar `0x145414da0`, metade do primeiro máximo da rodada
   (`0x1454152a0`) e `ref·0x143538390`, e zera o valor. `ref` vira o máximo
   entre ele e o primeiro máximo do compasso.
+
+**Leitura do assembly (7.2.19).** Os endereços abaixo são do 7.2.19.
+
+- Argumentos: `RCX` = objeto, `RDX` = banda, `XMM2` = BPM, `R9D` = `ms`
+  inteiro. Na pilha: `s`, `fs`, `lote` (`+0xb80`), grade e `n`. O chamador
+  (`0x1412f5c70`) confirma a ordem. A init (`0x1412ec630`) é chamada pela da
+  B com estado `(0, 0, 1e−4)` e `fs = obj+0x98`.
+- Filtros: idênticos ao banco `FiltrosBanda` de `0x14118be60`. São o
+  passa-baixa de 200 Hz (4ª ordem em `[s0, s1, s0, s1]` ou 2ª, pela mesma
+  tabela de taxas), 10 Hz em `+0x17e0`, passa-alta de 110 Hz em
+  `[h0, h1, h0, h1]` e a cópia do 10 Hz em `+0x18f8`. Com outra taxa, o
+  buffer de 200 Hz fica sem escrever; o porte devolve `None`.
+- `ref` = `+0x1940` com `lote > 1`, senão 1e−4 (`vpcmpgtd` + `vblendvpd`).
+  `+0x1938` é zerado na entrada.
+- `u = (int)fma(batida, s − 1, (int)fma(ms·0,001, fs, 0,5) + 1)`.
+  `limite = g[n−1] − 1 + (int)batida`, ou `g[n−1]` se passar do comprimento.
+  `C = (n − s + 1)/4` truncado, menos um se `barI·C − 1 + u > len`, com
+  `barI = (int)(4·batida)`.
+- `C <= 0`: saída de um byte 0. `+0x1930` = último valor do envelope de
+  **200 Hz** (o outro caminho grava o de 110 Hz). `+0x1938` restaurado; o
+  passa-alta não roda.
+- Busca de alinhamento (`C >= 2`): ver `deslocamento_de_alinhamento`. Os
+  argumentos perdidos pelo Ghidra são estes. `0x1412c6110(janela, b + c + u
+  − 2, barI + 1)` empresta a janela do mínimo. `0x1412c6820(janela)` é o
+  mínimo. `0x1412c67a0(seg, &idx[k], 1)` devolve o máximo e o índice base 1.
+  O laço "descendo" do decompilado nunca roda: o teste exige quatro
+  amostras não decrescentes, então `R9D` é sempre 1. Limiares: 0,2,
+  0,595662, 1,25·batida, 1,12, batida/16 quietas e 2,11. O deslocamento é
+  `min((int)(c − j + 0,5), u)`, e vale 0 sem decisão ou com vale 0.
+- O deslocamento novo vai a `+0x1938`. Com `lote > 1`, o recorte usa o
+  valor da entrada (`cmovg`).
+- Diferença: `d[i] = e[i] − e[i−1]`, `d[0] = e[0] − +0x1930` antigo.
+  `+0x1930` novo = `e[len − 1]` antes da diferença.
+- Recorte e marcação: conforme `MarcasPorDezesseisAvos::processar`. A
+  janela começa em `(int)((e·batida/4 + (g − u)) + 0,5)`, sem fusão, e tem
+  `w` amostras. As 12 rodadas usam o primeiro máximo por `>` estrito; a
+  referência final é `vmaxsd(primeiro, ref)`.
+- Limitação: o porte não tem fixture do programa de referência. Os testes
+  cobrem a busca com envelope feito à mão e as marcas com rajadas
+  sintéticas.
 
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
@@ -828,11 +869,64 @@ modelo treinado do programa de referência e fica fora do escopo clean-room.
 - **Não observado:** FFT ou janela de Hann, até aqui. Os estágios do
   fechamento da passada A e a passada C/D ainda não foram abertos.
 
+## Reancoragem para o 7.2.19 (2026-11-14)
+
+O 7.2.8 foi desinstalado. O projeto Ghidra atual analisa
+`C:\Program Files\rekordbox\rekordbox 7.2.19\rekordbox.exe` (SHA-256
+`c9ed23e974c51c75e2ec069fbd2679a3dbe606be9e79e9cbbd13d6418ab11c37`). Os
+endereços deste dossiê continuam sendo os do 7.2.8. O mapa completo dos 146
+endereços de código citados aqui e em `vilelabox-dsp` está em
+`p4-1-enderecos-7.2.19.tsv`.
+
+Método:
+
+1. As strings `__FUNCSIG__` do log foram localizadas no 7.2.19, e seus
+   chamadores lidos com `tools/re/RefsTo.java`. As cinco funções de
+   `AnalyzeJobBeatDetector` deram o mesmo delta, `+0x15fc10`. As de
+   `AnalyzeJobKey` deram `+0x15fbe0`.
+2. Para cada bloco de 1 MB, contou-se quantos endereços antigos caem
+   exatamente num início de função do 7.2.19 para cada delta. Um delta
+   errado acerta cerca de 1 em 18. Os acertos foram: `0x14116` 29/33,
+   `0x14117` 31/34, `0x14118` 27/33 e `0x14119` 10/10. As falhas são
+   endereços de laço citados de propósito.
+3. O motor 2 foi ancorado por `interval*.csv`, e a alta precisão por
+   `beatList`. O motor 1, a thread e a STL foram resolvidos pelo callgraph,
+   a partir de chamadores já mapeados.
+
+| Faixa no 7.2.8 | Delta | Âncora |
+| --- | --- | --- |
+| `0x14107c200`, `0x14107c340` | `+0x15f4c0` | callees de `highPrecisionBeatAnalyze`; o refinador só é chamado por ela |
+| `0x1410b3cb0` | `+0x15fb90` | único chamador de `0x14116f000` |
+| `0x14112e000`–`0x141131000` | `+0x15fc10` | strings do job de batida |
+| `0x141133000`–`0x141134400` | `+0x15fbe0` | strings do job de tom |
+| `0x141134550` / `0x14113fda0` | `+0x15fbb0` / `+0x15f3d0` | `beatList`; callees da alta precisão |
+| `0x141164000`–`0x141169000` | `+0x15f4e0` | contagem por bloco |
+| `0x14116e000`–`0x1411c6000` | `+0x15f6c0` | contagem por bloco; aresta B → `grades_passada_b` conferida |
+| `0x14245c630` / `0x142470b60` | `+0x1cf650` / `+0x1cf680` | `interval*.csv`; chamada da soma de meia batida |
+| `0x142476000`–`0x14247b000` | `+0x1cf5e0` | 5 de 7 inícios; chamadores conferidos |
+| `0x142604d40`–`0x142604f60` | `+0x2054a0` | callees de `0x141167280`, `0x141167340` e `0x1411686b0` |
+
+Alvos pendentes no 7.2.19:
+
+| 7.2.8 | 7.2.19 | Tamanho (bytes) | Conferência |
+| --- | --- | --- | --- |
+| `0x14118d310` | `0x1412ec9d0` | 3590 | chamada pela passada C (`0x1412f5c70`) |
+| `0x14118e450` | `0x1412edb10` | 3431 | — |
+| `0x141197890` | `0x1412f6f50` | 1223 | — |
+| `0x141197d60` | `0x1412f7420` | 23378 | único chamador `0x1412cfaf0`, que também chama `0x1412cfc80` (= `0x1411705c0`) |
+
+Ficaram sem âncora `0x1410bab80` e as rotinas de libm: `0x14279adf0`,
+`0x1427a25f0`, `0x1427a2fa0`, `0x1427a51e0`, `0x1426086a0` e
+`0x142608cd0`. O porte já troca as de libm pela biblioteca padrão. As
+constantes de `.rdata` (`0x143…`, `0x145…`) não foram reancoradas. O
+tamanho das funções antigas não está registrado, por isso a conferência
+não compara corpos. Ela usa o início de função, a contagem por bloco e as
+arestas do callgraph.
+
 ## Próximos alvos
 
-1. Portar `0x14118d310` pelo assembly (filtros; 16 picos por compasso e
-   marcas; busca de alinhamento), depois a gêmea `0x14118e450`. Os outros
-   13 extratores da passada C estão portados.
+1. Portar a gêmea `0x14118e450` (7.2.19: `0x1412edb10`). `0x14118d310` e
+   os outros 13 extratores da passada C estão portados.
 2. `0x141197890` e o fechamento `0x141197d60`, onde o BPM deve ser decidido.
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
 4. Teste diferencial: analisar uma fixture WAV no programa de referência e
