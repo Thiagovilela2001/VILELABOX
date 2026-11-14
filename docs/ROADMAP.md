@@ -21,9 +21,9 @@ Ghidra. O Gate G0 do plano bloqueia funcionalidades sem proveniência documentad
 
 ## C3 — Análise
 
-- [ ] BPM e grade (passadas A e B portadas, passada C em 13 de 15 extratores; falta o fechamento `0x141197d60`; dossiê `p4-1`);
-- frases, tonalidade, energia, waveform e vocal;
-- comparação diferencial e benchmarks reproduzíveis.
+- [x] BPM e grade: passadas A, B e C (15 extratores), estimador `BeatAnalyzer_1_0` (`AnalisadorDeBatidas` modos 0 e 1, `RefinadorDeEnvelope` e `AjusteDeBatidas`) e primitivas de frases (`vilelabox-dsp::frases`) portados;
+- [x] pipeline reproduzível e cancelável `vilelabox-analysis` (BPM/grade, frases, tonalidade, energia e waveform — Gate G4);
+- comparação diferencial completa com lote de 40 análises reais e benchmarks reproduzíveis.
 
 ## C3b — Biblioteca e preparação
 

@@ -494,10 +494,14 @@ assembly. Chamada `(obj, +0xa80, bpm, _, fs = taxa/2, grade +0x1120, n)`.
 
 ### Marcas por 16 avos de compasso (`0x14118d310`, `0x14118e450`)
 
-`0x14118d310` está portado em `vilelabox-dsp::passada_c::MarcasPorDezesseisAvos`
-e conferido no assembly do 7.2.19 (`0x1412ec9d0`, 2026-11-14). A gêmea
-`0x14118e450` (`0x1412edb10`) continua só mapeada. O mapa abaixo veio do
-decompilado do 7.2.8; a leitura do assembly vem depois dele.
+As duas funções estão portadas em `vilelabox-dsp::passada_c` e conferidas
+no assembly do 7.2.19 (2026-11-14):
+
+- `0x14118d310` (`0x1412ec9d0`): `MarcasPorDezesseisAvos`;
+- `0x14118e450` (`0x1412edb10`): `MarcasPorDezesseisAvosGraves`.
+
+O mapa abaixo veio do decompilado do 7.2.8. A leitura do assembly e as
+diferenças da gêmea vêm depois dele.
 
 - Chamadas `(obj, +0xaa0, bpm, ms, s = +0xb98, fs = taxa/8, +0xb80, grade
   +0x1140, n)`. Saída: um byte por 16 avo de compasso, `+0x1948`
@@ -563,6 +567,71 @@ decompilado do 7.2.8; a leitura do assembly vem depois dele.
 - Limitação: o porte não tem fixture do programa de referência. Os testes
   cobrem a busca com envelope feito à mão e as marcas com rajadas
   sintéticas.
+
+**Gêmea `0x14118e450` (7.2.19: `0x1412edb10`).** O assembly tem o mesmo
+molde, com estas diferenças:
+
+- Há uma cadeia só: 200 Hz (`+0x15a8`…, ordem em `+0x15a0`) → `|·|` → 10 Hz
+  (`+0x1688`), no próprio buffer. O mesmo envelope serve à busca e à
+  diferença.
+- `+0x16c8` não é zerado na entrada.
+- A busca também aceita uma descida estrita `v0 > x0 > x1 > x2`. Nesse caso o
+  pico é procurado para trás: `b[c+u−3−r] < b[c+u−2−r]`, com `pos = c − r`.
+  O laço do vale e os limiares são idênticos.
+- A marcação tem 6 rodadas (`R11D = 6`) e fator 0,596 (`0x143826760`), em
+  vez de 12 e 0,5.
+- A init `0x14118e120` (`0x1412ed7e0`) recebe da init da B o estado
+  `(0, 0, 1e−4, fs = obj+0x98)`.
+
+### Cópia das características (`0x141197890`; 7.2.19: `0x1412f6f50`)
+
+Não há cálculo. Com `+0xb40 == 2`, copia as saídas acumuladas da passada C
+para os campos de entrada do fechamento e libera os buffers de trabalho.
+São duas chamadas em `0x1412f5c70`, com o `ms` dos extratores (`R15D`) como
+3º ou como 2º argumento. O porte não precisa de código; o mapa abaixo
+define a entrada do fechamento.
+
+| Destino | Origem (extrator) |
+| --- | --- |
+| `+0xe58` | `+0xba0` (`energia_por_quarto`) |
+| `+0xe78`, `+0xea0` | `+0xbc0`, `+0xbe0` (`energia_e_pico_por_quarto`) |
+| `+0xe98`, `+0x1070` | 2º argumento |
+| `+0xec0`, `+0xf20`, `+0xfc0` | `+0xc00`, `+0xc20`, `+0xc40` (`FiltroGraves`) |
+| `+0xee0` | 3º argumento |
+| `+0xee8` | `+0xe28` (espectro por batida) |
+| `+0xf00` | `+0xc60` (`PicoMediosPorBatida`) |
+| `+0xf40` | `+0xdc0` (`ataques_por_batida`, `u8`) |
+| `+0xf60` | `+0xd80` (`MarcasPorDezesseisAvosGraves`, `u8`) |
+| `+0xf80` | `+0xca0` (`EnvelopePorBatida`) |
+| `+0xfa0` | `+0xda0` (`MarcasPorDezesseisAvos`, `u8`) |
+| `+0xfe0` | `+0xcc0` (`AgudosPorBatida`) |
+| `+0x1000`, `+0x1020` | `+0xce0`, `+0xd00` (`Bandas500PorBatida`) |
+| `+0x1040` | `+0xe40` (matriz; origem DESCONHECIDA) |
+| `+0x1058` | `+0xe10` (espectro por compasso) |
+| `+0x1078` | `+0xd20` (`EnergiaPorQuarto40`) |
+| `+0x1098`, `+0x10b0`, `+0x10b4` | `+0xdf8`, `+0xde8`, `+0xdec` (tonalidade) |
+| `+0x10b8` | `+0xd40` (`pico_por_batida`) |
+| `+0x10d8` | `+0xd60` (`PicoAgudosPorOitavo`) |
+| `+0x10f8` | `+0xdf0` |
+| `+0x1100` | `+0x1140` (grade de taxa/8) |
+
+## Fechamento das passadas C/D (`0x141197d60`; 7.2.19: `0x1412f7420`) — mapa
+
+Função de 23 378 bytes (3 841 instruções) com 79 callees: 4 já portados,
+1 citado e 73 nunca abertos. **Não estima o BPM.** `+0xb0` é lido uma vez
+(`0x1412f7834`) e nunca gravado. O resultado é validado campo a campo com
+mensagens `!result->…`: `structure_name`, `beat_4`, `moriage`,
+`moriage_pos_judge`, `moriage_pos_{4,8,16}_pos_start`, `aori`, `fill_in` e
+`fill_in_pos_start`. É a análise de **estrutura de frases** (fase A2.3 do
+`PLANO-ANALISE.md`), não de BPM. INFERIDO: `moriage` (盛り上げ) e `aori`
+(煽り) são subida de energia e preparação.
+
+- Há dois ramos, escolhidos por um campo local (`local_23c != 1`). Um
+  delega a `0x141211610(…, obj+0x68)` e preenche o resultado. O outro roda
+  a cadeia própria de `0x1412dff80`, `0x1412e7460`, `0x1412e8de0`,
+  `0x1412e93f0`, `0x1412d0aa0` e outras.
+- Cadeia completa: `third_party/rekordbox/re/export/p4-7.2.19/decomp/1412f7420.c` e `disasm/` (privados, fora do Git). Abrir
+  por ramo, a começar pelo próprio.
 
 ## Filtros do envelope (`0x14118aea0`, `0x141188560`)
 
@@ -823,8 +892,9 @@ batida (ou `motor+0xbc` quando não há picos finos, com `motor+0xcb` ou com o
 deslocamento mantido pela fase). Saídas em `motor+0x208`–`+0x260`.
 
 **A passada A recebe o BPM pronto** (`motor+0xb0`, vindo do BPM já conhecido
-da faixa no init). A estimativa do BPM está nas passadas B e C/D
-(`0x141173370`, `0x1411965b0`, `0x141197d60`), ainda não abertas.
+da faixa no init). A hipótese de que o BPM seria estimado nas passadas B e
+C/D foi **refutada** em 2026-11-14 (ver "Fechamento das passadas C/D"):
+nenhuma delas grava `+0xb0`.
 
 ## Cadeia do fechamento da passada A (`0x141195480`)
 
@@ -841,6 +911,323 @@ de índices: passo `(60/bpm)·fs`, início `fs · deslocamento_ms · 0,001 + 0,5
 O BPM, o deslocamento e o tom de partida vêm da thread, que os lê dos dados
 já conhecidos da faixa (vtable de `thread+0x2e0`, slots `+0xa0`, `+0xa8`,
 `+0xb0`). Sem dado prévio o BPM é 0, que o init aceita.
+
+## Estimador de BPM: `BeatAnalyzer_1_0` (motor 1) — mapa (7.2.19, 2026-11-14)
+
+O BPM é estimado por uma biblioteca ligada estaticamente, com RTTI própria.
+Há duas versões, nos namespaces `BeatAnalyzer_1_0` (motor 1, faixa
+`0x142600000`–`0x14261d000`) e `BeatAnalyzer_2_0` (motor 2). As classes com
+vtable são: `Analyzer`, `PreChecker`, `peakss::BeatSensorSignal`,
+`peakss::BeatListSignal`, `peakss::BpmCountTbl`, `UnitBeatAdjust`,
+`SimpleEnvelopeMaker`, `UnitEnvelopeMaker`, `LoudViewMaker`/`LVMakeBase`,
+`ZoomViewMaker`, `balib::IirFilter`, `IirPassFilter`, `LowPathFilter2D`,
+`HighPathFilter1D` e `HighPathFilter2D`. As vtables quase só têm
+destrutores; o cálculo está em métodos não virtuais. Todos os endereços
+desta seção são do 7.2.19.
+
+**Envelope `analyzer::BALibWrapper`** (18 bytes; motor em `+8`, tipo em
+`+0x14`):
+
+- A thread `CBeatAnalyzeThread` (`0x141213840`) constrói o envelope com
+  tipo 1 (`0x1411db2e0`). Troca para o tipo 2 (`0x1411db330`) quando o modo
+  em `+0x2c58` é 2, 3 ou 4, os mesmos modos que `Detect` manda para a alta
+  precisão.
+- `0x1411db350` cria o motor. São quatro fábricas, escolhidas por uma flag e
+  por `taxa == 44 100`; no motor 1: `0x14260b590`, `0x14260b640`,
+  `0x14260b7a0` e `0x14260b850`, que usa `0x142606670` e `0x142606880`.
+- `0x1411db540` vai por salto de cauda a `0x142606e40`, a alimentação.
+  `0x1411db590` vai a `0x142607460` → `0x14262a830`. `0x1411dbac0` destrói o
+  motor.
+- `legacyBeatAnalyze` lê o BPM com `0x1411db6c0`:
+  `(int)(motor+0x48 · 100 + 0,5)`. Lê a quantidade de batidas com
+  `0x1411db6f0` (vetor de 24 bytes em `motor+0x50`). Converte a lista com
+  `0x1411db720` → `0x14260ba80`: registros `(posição, número,
+  (int)(6 000 000/intervalo + 0,5))`.
+- O callgraph não vê as chamadas por salto de cauda nem as virtuais. Os
+  alvos acima foram lidos no assembly.
+
+**Alimentação `0x142606e40(motor, L, R, n)`** (`Analyzer`):
+
+- Mistura em mono: `(L + R)·1,5258789e−5` (`0x1457fed94` = 0,5/32768), em
+  `f32` em `+0x30`. Guarda também o estéreo intercalado em `i16` em `+0x38`.
+  O bloco tem `+0x18` frames e o total esperado é `+0x1c`.
+- A cada bloco cheio, roda os processadores conforme as flags `+0xa`–`+0xd`:
+  - `0x1426080d0(+200, mono)`: sensor de batidas; a lista fica em `+0xb0`;
+  - a vista de volume, por chamada virtual em `+0x678`;
+  - `0x142618f80(+0x558, i16)`;
+  - `0x142619ea0(+0x5a0, i16)`: envelope;
+  - `0x142609260(+0x608, i16)`, salvo com `+0x2c`;
+  - `0x14261c8e0(+0x3998, i16)`: vista de zoom.
+- Ao atingir `+0x1c` frames, chama o fechamento `0x142607110`.
+
+**Fechamento `0x142607110`** — aqui o BPM é decidido:
+
+1. Copia a lista do sensor (`+0xb0`, registros de 24 bytes).
+2. `0x142613100(tabela, {+200, lista, +0x14}, +0x50, total, 4, faixa…,
+   +0x2c)` usa a `BpmCountTbl` (`0x1426130e0`). Devolve o BPM em `XMM0`,
+   gravado como `f32` em `+0x48` (`0x14260722e`).
+3. Com `+0xa`, `0x142619120(+0x558, bpm, +0x50)` corrige o BPM.
+4. `0x14261a080(+0x5a0, bpm, +0x50)` refina a lista de batidas.
+5. Sem `+0x2c`, `0x142609560(+0x608, &bpm, +0x50)` faz o ajuste final.
+
+Tamanho: a subárvore da alimentação tem 45 funções e cerca de 52 KB. As
+maiores são `0x142613100` (15 032 bytes), `0x14261a080` (8 943),
+`0x1426080d0` (2 312) e `0x142619120` (2 018).
+
+### Porte do estimador — etapa 1 (2026-11-14)
+
+Portado em `vilelabox-dsp::balib` e conferido no assembly, exceto onde
+indicado:
+
+- **Alimentação `0x142606e40`** (`Alimentador`, conferida no decompilado).
+  O bloco tem `taxa/75` frames (588 a 44,1 kHz). O último bloco **não** é
+  cortado no total de frames: enche até 588 e só então fecha. A init
+  (`0x142606880`) aceita só 44 100 e 48 000 Hz e liga flush-to-zero
+  (`MXCSR | 0x8000`). O porte não emula o flush-to-zero (ADAPTAÇÃO).
+- **Banco do sensor**: `0x142608000` chama `0x142612650` com 6 bandas
+  (`[rsp+0x28] = 6`) e média de 8 amostras (`[rsp+0x20] = 8`). As bandas
+  estão em `BancoDeBandas`.
+  - Os biquads seguem as receitas RBJ, com `w = (f·6,28318530717958)/fs`.
+    A constante `0x143ea0760` é 2π truncado. `f`, `fs` e `Q` são `f32`. A
+    init usa `sincos` da CRT (`0x14280e240`) e `sinh` (`0x1429b5400`).
+  - Passa-baixa (`0x14260c280`) e passa-alta (`0x14260c8b0`/`0x14260cb40`)
+    usam `a0 = fma(k, s, 1)` e `1 − s·k` fundido. O passa-faixa
+    (`0x14260cfa0`) não usa FMA.
+  - A seção (`0x14260c520`) é de forma direta I com FMA, na ordem `b0, b1,
+    b2, −a1, −a2`. Há duas exceções que começam por `b1·x[n−1]`: a amostra
+    1 e a terceira de cada grupo de 4 do laço desenrolado. Por isso o
+    resultado depende do tamanho do bloco.
+  - O aplicador `0x14260d2d0` converte `f32` → `f64`, alterna dois buffers
+    entre as seções e volta com `vcvtpd2ps`. O sensor tira o valor
+    absoluto (`& 0x7fffffff`).
+  - As bandas 4 e 5 copiam as bandas 0 e 3 (`+0x54`) e aplicam
+    `y = max(x − média, 0)`. A janela tem `(int)(taxa·ms·0,001 + 0,5)`
+    amostras (44 e 9 a 44,1 kHz).
+
+### Sensor — etapa 2 (portada)
+
+Portados em `vilelabox-dsp::balib` (`SeguidorDePico`,
+`RegistroDeIntervalos::casar`/`agrupar` e `SensorDeBatidas`), conferidos no
+assembly. Detalhes do assembly que o decompilado escondia:
+
+- A janela de contagem vai de 0 a `+0x1c` do analisador (`R8D = 0`,
+  `R9D = +0x1c` na chamada de `0x142608000`). A amostra que atinge o fim
+  não entra.
+- Na queda, `limiar − 0,5·pico` e `limiar − 0,5·limiar` usam
+  `vfnmadd231ss`. A duração e o Δ do intervalo são convertidos como sem
+  sinal.
+- `0x142611f20` chama `0x1426120b0(reg, x, anel, 4,0, 20,0, início, &média,
+  &erro, &contagem)` até devolver −1. Guarda o resultado de maior contagem
+  com média `>= 333 ms`. O 20,0 da pilha não é usado: a tolerância lê
+  `0x1457ffb70`.
+- `0x1426120b0`: as regras estão em `RegistroDeIntervalos::casar`. A
+  entrada mais antiga permitida é a de índice `quantidade − 2`, porque o
+  teste `j + 1 >= quantidade` vem antes da leitura. A extensão lê o anel
+  mesmo além da quantidade, com zeros no início.
+
+Por amostra: com o contador `[0x16]` entre o início `[0x17]` e o fim
+`[0x18]`, acumula cada banda. A cada 8 amostras (`[0xe]`) tira a média `v`
+e roda o seguidor de pico da banda. O seguidor tem 0x78 bytes. O
+construtor `0x142618950` grava piso `+0x14` = 0,001, `+0x20` = 0,75,
+`+0x24` = `+0x28` = 0,5 e fonte `+0x54` = −1. A init da taxa grava `+4` =
+0,29 s, `+0x2c` = 1,7 s e `+0x30` = `+0x34` = 1,3 s (em amostras, `f32`),
+`+0x40` = 8 e `+0x50` = taxa.
+
+- O limiar `+8` cai `+0x10` por passo. No estado 0, o piso é `+0x14`.
+  Quando passam `+0x1c` amostras desde `+0x38`, a queda é recalculada:
+  primeiro rumo a `0,5·pico` em `+0x30`, depois rumo a `0,5·limiar` em
+  `+0x34`.
+- `v >= limiar` abre um pico. O limiar vira `0,75·v` e o pico é guardado em
+  `+0x44`, com a posição em `+0x48`/`+0x4c`.
+- No estado 1, um valor maior renova o pico. O pico fecha depois de
+  `+4` (0,29 s) sem renovar. Então o registro de intervalos da banda (0x40
+  bytes, construtor `0x1426188a0`, anel de 32 entradas de 12 bytes) recebe
+  `(posição, pico, intervalo em ms)`, com `intervalo = (1000/taxa)·Δ`.
+- Cada intervalo passa por `0x142611f20` → `0x1426120b0`. Essas funções
+  agrupam os intervalos recentes por razões de batida, com duas tabelas de
+  trincas `(mín ms, máx ms, razão)` lidas do executável:
+  - `0x143ea0b40`: (500, 1276, 1,5) (468, 1071, 1,25) (923, 2142, 2,5)
+    (290, 638, 0,75) (320, 860, 1) (290, 428, 0,5) (666, 1714, 2)
+    (1500, 3333, 4) (1125, 2580, 3);
+  - `0x143ea0bb0`: a mesma lista em outra ordem, de 4 a 0,5 batida, e 3.
+  - Constantes: 4,0, 20,0, 333,0, 0,04, 0,25, 0,5, 2,5 e `FLT_MAX`.
+  - Lido no assembly em 2026-11-14; ver o início desta seção.
+- **Escolha da banda `0x142608b20`** (`HistogramaBpm::escolher`, conferida
+  no assembly):
+  - O histograma tem 256 caixas inteiras de BPM em `sensor+0x64`, com
+    mínimo e máximo usados em `+0x464`/`+0x468` (início 200/40; `60000` em
+    `0x1458002e4`).
+  - Cada banda válida vota em `(int)(60000/intervalo + 0,5)` com peso
+    `max((int)(4/(1 + erro)), 1)`. A melhor banda é a de menor erro, e a
+    moda é o primeiro máximo.
+  - Se a melhor banda não estiver perto da moda, do dobro ou da metade (com
+    `min(intervalo·0,04, 20)`; a metade usa `vfmsub` fundido) e sua caixa
+    tiver ao menos 3 votos, as caixas incompatíveis são zeradas e a moda é
+    recalculada. Na poda, a metade **não** é fundida. Com menos de 3 votos
+    na caixa da melhor, não há escolha.
+  - No fim, a moda precisa de ao menos 3 votos. As bandas incompatíveis
+    com ela perdem a validade e a melhor é devolvida.
+  - O sensor guarda o intervalo, a posição e o pico da escolhida em
+    `[0x10]`–`[0x12]`, zera `[0x13]` (amostras desde a escolha) e chama o
+    callback para cada banda ainda válida.
+- **Lista `BeatListSignal::[1]` (`0x142607b60`)** (`ListaDeBatidas`,
+  conferida no assembly):
+  - Registros de 24 bytes: `(pos, quartos de batida, intervalo médio,
+    etiqueta, banda)`. A etiqueta em `objeto+0x1c` soma `contagem + 2` na
+    entrada (o byte baixo é a força) e, ao fim, zera a força e avança a
+    geração (`+0x100`).
+  - Grava as `contagem + 2` entradas do anel, da mais antiga para a mais
+    recente, em ordem de posição. Na mesma posição exata, a de maior força
+    fica quando os BPM×10 coincidem (`600000/iv`, dobro ou metade) ou
+    quando os intervalos são incompatíveis. Nos outros casos a busca
+    continua para trás.
+  - Bandas diferentes marcam o mesmo clique com atrasos de filtro
+    diferentes; essas entradas não são deduplicadas.
+
+### Contagem `0x142613100` — mapa e porte parcial (2026-11-14)
+
+Função de 3 519 instruções. Ela recebe `(param_1, {+200, lista}, saída =
+motor+0x50, total = +0x1c, 4, 16, 12, flag = +0x2c)`, com os valores
+padrão de `+0x28 = 32`. Devolve o BPM em `XMM0` e preenche a grade em
+`motor+0x50`. O log de depuração (`fprintf` em `param_1+8`, `0x140f029c0`)
+fica fora do porte.
+
+- **Flag `+0x2c`.** As fábricas recebem `modo == 1 || modo == 4` (thread,
+  `+0x2c58`). No motor 1, o modo 0 usa a flag 0 e o modo 1 usa a flag 1.
+  Os dois ramos existem.
+- **`BpmCountTbl`** (portada em `TabelaBpm`):
+  - layout `{n (+8), caixas (+0x10), decimais (+0x18), escala = pow(10,
+    d) (+0x20)}`;
+  - contagem `0x142612e10`: caixa `(int)fma(600000/iv, escala, 5)/10`, com
+    a guarda da primeira caixa sempre verdadeira no original;
+  - refino `0x142612fb0`: busca `[(s·b − s)·10^−d, (s·b + s)·10^−d)` com
+    FMA.
+- **Modo 0, linhas 192–361** (portado em `estimar_modo0`):
+  - tabelas de 400 e 4 000 caixas, com refino a `decimais = 0`;
+  - `iv0 = (f32)(600000/caixa)`;
+  - poda por `na_janela`, com janelas estritas e a metade sem FMA. Na
+    primeira batida, o "anterior" é a tolerância;
+  - o primeiro segmento é a primeira batida com `intervalo = iv0`.
+- **Trecho comum, refino por segmento, linhas 817–950** (portado em
+  `refinar_segmentos`): reconta cada segmento até o próximo. Se o novo
+  intervalo cai na janela do anterior, funde os dois e reconta o anterior.
+- **Deduplicação, linhas 996–1104** (portada em `deduplicar`):
+  `força[geração]`, distância `(int)(((f32)taxa·iv)·1,25e−4)`
+  (`0x143ea0c30`), uma passada só pela lista. Sai a batida de menor força;
+  em empate, a de trás.
+- **Segmento mais longo, linhas 1124–1205** (portado em
+  `bpm_do_mais_longo`): `60000/iv` do primeiro segmento de maior extensão,
+  guardado em `[rsp+0xa0]`.
+- **Vetores por segmento, linhas 953–994**: 6 doubles por segmento,
+  iniciados em `[-30, -20, -3, -3, -20, -3]` (lidos de `0x143ea0ca0`…
+  `0x143ea0cb8` e `0x143ea0c80`/`c88`; a redução por máximo parte de
+  `-DBL_MAX`, `0x1458010e0`). Na grade, são indexados pela banda da batida
+  (`< 6`) e multiplicados por `taxa·0,001`. INFERIDO: compensação de
+  atraso por banda, em ms.
+- **Busca de fase por segmento `0x142617530`** (portada em
+  `ajustar_fase`, com `mais_proxima` = `0x142616fc0` e `pontuar_grade` =
+  `0x142617c00`):
+  - testa deslocamentos de `0, +1, −1, +2, −2` ms no intervalo e
+    subdivisões `k = 4, 2, 1`;
+  - as fases candidatas andam a cada 96 amostras (`0x143ea0c58`), com
+    janela `max(taxa/20, 0,125·passo)`;
+  - a pontuação soma `w − |pos − t|` e é reescalada ×2 a cada meia
+    subdivisão. Só no deslocamento 0 há parada antecipada;
+  - há uma FMA só, o `fnmadd` do recuo com casamento;
+  - o segmento sai com `pos = fase`, o intervalo, `campo_c = 4k` e
+    `campo10 = recuo`.
+- **Geração da grade, linhas 1254–1888** (portada em `gerar_grade`,
+  conferida no assembly):
+  - âncora `q = fma(ms, compensação, q)`, com a compensação da banda casada
+    ou o máximo das 6;
+  - passo por quarto `p = fma(ivs, 0,25, p)`, com casamento a cada
+    `campo_c` quartos;
+  - a cada 128 quartos, reestimativa
+    `fma(ms·pont[b], 4, (p − q)·4)·(0,25/32)`;
+  - emissões para trás (uma vez), da âncora (flag `+0x14`), 16 adiante
+    (uma vez) e 4 por reestimativa, numa janela deslizante de 16 quartos;
+  - fim do segmento com `passo = X/quartos` e preenchimento até o fim
+    dentro do bloco `p < fim`;
+  - primeiro e último tempo forte com banda válida em
+    `local_1c8`/`local_160`.
+- **Fim do modo 0, linhas 1930–2002** (portado em `regrade_uniforme`,
+  `numerar` e `contar_bpm_modo0`):
+  - `primeira_pos` é a posição do primeiro tempo forte, ou 0;
+  - `0x1426182f0` refaz a grade uniforme entre o primeiro e o último tempo
+    forte, com `passo = (pb − pa)/n`, início `fma(−passo, k, pa)` e
+    intervalo `(f32)((1000/taxa)·passo)`;
+  - BPM devolvido: `60000f/grade[0].intervalo`, calculado antes da
+    numeração (`0x1426165af`);
+  - numeração `1..=max(4, 4)` a partir da batida de `primeira_pos`;
+  - saem as batidas com `pos` fora de `[0, total]`.
+- **Modo 1 (`0x142613100` linhas 362–816 e 1900–2080)** (portado em
+  `estimar_modo1`, `primeira_na_caixa`, `ajustar_grade_modo1` e
+  `contar_bpm_modo1`):
+  - linhas 362–816: acumula corridas de batidas (`0x142616e30` e
+    `0x142618a70`), segmenta em janelas de `8 · taxa` e guarda o BPM do
+    segmento mais longo (`[rsp+0xa0]`, `0x14261653b`);
+  - linhas 1900–2080: `0x142617e60` (`ajustar_grade_modo1`) faz correções
+    locais em janelas de 4 batidas (`±passo/2`) sobre a caixa de todas as
+    bandas e recalcula os intervalos locais em milissegundos, devolvendo o
+    BPM do segmento mais longo e numerando a grade a partir de `primeira_pos`.
+
+### Refinadores do fechamento `0x142607110` (2026-11-14)
+
+- **`0x142619120` (`+0x558`):** só roda com a flag `+0xa`. O construtor a
+  zera e só há setter dessa família no motor 2 (`0x1411db7a0`); no motor 1,
+  não roda.
+- **Envelope `0x14261a080` (`+0x5a0`)**, com init `0x142619aa0` e
+  alimentação `0x142619ea0` (portado em `RefinadorDeEnvelope` e
+  `PassaAlta1D`, conferido em `0_14261a080.c` e `0_14260dd20.c`):
+  - roda antes do `UnitBeatAdjust`, com o BPM da contagem;
+  - decimação por 128 (`taxa_env = taxa / 128`), duas seções passa-baixas RBJ
+    de 150 Hz, retificação, passa-baixas RBJ de 5 Hz e filtro passa-alta 1D de
+    1ª ordem (`BeatAnalyzer_1_0::HighPathFilter1D`, `0x14260dd20` /
+    `0x14260dd80` / `0x14260de00`, `fc = 0,5 Hz`, `ω = 2π·fc/fs`,
+    `b0 = 2/(ω+2)`, `a1 = (ω−2)/(ω+2)`);
+  - corrige inversão de meio-tempo (180°) quando mais da metade dos picos de
+    envelope cai fora das batidas (`fora > selecionados.len() / 2` via busca
+    binária `batida_mais_proxima`) e define a fase `1..4` do compasso a partir
+    dos picos mais altos (`0,9` e `0,6 · max_pico`).
+- **`UnitBeatAdjust` (`+0x608`), só no modo 0** (portado em
+  `AjusteDeBatidas`, conferido no assembly):
+  - init `0x142609070`: `fs4 = taxa/4` e envelope limitado a
+    `min(total/4, fs4·900)`; passa-alta 2D de 2 000 Hz e passa-baixa 2D de
+    1 000 Hz (`0x14260d9e0`/`0x14260d630`), em `f64`, com `k = 1/√2` fixo;
+  - alimentação `0x142609260`: 1 de cada 4 frames estéreo,
+    `(R + L)·0,5` → passa-alta → `|·|` → passa-baixa, limitado a
+    `[0, 32767]` em `i16`;
+  - busca `0x142609780` com `0x14260a270` e `0x142609b50`: candidatos
+    `fma(i, 0,002, início)` limitados a 70–180, cada um com grade
+    `fma(passo, k, início)` a `fs/4` e nota = pico da soma do envelope em
+    ±0,05 s. A busca começa em ±0,016, estende a ±0,05 quando o melhor cai
+    na borda e refina a ±0,001;
+  - aplicação `0x14260a560`: com mudança no milésimo, a grade vira a
+    candidata (posições ×4, intervalo `60000/bpm`) e o BPM (`motor+0x48`),
+    `(f32)melhor`;
+  - deslocamento `0x14260ad60`: `(pico − w)·4` amostras (menos 1 ms em duas
+    condições), apara as batidas fora do sinal e estende as bordas em
+    passos de uma batida (`iv·0,004·fs4`), renumerando.
+- **Orquestrador `AnalisadorDeBatidas` (`0x142606e40` / `0x142607110`)**:
+  alimenta `SensorDeBatidas`, `RefinadorDeEnvelope` e `AjusteDeBatidas` a
+  cada bloco completo de `taxa / 75` frames do `Alimentador` (garantindo
+  invariância exata ao tamanho do bloco de entrada) e executa o fechamento
+  completo nos modos 0 e 1.
+
+### Primitivas de análise de frases A2.3 em `vilelabox-dsp::frases` (2026-11-14)
+
+- **`0x1412d0aa0` (`normalizar_e_agrupar_compassos`)**: normalização por pico
+  com sentinela `-100.0`, piso `1e-5` e agregação por grupos de 4 batidas.
+- **`0x1412e8de0` e `0x1412e93f0` (`detectar_transicoes_energia`)**: média
+  local em janela `[-w, +w]`, supressão de bordas `3·w`, suavização
+  `0,25·E[i-1] + 0,5·E[i] + 0,25·E[i+1]` e pareamento de subidas/quedas
+  acima de `0,05`.
+- **`0x1412e7460` (`detectar_transicoes_razao`)**: razão frente/trás em
+  janela `w`, com limiar de subida `> 1,35` e queda `< 0,65`.
+- **`0x1412dff80` (`extrair_picos_espectrais` e
+  `agregar_picos_espectrais_compassos`)**: máquina de estados de confirmação
+  de picos em dois passos (`0,9 · pico`, `> 0,001`), filtro de amplitude
+  `> 0,1` e agregação por compassos com limiares `0,36`, `1,2`, `0,2` e `1,8`.
 
 ## Alta precisão (`0x141134550`)
 
@@ -925,9 +1312,19 @@ arestas do callgraph.
 
 ## Próximos alvos
 
-1. Portar a gêmea `0x14118e450` (7.2.19: `0x1412edb10`). `0x14118d310` e
-   os outros 13 extratores da passada C estão portados.
-2. `0x141197890` e o fechamento `0x141197d60`, onde o BPM deve ser decidido.
+1. **Portar o estimador `BeatAnalyzer_1_0`** (ver a seção do estimador),
+   nesta ordem:
+   1. alimentação `0x142606e40`;
+   2. sensor de batidas `0x1426080d0`;
+   3. contagem `0x142613100` com `BpmCountTbl`, que decide o BPM;
+   4. refinadores `0x142619120` e `0x14261a080`;
+   5. ajuste `0x142609560`.
+
+   Os processadores de vista (volume e zoom) ficam fora do BPM. Falta
+   verificar se o BPM "já conhecido" que a thread entrega às passadas A–D
+   (vtable de `thread+0x2e0`, slot `+0xa0`) é este `motor+0x48`.
+2. O fechamento `0x141197d60` (`0x1412f7420`) pertence à fase A2.3
+   (frases). Portá-lo depois do estimador.
 3. Ordem dos canais na chamada de `0x1411705c0`, a partir de `0x1410bab80`.
 4. Teste diferencial: analisar uma fixture WAV no programa de referência e
    comparar deslocamento, número da batida e grade com o porte.

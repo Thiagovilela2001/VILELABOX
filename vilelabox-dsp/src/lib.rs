@@ -5,9 +5,11 @@
 //! estática). Cada função cita o endereço de origem. Desvios necessários para
 //! Rust seguro são marcados como ADAPTAÇÃO.
 
+pub mod balib;
 pub mod espectro;
 pub mod estagios;
 pub mod filtro;
+pub mod frases;
 pub mod passada_c;
 pub mod tonalidade;
 

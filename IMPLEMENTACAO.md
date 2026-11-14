@@ -1,5 +1,114 @@
 # Registro de implementação
 
+## Pipeline `vilelabox-analysis` e fechamento do motor 1 (P4.1 / P4.2 — Gate G4) — 2026-11-14
+
+- Porte em `vilelabox-dsp`:
+  - `RefinadorDeEnvelope` (`0x142619aa0` / `0x142619ea0` / `0x14261a080`) e `PassaAlta1D` (`BeatAnalyzer_1_0::HighPathFilter1D`, `0x14260dd20` / `0x14260dd80` / `0x14260de00`): decimação por 128, passa-baixas RBJ 150 Hz × 2, retificação, passa-baixas 5 Hz, passa-alta 1D de 0,5 Hz, correção de inversão de meio-tempo (180° via `batida_mais_proxima`) e numeração do compasso `1..4`;
+  - Modo 1 completo (`estimar_modo1`, `primeira_na_caixa` `0x142616e30`, `0x142618a70`, `ajustar_grade_modo1` `0x142617e60` e `contar_bpm_modo1`) e orquestrador `AnalisadorDeBatidas` (`BeatAnalyzer_1_0` modos 0 e 1, alimentado por blocos do `Alimentador`);
+  - `vilelabox-dsp::frases`: primitivas de análise de frases A2.3 (`normalizar_e_agrupar_compassos`, `detectar_transicoes_energia`, `detectar_transicoes_razao`, `extrair_picos_espectrais` e `agregar_picos_espectrais_compassos` de `0x1412d0aa0`, `0x1412e7460`, `0x1412e8de0`, `0x1412e93f0` e `0x1412dff80`).
+- Novo crate `vilelabox-analysis` (P4.2 / Gate G4):
+  - `analisar_faixa`, `analisar_e_persistir_arquivo` e `persistir_resultado_no_banco`: integram decodificação (`vilelabox-audio`), identidade (`AudioIdentity` com SHA-256 em streaming), BPM/grade (`BeatGrid` com suporte a múltiplos `TempoChange` no modo 1), frases (`Phrase`), tonalidade (`MusicalKey` via CQT `Tonalidade` com o BPM detectado), energia/envelope de waveform e persistência/cache em `vilelabox-storage` (`Database`, `analysis_results` por `(sha256, VERSAO_PIPELINE, config)` e preservação de `bloqueada == true`);
+  - Cumpre os requisitos do Gate G4: determinismo e invariância ao tamanho do bloco (`513` vs `512` vs `4096` frames), `ToleranciasAnalise` registradas por métrica, `TokenCancelamento` cooperativo e rejeição tipada de entradas inválidas/corrompidas sem pânico nem corrupção do banco.
+- Validação: 85 testes no `vilelabox-dsp` (84 unitários + 1 de integração sintética com geração em memória) e 4 testes no `vilelabox-analysis`, `fmt --check`, Clippy com `-D warnings` e `spec-lint`.
+
+## Refinador `UnitBeatAdjust` do motor 1 (P4.1) — 2026-11-14
+
+- Porte em Rust: `vilelabox-dsp::balib::AjusteDeBatidas`, cobrindo init, alimentação, busca fina de BPM, aplicação e deslocamento de fase (`0x142609070` … `0x14260ad60`). Conferido no assembly do 7.2.19, inclusive os filtros 2D (`SecaoRbj::passa_baixa_2d`/`passa_alta_2d`).
+- Achado: dos três refinadores do fechamento, só dois rodam no motor 1. O `0x142619120` exige a flag `+0xa`, que o motor 1 nunca liga.
+- Validação: 77 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. O teste novo usa cliques a 120,02 BPM com a contagem dizendo 120,00, e o ajuste chega a 120,02 ± 0,0015 com grade dentro do sinal. Não há comparação com o programa de referência.
+- Pendente: o refinador de envelope `0x14261a080` (`+0x5a0`, 9 KB), que roda antes do `UnitBeatAdjust`; o ramo do modo 1; e o analisador completo ligando alimentação, sensor, contagem e refinadores.
+
+## Contagem de BPM `0x142613100`: modo 0 de ponta a ponta (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`), conferido no assembly do 7.2.19:
+  - `regrade_uniforme` (`0x1426182f0`): refaz a grade uniforme entre o primeiro e o último tempo forte;
+  - `numerar`: numera as batidas no compasso e tira as que caem fora do sinal;
+  - `contar_bpm_modo0`: liga todas as etapas da contagem do modo 0.
+- Resultado: o porte vai do áudio ao BPM no modo 0. Cliques a 120 BPM passam pelo sensor e pela contagem e saem como 120 ± 0,5 BPM, com grade numerada de 1 a 4.
+- Validação: 76 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Não há comparação com o programa de referência.
+- Pendente:
+  - o ramo do modo 1 (`0x142617e60`, `0x142616e30`, `0x142618a70`), cujo BPM é o do segmento mais longo;
+  - os refinadores do fechamento `0x142607110` (`0x142619120`, `0x14261a080`, `0x142609560`), que ainda ajustam BPM e grade;
+  - a ligação com a alimentação (`Alimentador`) num analisador completo.
+
+## Contagem de BPM `0x142613100`: geração da grade (P4.1) — 2026-11-14
+
+- Porte em Rust: `vilelabox-dsp::balib::gerar_grade` (linhas 1254–1888), com `BatidaGrade`, `Grade` e `Frase`, conferido no assembly do 7.2.19.
+  - Âncora compensada por banda.
+  - Passo por quarto com FMA e casamento a cada tempo forte.
+  - Reestimativa do passo a cada 128 quartos numa janela deslizante, e emissão das batidas para trás, na âncora e adiante.
+- Validação: 73 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. O teste novo usa 40 batidas a 120 BPM e confere grade contínua com passo de 22 050 ± 1 amostras, uma âncora e último intervalo de 500 ms. A revisão contra o decompilado achou e corrigiu um desvio: o preenchimento final fica dentro do bloco `p < fim`. Não há comparação com o programa de referência.
+- Pendente: escolha final e numeração (`0x1426182f0`/`0x142617e60` e linhas 1930–2080), BPM devolvido e o ramo do modo 1.
+
+## Contagem de BPM `0x142613100`: busca de fase por segmento (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`), conferido no assembly do 7.2.19:
+  - `mais_proxima` (`0x142616fc0`): busca binária mais varredura numa janela;
+  - `pontuar_grade` (`0x142617c00`): pontua uma grade candidata;
+  - `ajustar_fase` (`0x142617530`): escolhe, por segmento, deslocamento de intervalo, subdivisão e fase, com parada antecipada.
+- Validação: 72 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Um teste novo esperava recuo 0 e o porte deu 1, e quem estava errado era o teste: com subdivisão 4, a segunda batida casa mais perto, e a fase final é a mesma (3 000). Não há comparação com o programa de referência.
+- Pendente: geração da grade (linhas 1254–1900), escolha final do BPM e o ramo do modo 1.
+
+## Contagem de BPM `0x142613100`, segunda parte (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`), conferido no assembly do 7.2.19:
+  - `deduplicar`: tira batidas próximas pela força do grupo;
+  - `bpm_do_mais_longo`: BPM do segmento de maior extensão, um dos dois candidatos ao BPM final.
+
+  Os 6 valores iniciais por segmento foram lidos do executável (`PONTUACAO_INICIAL`).
+- Validação: 69 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Não há comparação com o programa de referência.
+- Pendente: geração da grade (linhas 1254–1900 e helpers `0x142616fc0`, `0x142617530`, `0x142617c00`), escolha final do BPM (`0x142617e60`, `0x1426182f0`) e o ramo do modo 1.
+
+## Contagem de BPM `0x142613100`, primeira parte (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`), conferido no assembly do 7.2.19:
+  - `TabelaBpm`, a `BpmCountTbl` de 400 e 4 000 caixas, com contagem e refino;
+  - `estimar_modo0`, que dá o primeiro BPM (`600000/caixa`) e poda a lista;
+  - `refinar_segmentos`, que reconta e funde os segmentos.
+- Achados:
+  - a função devolve BPM e grade juntos;
+  - há dois ramos vivos no motor 1, os modos 0 e 1;
+  - o BPM final sai do segmento mais longo ou da primeira batida da grade.
+- Validação: 67 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Os 3 testes novos cobrem tabela e refino, estimativa com poda e fusão de segmentos. Não há comparação com o programa de referência.
+- Pendente, mapeado no dossiê: deduplicação por força, BPM do segmento mais longo, geração da grade, escolha final e o ramo do modo 1.
+
+## Estimador de BPM `BeatAnalyzer_1_0`: escolha da banda e lista de batidas (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`), conferido no assembly do 7.2.19:
+  - `HistogramaBpm::escolher` (`0x142608b20`): histograma de BPM com poda e moda;
+  - `ListaDeBatidas::registrar` (`0x142607b60`): lista ordenada de batidas candidatas, com etiqueta de força e geração.
+
+  `SensorDeBatidas::alimentar` agora escolhe a banda a cada passo e grava a lista, como o original.
+- Validação: 64 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Novos testes: escolha com poda e mínimo de 3 votos, lista com inserção ordenada e troca pela mais forte, e cliques a 120 BPM levando a moda a 120 com grupos de batidas a 22 050 ± 300 amostras. Não há comparação com o programa de referência.
+- Pendente: a contagem `0x142613100` (`BpmCountTbl`), que decide o BPM a partir da lista, e os refinadores.
+
+## Estimador de BPM `BeatAnalyzer_1_0`, etapa 2 (P4.1) — 2026-11-14
+
+- Porte em Rust (`vilelabox-dsp::balib`):
+  - `SeguidorDePico`: limiar com queda linear, abertura e fechamento de picos;
+  - `RegistroDeIntervalos`: anel de 32 intervalos, com o casamento por razões de batida de `0x1426120b0` e o agrupamento de `0x142611f20`;
+  - `SensorDeBatidas`: média de 8 amostras por banda sobre o banco da etapa 1.
+
+  Tudo conferido no assembly do 7.2.19.
+- Validação: 62 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Os 3 testes novos são o casamento conferido à mão (4 × 500 ms → média 500, contagem 4), o espaçamento exato dos picos fechados e cliques a 120 BPM dando intervalo de 500 ± 2 ms. Não há comparação com o programa de referência.
+- Pendente: a seleção da banda e o histograma de BPM (`0x142608b20`), a lista de batidas (`0x142607b60`), a contagem `0x142613100` e os refinadores. O gancho `ao_passo` do sensor marca onde a seleção entra.
+
+## Estimador de BPM `BeatAnalyzer_1_0`, etapa 1 (P4.1) — 2026-11-14
+
+- Porte em Rust: o novo módulo `vilelabox-dsp::balib` reúne a alimentação estéreo → mono em blocos de `taxa/75` (`Alimentador`, `0x142606e40`) e o banco de 6 bandas do sensor de batidas (`BancoDeBandas`). As bandas são: 2 × passa-baixa de 283 Hz, 2 × passa-faixa de 150 Hz, 283–7 900 Hz, 2 × passa-alta de 7 900 Hz e duas cópias com média móvel. Os biquads RBJ (`SecaoRbj`) reproduzem a ordem de FMAs do laço desenrolado, que depende do bloco.
+- Ferramenta: `DisasmList.java` passou a desmontar também rótulos sem função (construtores passados por ponteiro).
+- Validação: 59 testes do `vilelabox-dsp` (4 novos: ganhos dos projetos, recorrência e continuidade entre blocos, separação graves/agudos, cortes da alimentação), `fmt` e Clippy com `-D warnings`. Não há comparação com o programa de referência.
+- Limitações: `sin`/`cos`/`sinh` vêm da biblioteca do Rust, não da CRT, e o flush-to-zero do original não é emulado.
+- Pendente: etapa 2 do sensor (seguidores de pico, histograma de intervalos `0x1426120b0`, seleção `0x142608b20`, lista `0x142607b60`), já decifrada em parte no dossiê; depois a contagem `0x142613100` e os refinadores.
+
+## Gêmea das marcas por 16 avos e fechamento da passada C mapeado (P4.1) — 2026-11-14
+
+- Porte: `0x14118e450` (7.2.19: `0x1412edb10`) virou `MarcasPorDezesseisAvosGraves`, conferido no assembly. As diferenças em relação à irmã são quatro: cadeia única, busca que aceita descida, 6 rodadas com fator 0,596 e o deslocamento que não é zerado na entrada. Preparo do lote, recorte e marcação passaram a ser compartilhados (`Lote`). Com isso, os 15 extratores da passada C estão portados.
+- `0x141197890` só copia as características para a entrada do fechamento; o mapa está no dossiê, sem código.
+- Achado: o fechamento `0x141197d60` (`0x1412f7420`, 23 KB, 73 callees novos) **não estima o BPM**. Ele só lê `+0xb0` e valida um resultado de estrutura (`structure_name`, `moriage`, `aori`, `fill_in`…), ou seja, frases (A2.3). As passadas A–D recebem o BPM pronto. O estimador continua não localizado.
+- Validação: 55 testes do `vilelabox-dsp`, `fmt` e Clippy com `-D warnings`. Não há comparação com o programa de referência.
+- Estimador localizado: a biblioteca estática `BeatAnalyzer_1_0`, motor 1, envolvida por `analyzer::BALibWrapper`. O motor 2 (`BeatAnalyzer_2_0`) é usado só nos modos 2–4. O BPM sai de `0x142613100` (`BpmCountTbl`) no fechamento `0x142607110` e vai para `motor+0x48`. Antes disso, a alimentação `0x142606e40` mistura `(L + R)/65536` e roda o sensor de batidas por bloco. O mapa está no dossiê; o porte (~52 KB de código) ainda não começou.
+
 ## Marcas por 16 avos da passada C e reancoragem no 7.2.19 (P4.1) — 2026-11-14
 
 - Reancoragem: o 7.2.8 saiu da máquina, e o projeto Ghidra agora é o 7.2.19. Dos 146 endereços de código do dossiê, 138 foram mapeados por strings de log, contagem por bloco e callgraph (`spec/rekordbox/evidence/p4-1-enderecos-7.2.19.tsv`). Ficaram sem âncora `0x1410bab80` e as rotinas de libm.

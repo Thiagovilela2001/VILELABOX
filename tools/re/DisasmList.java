@@ -37,7 +37,17 @@ public class DisasmList extends GhidraScript {
             Path dest = out.resolve(text.replaceAll("[^0-9A-Fa-f]", "_") + ".asm");
             try (BufferedWriter w = Files.newBufferedWriter(dest, StandardCharsets.UTF_8)) {
                 if (f == null) {
-                    w.write("// falha: funcao nao encontrada\n");
+                    // Rotulo sem funcao (ex.: construtor passado por ponteiro): ate o RET, no maximo 400.
+                    Instruction ins = entry == null ? null : getInstructionAt(entry);
+                    if (ins == null) {
+                        w.write("// falha: funcao nao encontrada\n");
+                    }
+                    for (int k = 0; ins != null && k < 400; k++, ins = ins.getNext()) {
+                        w.write(ins.getAddress() + "\t" + ins + constants(ins) + "\n");
+                        if (ins.getMnemonicString().equals("RET")) {
+                            break;
+                        }
+                    }
                     continue;
                 }
                 for (Instruction ins : currentProgram.getListing().getInstructions(f.getBody(), true)) {

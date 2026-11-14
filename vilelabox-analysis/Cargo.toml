@@ -1,0 +1,15 @@
+[package]
+name = "vilelabox-analysis"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "GPL-2.0-or-later"
+description = "Pipeline determinístico e cancelável de análise musical (P4.2 / Gate G4)"
+
+[dependencies]
+sha2 = "0.10"
+thiserror = "1.0"
+vilelabox-audio = { path = "../vilelabox-audio" }
+vilelabox-dsp = { path = "../vilelabox-dsp" }
+vilelabox-storage = { path = "../vilelabox-storage" }
+vilelabox-types = { path = "../vilelabox-types" }
